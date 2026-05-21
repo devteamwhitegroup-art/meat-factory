@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -16,16 +16,15 @@ import {
   RegistrationDetailDoc,
   VerifyRegistrationDoc,
 } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 
 export function VerifyClient({ id }: { id: string }) {
   const router = useRouter();
-  const [{ data, fetching }, refetch] = useQuery({
-    query: RegistrationDetailDoc,
+  const { data, loading: fetching, refetch } = useQuery(RegistrationDetailDoc, {
     variables: { id },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, verify] = useMutation(VerifyRegistrationDoc);
+  const [verify] = useMutation(VerifyRegistrationDoc);
   const [notes, setNotes] = useState('');
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,15 +41,17 @@ export function VerifyClient({ id }: { id: string }) {
     setBusy(true);
     try {
       const r = await verify({
-        registrationId: id,
-        notes: notes.trim() || null,
-        photoFileId: photoFileId ?? null,
+        variables: {
+          registrationId: id,
+          notes: notes.trim() || null,
+          photoFileId: photoFileId ?? null,
+        },
       });
       unwrap(r.data?.verifyRegistration);
       toast.success('Баталгаажилт амжилттай');
       setNotes('');
       setPhotoFileId(null);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

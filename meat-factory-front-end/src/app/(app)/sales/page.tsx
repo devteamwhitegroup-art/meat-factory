@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { SalesListDoc } from '@/lib/queries/sales';
 import { compact } from '@/lib/compact';
 import { PAYMENT_STATUS_MN } from '@/lib/format/enum';
@@ -29,20 +29,16 @@ export default async function SalesPage({ searchParams }: Props) {
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
   const page = Number(sp.page) || 1;
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(SalesListDoc, {
-      paymentStatus: status as never,
-      limit: 20,
-      page,
-    })
-    .toPromise();
+  const { data } = await getClient().query({
+    query: SalesListDoc,
+    variables: { paymentStatus: status as never, limit: 20, page },
+  });
 
-  const rows = compact(res.data?.salesTransactions?.salesTransactions);
-  const count = res.data?.salesTransactions?.count ?? 0;
+  const rows = compact(data?.salesTransactions?.salesTransactions);
+  const count = data?.salesTransactions?.count ?? 0;
   const errorMsg =
-    res.data?.salesTransactions?.success === false
-      ? res.data.salesTransactions.message
+    data?.salesTransactions?.success === false
+      ? data.salesTransactions.message
       : null;
 
   return (

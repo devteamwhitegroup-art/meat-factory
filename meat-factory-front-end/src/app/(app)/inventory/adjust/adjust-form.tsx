@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from 'urql';
+import { useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AdjustInventoryDoc } from '@/lib/queries/inventory';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import {
   ANIMAL_MN,
   ANIMAL_TYPES,
@@ -29,7 +29,7 @@ import {
 
 export function AdjustForm() {
   const router = useRouter();
-  const [, adjust] = useMutation(AdjustInventoryDoc);
+  const [adjust] = useMutation(AdjustInventoryDoc);
   const [productType, setProductType] = useState<'MEAT' | 'BYPRODUCT'>('MEAT');
   const [animalType, setAnimalType] = useState('COW');
   const [byproductType, setByproductType] = useState('LIVER');
@@ -47,13 +47,15 @@ export function AdjustForm() {
     setBusy(true);
     try {
       const r = await adjust({
-        productType: productType as never,
-        animalType: productType === 'MEAT' ? (animalType as never) : null,
-        byproductType:
-          productType === 'BYPRODUCT' ? (byproductType as never) : null,
-        quantityKg: q,
-        direction: direction as never,
-        notes: notes.trim() || null,
+        variables: {
+          productType: productType as never,
+          animalType: productType === 'MEAT' ? (animalType as never) : null,
+          byproductType:
+            productType === 'BYPRODUCT' ? (byproductType as never) : null,
+          quantityKg: q,
+          direction: direction as never,
+          notes: notes.trim() || null,
+        },
       });
       unwrap(r.data?.adjustInventory);
       toast.success('Хадгалагдлаа');

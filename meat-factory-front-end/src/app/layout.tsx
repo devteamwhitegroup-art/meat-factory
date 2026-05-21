@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { UrqlProvider } from "@/lib/urql/provider";
+import { ApolloProvider } from "@/lib/apollo/provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -34,7 +34,7 @@ export default function RootLayout({
         className="min-h-full flex flex-col bg-background text-foreground"
         suppressHydrationWarning
       >
-        <UrqlProvider>{children}</UrqlProvider>
+        <ApolloProvider>{children}</ApolloProvider>
         <Toaster richColors closeButton />
       </body>
     </html>

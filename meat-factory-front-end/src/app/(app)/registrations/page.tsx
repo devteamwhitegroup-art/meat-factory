@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { RegistrationCard } from '@/components/registration/RegistrationCard';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { RegistrationListDoc } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 type Props = {
@@ -31,24 +31,22 @@ export default async function RegistrationsPage({ searchParams }: Props) {
       : null;
   const page = Number(sp.page) || 1;
 
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(RegistrationListDoc, {
-      status: status as never,
-      limit: 24,
-      page,
-    })
-    .toPromise();
+  const { data } = await getClient().query({
+    query: RegistrationListDoc,
+    variables: { status: status as never, limit: 24, page },
+  });
 
-  type Row = NonNullable<NonNullable<NonNullable<typeof res.data>['registrations']>['registrations']>[number];
+  type Row = NonNullable<
+    NonNullable<NonNullable<typeof data>['registrations']>['registrations']
+  >[number];
   let rows: NonNullable<Row>[] = [];
   let count = 0;
   let errorMsg: string | null = null;
 
   try {
-    const data = unwrap(res.data?.registrations);
-    rows = compact(data.registrations);
-    count = data.count ?? 0;
+    const d = unwrap(data?.registrations);
+    rows = compact(d.registrations);
+    count = d.count ?? 0;
   } catch (e) {
     errorMsg = (e as Error).message;
   }

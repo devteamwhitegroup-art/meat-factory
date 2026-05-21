@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import {
   ShipmentDetailDoc,
   UpdateShipmentStatusDoc,
 } from '@/lib/queries/shipment';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { SHIPMENT_STATUS_MN, PAYMENT_STATUS_MN } from '@/lib/format/enum';
 import { formatNumber, formatMNT } from '@/lib/format/money';
 import { fmtDate, fmtDateTime } from '@/lib/format/date';
@@ -30,12 +30,11 @@ const NEXT: Record<string, string | null> = {
 };
 
 export function ShipmentDetailClient({ id }: { id: string }) {
-  const [{ data, fetching }, refetch] = useQuery({
-    query: ShipmentDetailDoc,
+  const { data, loading: fetching, refetch } = useQuery(ShipmentDetailDoc, {
     variables: { id },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, updateStatus] = useMutation(UpdateShipmentStatusDoc);
+  const [updateStatus] = useMutation(UpdateShipmentStatusDoc);
 
   if (fetching && !data) return <Skeleton className="h-72 w-full" />;
   const s = data?.shipment?.shipment;
@@ -48,12 +47,11 @@ export function ShipmentDetailClient({ id }: { id: string }) {
     if (!nextStatus) return;
     try {
       const r = await updateStatus({
-        id,
-        status: nextStatus as never,
+        variables: { id, status: nextStatus as never },
       });
       unwrap(r.data?.updateShipmentStatus);
       toast.success('Төлөв шинэчлэгдлээ');
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }

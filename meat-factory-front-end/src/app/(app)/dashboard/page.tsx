@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { BreakdownPie } from '@/components/dashboard/BreakdownPie';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { DashboardDoc } from '@/lib/queries/dashboard';
 import { compact } from '@/lib/compact';
 import {
@@ -16,9 +16,11 @@ import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
 
 export default async function DashboardPage() {
-  const client = await getServerUrqlClient();
-  const res = await client.query(DashboardDoc, { dateRange: null }).toPromise();
-  const wrap = res.data?.dashboard;
+  const { data } = await getClient().query({
+    query: DashboardDoc,
+    variables: { dateRange: null },
+  });
+  const wrap = data?.dashboard;
   if (!wrap?.success || !wrap.dashboard) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">

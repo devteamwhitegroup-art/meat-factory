@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/registration/StatusBadge';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { RegistrationDetailDoc } from '@/lib/queries/registration';
 import { ANIMAL_MN, BYPRODUCT_MN } from '@/lib/format/enum';
 import { fmtDate, fmtDateTime } from '@/lib/format/date';
@@ -22,11 +22,11 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function RegistrationDetailPage({ params }: Props) {
   const { id } = await params;
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(RegistrationDetailDoc, { id })
-    .toPromise();
-  const wrap = res.data?.registration;
+  const { data } = await getClient().query({
+    query: RegistrationDetailDoc,
+    variables: { id },
+  });
+  const wrap = data?.registration;
   if (!wrap?.success || !wrap.registration) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">

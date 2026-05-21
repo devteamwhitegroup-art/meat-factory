@@ -8,22 +8,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { InventoryStockDoc } from '@/lib/queries/inventory';
 import { compact } from '@/lib/compact';
 import { ANIMAL_MN, BYPRODUCT_MN, PRODUCT_TYPE_MN } from '@/lib/format/enum';
 import { formatNumber } from '@/lib/format/money';
 
 export default async function InventoryPage() {
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(InventoryStockDoc, {
-      productType: null,
-      animalType: null,
-      byproductType: null,
-    })
-    .toPromise();
-  const items = compact(res.data?.inventoryStock?.inventoryItems);
+  const { data } = await getClient().query({
+    query: InventoryStockDoc,
+    variables: { productType: null, animalType: null, byproductType: null },
+  });
+  const items = compact(data?.inventoryStock?.inventoryItems);
 
   return (
     <div className="space-y-4">

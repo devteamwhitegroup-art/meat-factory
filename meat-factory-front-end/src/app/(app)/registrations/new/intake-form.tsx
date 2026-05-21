@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from 'urql';
+import { useMutation } from '@apollo/client/react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ import { HerderPicker } from '@/components/registration/HerderPicker';
 import { AnimalCountGrid } from '@/components/registration/AnimalCountGrid';
 import { PhotoUpload } from '@/components/common/PhotoUpload';
 import { CreateRegistrationDoc } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 
 const schema = z.object({
   herderId: z.string().uuid('Малчин сонгоно уу'),
@@ -37,7 +37,7 @@ type Values = z.infer<typeof schema>;
 
 export function IntakeForm() {
   const router = useRouter();
-  const [, createRegistration] = useMutation(CreateRegistrationDoc);
+  const [createRegistration] = useMutation(CreateRegistrationDoc);
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<Values>({
@@ -68,12 +68,14 @@ export function IntakeForm() {
     setSubmitting(true);
     try {
       const r = await createRegistration({
-        herderId: values.herderId,
-        vehicleNumber: values.vehicleNumber.trim(),
-        stamp: values.stamp?.trim() || null,
-        photoFileId: values.photoFileId || null,
-        intakeDate: values.intakeDate ?? null,
-        animalLines,
+        variables: {
+          herderId: values.herderId,
+          vehicleNumber: values.vehicleNumber.trim(),
+          stamp: values.stamp?.trim() || null,
+          photoFileId: values.photoFileId || null,
+          intakeDate: values.intakeDate ?? null,
+          animalLines,
+        },
       });
       const reg = unwrap(r.data?.createRegistration).registration;
       if (!reg?.id) throw new Error('Хариу буцаасангүй');

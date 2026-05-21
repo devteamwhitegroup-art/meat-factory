@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -19,21 +19,25 @@ import {
 import { CustomerListDoc } from '@/lib/queries/customer';
 import { SalesListDoc } from '@/lib/queries/sales';
 import { CreateShipmentDoc } from '@/lib/queries/shipment';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 import { PhotoUpload } from '@/components/common/PhotoUpload';
 
 export function NewShipmentForm() {
   const router = useRouter();
-  const [{ data: cd }] = useQuery({
-    query: CustomerListDoc,
+  const { data: cd } = useQuery(CustomerListDoc, {
     variables: { isActive: true, limit: 100, page: 1, search: null },
   });
-  const [{ data: sd }] = useQuery({
-    query: SalesListDoc,
-    variables: { limit: 50, page: 1, paymentStatus: null, customerId: null, dateRange: null },
+  const { data: sd } = useQuery(SalesListDoc, {
+    variables: {
+      limit: 50,
+      page: 1,
+      paymentStatus: null,
+      customerId: null,
+      dateRange: null,
+    },
   });
-  const [, createShipment] = useMutation(CreateShipmentDoc);
+  const [createShipment] = useMutation(CreateShipmentDoc);
 
   const customers = compact(cd?.customers?.customers);
   const sales = compact(sd?.salesTransactions?.salesTransactions);
@@ -58,11 +62,13 @@ export function NewShipmentForm() {
     setBusy(true);
     try {
       const r = await createShipment({
-        customerId: customerId || null,
-        salesTransactionId: salesTransactionId || null,
-        weightKg: w,
-        notes: notes.trim() || null,
-        photoFileId: photoFileId ?? null,
+        variables: {
+          customerId: customerId || null,
+          salesTransactionId: salesTransactionId || null,
+          weightKg: w,
+          notes: notes.trim() || null,
+          photoFileId: photoFileId ?? null,
+        },
       });
       const sh = unwrap(r.data?.createShipment).shipment;
       if (!sh?.id) throw new Error('Хариу буцаасангүй');

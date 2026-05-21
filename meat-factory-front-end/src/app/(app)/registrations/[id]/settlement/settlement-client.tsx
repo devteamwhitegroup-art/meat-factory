@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -29,20 +29,19 @@ import {
   MarkSettlementPaidDoc,
   RegistrationDetailDoc,
 } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { ANIMAL_MN, PAYMENT_STATUS_MN } from '@/lib/format/enum';
 import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDateTime } from '@/lib/format/date';
 import { compact } from '@/lib/compact';
 
 export function SettlementClient({ id }: { id: string }) {
-  const [{ data, fetching }, refetch] = useQuery({
-    query: RegistrationDetailDoc,
+  const { data, loading: fetching, refetch } = useQuery(RegistrationDetailDoc, {
     variables: { id },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, createSettlement] = useMutation(CreateSettlementDoc);
-  const [, markPaid] = useMutation(MarkSettlementPaidDoc);
+  const [createSettlement] = useMutation(CreateSettlementDoc);
+  const [markPaid] = useMutation(MarkSettlementPaidDoc);
 
   const reg = data?.registration?.registration;
   const types = useMemo(
@@ -107,24 +106,26 @@ export function SettlementClient({ id }: { id: string }) {
     setBusy(true);
     try {
       const r = await createSettlement({
-        registrationId: id,
-        notes: notes.trim() || null,
-        photoFileId: photoFileId ?? null,
-        lines: lines.map((l) => ({
-          animalType: l.animalType as never,
-          pricePerKg: Number(l.pricePerKg),
-          slaughterCost: l.slaughterCost ? Number(l.slaughterCost) : 0,
-          byproductPricePerKg: l.byproductPricePerKg
-            ? Number(l.byproductPricePerKg)
-            : 0,
-        })),
+        variables: {
+          registrationId: id,
+          notes: notes.trim() || null,
+          photoFileId: photoFileId ?? null,
+          lines: lines.map((l) => ({
+            animalType: l.animalType as never,
+            pricePerKg: Number(l.pricePerKg),
+            slaughterCost: l.slaughterCost ? Number(l.slaughterCost) : 0,
+            byproductPricePerKg: l.byproductPricePerKg
+              ? Number(l.byproductPricePerKg)
+              : 0,
+          })),
+        },
       });
       const created = unwrap(r.data?.createSettlement).settlement;
       if (!created) throw new Error('Хариу буцаасангүй');
       toast.success(
         `Тооцоо үүсгэгдлээ — цэвэр ${formatMNT(created.netPayable)}`,
       );
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -135,10 +136,10 @@ export function SettlementClient({ id }: { id: string }) {
   async function onMarkPaid() {
     setBusy(true);
     try {
-      const r = await markPaid({ registrationId: id });
+      const r = await markPaid({ variables: { registrationId: id } });
       unwrap(r.data?.markSettlementPaid);
       toast.success('Төлбөр төлсөнд тэмдэглэгдлээ');
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

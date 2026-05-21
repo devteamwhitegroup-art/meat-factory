@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,7 +39,7 @@ import {
   DeleteCustomerDoc,
   UpdateCustomerDoc,
 } from '@/lib/queries/customer';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 const schema = z.object({
@@ -66,19 +66,18 @@ type EditTarget = {
 export function CustomersClient() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [{ data, fetching }, refetch] = useQuery({
-    query: CustomerListDoc,
+  const { data, loading: fetching, refetch } = useQuery(CustomerListDoc, {
     variables: {
       search: search || null,
       isActive: null,
       limit: 20,
       page,
     },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, createCustomer] = useMutation(CreateCustomerDoc);
-  const [, updateCustomer] = useMutation(UpdateCustomerDoc);
-  const [, deleteCustomer] = useMutation(DeleteCustomerDoc);
+  const [createCustomer] = useMutation(CreateCustomerDoc);
+  const [updateCustomer] = useMutation(UpdateCustomerDoc);
+  const [deleteCustomer] = useMutation(DeleteCustomerDoc);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EditTarget>(null);
@@ -124,31 +123,35 @@ export function CustomersClient() {
     try {
       if (editing?.id) {
         const r = await updateCustomer({
-          id: editing.id,
-          name: values.name.trim(),
-          contactPhone: values.contactPhone?.trim() || null,
-          address: values.address?.trim() || null,
-          bankAccount: values.bankAccount?.trim() || null,
-          registrationNumber: values.registrationNumber?.trim() || null,
-          taxId: values.taxId?.trim() || null,
-          isActive: editing.isActive ?? true,
+          variables: {
+            id: editing.id,
+            name: values.name.trim(),
+            contactPhone: values.contactPhone?.trim() || null,
+            address: values.address?.trim() || null,
+            bankAccount: values.bankAccount?.trim() || null,
+            registrationNumber: values.registrationNumber?.trim() || null,
+            taxId: values.taxId?.trim() || null,
+            isActive: editing.isActive ?? true,
+          },
         });
         unwrap(r.data?.updateCustomer);
         toast.success('Шинэчлэгдлээ');
       } else {
         const r = await createCustomer({
-          name: values.name.trim(),
-          contactPhone: values.contactPhone?.trim() || null,
-          address: values.address?.trim() || null,
-          bankAccount: values.bankAccount?.trim() || null,
-          registrationNumber: values.registrationNumber?.trim() || null,
-          taxId: values.taxId?.trim() || null,
+          variables: {
+            name: values.name.trim(),
+            contactPhone: values.contactPhone?.trim() || null,
+            address: values.address?.trim() || null,
+            bankAccount: values.bankAccount?.trim() || null,
+            registrationNumber: values.registrationNumber?.trim() || null,
+            taxId: values.taxId?.trim() || null,
+          },
         });
         unwrap(r.data?.createCustomer);
         toast.success('Харилцагч нэмэгдлээ');
       }
       setOpen(false);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -156,9 +159,9 @@ export function CustomersClient() {
 
   async function toggleActive(id: string, isActive: boolean) {
     try {
-      const r = await updateCustomer({ id, isActive: !isActive });
+      const r = await updateCustomer({ variables: { id, isActive: !isActive } });
       unwrap(r.data?.updateCustomer);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -167,10 +170,10 @@ export function CustomersClient() {
   async function onDelete(id: string) {
     if (!confirm('Устгах уу?')) return;
     try {
-      const r = await deleteCustomer({ id });
+      const r = await deleteCustomer({ variables: { id } });
       unwrap(r.data?.deleteCustomer);
       toast.success('Устгагдлаа');
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }

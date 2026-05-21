@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -26,19 +26,18 @@ import {
   AddByproductLogDoc,
   RegistrationDetailDoc,
 } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 type Row = { count: string; avg: string };
 
 export function ByproductClient({ id }: { id: string }) {
   const router = useRouter();
-  const [{ data, fetching }, refetch] = useQuery({
-    query: RegistrationDetailDoc,
+  const { data, loading: fetching, refetch } = useQuery(RegistrationDetailDoc, {
     variables: { id },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, addLog] = useMutation(AddByproductLogDoc);
+  const [addLog] = useMutation(AddByproductLogDoc);
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -64,16 +63,18 @@ export function ByproductClient({ id }: { id: string }) {
     setBusy(t);
     try {
       const res = await addLog({
-        registrationId: id,
-        byproductType: t as never,
-        count: c,
-        averageWeightKg: a,
-        photoFileId: photoFileId ?? null,
+        variables: {
+          registrationId: id,
+          byproductType: t as never,
+          count: c,
+          averageWeightKg: a,
+          photoFileId: photoFileId ?? null,
+        },
       });
       unwrap(res.data?.addByproductLog);
       toast.success('Бүртгэгдлээ');
       setRows((s) => ({ ...s, [t]: { count: '', avg: '' } }));
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

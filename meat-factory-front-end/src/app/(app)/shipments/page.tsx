@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { ShipmentListDoc } from '@/lib/queries/shipment';
 import { compact } from '@/lib/compact';
 import { SHIPMENT_STATUS_MN } from '@/lib/format/enum';
@@ -36,16 +36,12 @@ export default async function ShipmentsPage({ searchParams }: Props) {
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
   const page = Number(sp.page) || 1;
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(ShipmentListDoc, {
-      status: status as never,
-      limit: 20,
-      page,
-    })
-    .toPromise();
-  const rows = compact(res.data?.shipments?.shipments);
-  const count = res.data?.shipments?.count ?? 0;
+  const { data } = await getClient().query({
+    query: ShipmentListDoc,
+    variables: { status: status as never, limit: 20, page },
+  });
+  const rows = compact(data?.shipments?.shipments);
+  const count = data?.shipments?.count ?? 0;
 
   return (
     <div className="space-y-4">

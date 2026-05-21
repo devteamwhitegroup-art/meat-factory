@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { SalesDetailDoc } from '@/lib/queries/sales';
 import { compact } from '@/lib/compact';
 import {
@@ -27,9 +27,11 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function SalesDetailPage({ params }: Props) {
   const { id } = await params;
-  const client = await getServerUrqlClient();
-  const res = await client.query(SalesDetailDoc, { id }).toPromise();
-  const wrap = res.data?.salesTransaction;
+  const { data } = await getClient().query({
+    query: SalesDetailDoc,
+    variables: { id },
+  });
+  const wrap = data?.salesTransaction;
   if (!wrap?.success || !wrap.salesTransaction) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">

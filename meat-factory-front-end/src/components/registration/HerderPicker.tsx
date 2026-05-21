@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { CreateHerderDoc, HerderListDoc } from '@/lib/queries/herder';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 const schema = z.object({
@@ -50,11 +50,10 @@ type Props = {
 
 export function HerderPicker({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
-  const [{ data, fetching }, refetch] = useQuery({
-    query: HerderListDoc,
+  const { data, loading: fetching, refetch } = useQuery(HerderListDoc, {
     variables: { limit: 50, page: 1 },
   });
-  const [, createHerder] = useMutation(CreateHerderDoc);
+  const [createHerder] = useMutation(CreateHerderDoc);
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -76,16 +75,18 @@ export function HerderPicker({ value, onChange }: Props) {
   async function onSubmit(values: Values) {
     try {
       const r = await createHerder({
-        name: values.name.trim(),
-        registrationNo: values.registrationNo.trim(),
-        phone: values.phone?.trim() || null,
-        bankAccount: values.bankAccount?.trim() || null,
-        address: values.address.trim(),
+        variables: {
+          name: values.name.trim(),
+          registrationNo: values.registrationNo.trim(),
+          phone: values.phone?.trim() || null,
+          bankAccount: values.bankAccount?.trim() || null,
+          address: values.address.trim(),
+        },
       });
       const created = unwrap(r.data?.createHerder).herder;
       if (!created?.id) throw new Error('Хариу буцаасангүй');
       toast.success(`Малчин нэмэгдлээ: ${created.name}`);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
       onChange(created.id);
       setOpen(false);
     } catch (e) {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -20,18 +20,17 @@ import {
   FinishWeighingDoc,
   RegistrationDetailDoc,
 } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 export function WeighClient({ id }: { id: string }) {
   const router = useRouter();
-  const [{ data, fetching }, refetch] = useQuery({
-    query: RegistrationDetailDoc,
+  const { data, loading: fetching, refetch } = useQuery(RegistrationDetailDoc, {
     variables: { id },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, addWeighing] = useMutation(AddWeighingEntryDoc);
-  const [, finishWeighing] = useMutation(FinishWeighingDoc);
+  const [addWeighing] = useMutation(AddWeighingEntryDoc);
+  const [finishWeighing] = useMutation(FinishWeighingDoc);
 
   const reg = data?.registration?.registration;
   const types = useMemo(
@@ -66,16 +65,18 @@ export function WeighClient({ id }: { id: string }) {
     setBusy(true);
     try {
       const r = await addWeighing({
-        registrationId: id,
-        animalType: activeTab as never,
-        weightKg: w,
-        photoFileId: photoFileId ?? null,
+        variables: {
+          registrationId: id,
+          animalType: activeTab as never,
+          weightKg: w,
+          photoFileId: photoFileId ?? null,
+        },
       });
       unwrap(r.data?.addWeighingEntry);
       toast.success(`${formatNumber(w)} кг бүртгэгдлээ`);
       setKeypad('');
       setPhotoFileId(null);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -86,7 +87,7 @@ export function WeighClient({ id }: { id: string }) {
   async function finish() {
     setBusy(true);
     try {
-      const r = await finishWeighing({ registrationId: id });
+      const r = await finishWeighing({ variables: { registrationId: id } });
       unwrap(r.data?.finishWeighing);
       toast.success('Жин бүртгэл дууссан');
       router.push(`/registrations/${id}`);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,7 +38,7 @@ import {
   HerderListDoc,
   UpdateHerderDoc,
 } from '@/lib/queries/herder';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { fmtDate } from '@/lib/format/date';
 
 const schema = z.object({
@@ -62,14 +62,13 @@ type EditTarget = {
 export function HerdersClient() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [{ data, fetching }, refetch] = useQuery({
-    query: HerderListDoc,
+  const { data, loading: fetching, refetch } = useQuery(HerderListDoc, {
     variables: { search: search || null, limit: 20, page },
-    requestPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-and-network',
   });
-  const [, createHerder] = useMutation(CreateHerderDoc);
-  const [, updateHerder] = useMutation(UpdateHerderDoc);
-  const [, deleteHerder] = useMutation(DeleteHerderDoc);
+  const [createHerder] = useMutation(CreateHerderDoc);
+  const [updateHerder] = useMutation(UpdateHerderDoc);
+  const [deleteHerder] = useMutation(DeleteHerderDoc);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<EditTarget>(null);
@@ -112,28 +111,32 @@ export function HerdersClient() {
     try {
       if (editing?.id) {
         const r = await updateHerder({
-          id: editing.id,
-          name: values.name.trim(),
-          registrationNo: values.registrationNo.trim(),
-          phone: values.phone?.trim() || null,
-          bankAccount: values.bankAccount?.trim() || null,
-          address: values.address.trim(),
+          variables: {
+            id: editing.id,
+            name: values.name.trim(),
+            registrationNo: values.registrationNo.trim(),
+            phone: values.phone?.trim() || null,
+            bankAccount: values.bankAccount?.trim() || null,
+            address: values.address.trim(),
+          },
         });
         unwrap(r.data?.updateHerder);
         toast.success('Шинэчлэгдлээ');
       } else {
         const r = await createHerder({
-          name: values.name.trim(),
-          registrationNo: values.registrationNo.trim(),
-          phone: values.phone?.trim() || null,
-          bankAccount: values.bankAccount?.trim() || null,
-          address: values.address.trim(),
+          variables: {
+            name: values.name.trim(),
+            registrationNo: values.registrationNo.trim(),
+            phone: values.phone?.trim() || null,
+            bankAccount: values.bankAccount?.trim() || null,
+            address: values.address.trim(),
+          },
         });
         unwrap(r.data?.createHerder);
         toast.success('Малчин нэмэгдлээ');
       }
       setSheetOpen(false);
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -142,10 +145,10 @@ export function HerdersClient() {
   async function onDelete(id: string) {
     if (!confirm('Устгах уу?')) return;
     try {
-      const r = await deleteHerder({ id });
+      const r = await deleteHerder({ variables: { id } });
       unwrap(r.data?.deleteHerder);
       toast.success('Устгагдлаа');
-      refetch({ requestPolicy: 'network-only' });
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }

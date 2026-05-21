@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { getServerUrqlClient } from '@/lib/urql/server';
+import { getClient } from '@/lib/apollo/server';
 import { InventoryMovementsDoc } from '@/lib/queries/inventory';
 import { compact } from '@/lib/compact';
 import {
@@ -17,18 +17,18 @@ import { formatNumber } from '@/lib/format/money';
 import { fmtDateTime } from '@/lib/format/date';
 
 export default async function InventoryMovementsPage() {
-  const client = await getServerUrqlClient();
-  const res = await client
-    .query(InventoryMovementsDoc, {
+  const { data } = await getClient().query({
+    query: InventoryMovementsDoc,
+    variables: {
       inventoryItemId: null,
       movementType: null,
       source: null,
       dateRange: null,
       limit: 50,
       page: 1,
-    })
-    .toPromise();
-  const rows = compact(res.data?.inventoryMovements?.movements);
+    },
+  });
+  const rows = compact(data?.inventoryMovements?.movements);
 
   return (
     <div className="space-y-4">

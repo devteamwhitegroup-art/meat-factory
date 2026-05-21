@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from 'urql';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { CustomerListDoc } from '@/lib/queries/customer';
 import { CreateSalesTransactionDoc } from '@/lib/queries/sales';
-import { unwrap } from '@/lib/urql/unwrap';
+import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 import {
   ANIMAL_MN,
@@ -39,11 +39,10 @@ type LineRow = {
 
 export function NewSaleForm() {
   const router = useRouter();
-  const [{ data, fetching }] = useQuery({
-    query: CustomerListDoc,
+  const { data, loading: fetching } = useQuery(CustomerListDoc, {
     variables: { isActive: true, limit: 100, page: 1, search: null },
   });
-  const [, createSale] = useMutation(CreateSalesTransactionDoc);
+  const [createSale] = useMutation(CreateSalesTransactionDoc);
   const customers = compact(data?.customers?.customers);
 
   const [customerId, setCustomerId] = useState('');
@@ -121,11 +120,13 @@ export function NewSaleForm() {
     setBusy(true);
     try {
       const r = await createSale({
-        customerId,
-        transactionDate: date || null,
-        notes: notes.trim() || null,
-        amount: null,
-        lineItems,
+        variables: {
+          customerId,
+          transactionDate: date || null,
+          notes: notes.trim() || null,
+          amount: null,
+          lineItems,
+        },
       });
       const tx = unwrap(r.data?.createSalesTransaction).salesTransaction;
       if (!tx?.id) throw new Error('Хариу буцаасангүй');
