@@ -65,7 +65,7 @@ export default `#graphql
             productType: PRODUCT_TYPE
             animalType: ANIMAL_TYPE
             byproductType: BYPRODUCT_TYPE
-        ): InventoryItemsResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): InventoryItemsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         inventoryMovements(
             inventoryItemId: ID
@@ -73,7 +73,7 @@ export default `#graphql
             source: MOVEMENT_SOURCE
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): InventoryMovementsResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): InventoryMovementsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
     }
 
     extend type Mutation {
@@ -84,6 +84,6 @@ export default `#graphql
             quantityKg: Float!
             direction: MOVEMENT_TYPE!
             notes: String
-        ): InventoryItemResponse @adminAuth(permissions: ["MANAGER", "SUPER_ADMIN"])
+        ): InventoryItemResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN"])
     }
 `;

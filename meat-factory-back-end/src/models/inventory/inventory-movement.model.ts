@@ -86,13 +86,14 @@ export const createInventoryMovementModel = (sequelize: Sequelize) => {
       modelName: "InventoryMovementModel",
       tableName: "InventoryMovements",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["inventoryItemId"] },
-        { fields: ["movementType"] },
+        { fields: ["inventory_item_id"] },
+        { fields: ["movement_type"] },
         { fields: ["source"] },
-        { fields: ["sourceRegistrationId"] },
-        { fields: ["sourceShipmentId"] },
+        { fields: ["source_registration_id"] },
+        { fields: ["source_shipment_id"] },
       ],
     },
   );

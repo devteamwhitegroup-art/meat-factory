@@ -72,8 +72,8 @@ export default `#graphql
             customerId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): SalesTransactionsResponse @adminAuth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        salesTransaction(id: ID!): SalesTransactionResponse @adminAuth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        salesTransaction(id: ID!): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
     }
 
     extend type Mutation {
@@ -83,10 +83,10 @@ export default `#graphql
             transactionDate: Date
             notes: String
             lineItems: [SalesLineItemInput!]
-        ): SalesTransactionResponse @adminAuth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
 
         markSalesTransactionPaid(
             id: ID!
-        ): SalesTransactionResponse @adminAuth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
     }
 `;

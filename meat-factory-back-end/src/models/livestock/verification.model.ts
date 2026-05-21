@@ -70,8 +70,9 @@ export const createVerificationModel = (sequelize: Sequelize) => {
       modelName: "VerificationModel",
       tableName: "Verifications",
       timestamps: true,
+      underscored: true,
       sequelize,
-      indexes: [{ fields: ["registrationId"], unique: true }],
+      indexes: [{ fields: ["registration_id"], unique: true }],
     },
   );
 };

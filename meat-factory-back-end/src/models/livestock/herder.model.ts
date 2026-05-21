@@ -58,8 +58,9 @@ export const createHerderModel = (sequelize: Sequelize) => {
       modelName: "HerderModel",
       tableName: "Herders",
       timestamps: true,
+      underscored: true,
       sequelize,
-      indexes: [{ fields: ["name"] }, { fields: ["registrationNo"] }],
+      indexes: [{ fields: ["name"] }, { fields: ["registration_no"] }],
     },
   );
 };

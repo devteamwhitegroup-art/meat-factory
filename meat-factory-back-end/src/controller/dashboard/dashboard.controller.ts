@@ -26,7 +26,7 @@ export class DashboardController {
 
   private static async _totalMeatIncome(dr?: TDateRange): Promise<number> {
     const row = (await SalesLineItemModel.findOne({
-      attributes: [[fn('SUM', col('lineAmount')), 'total']],
+      attributes: [[fn('SUM', col('line_amount')), 'total']],
       where: { productType: PRODUCT_TYPE.MEAT },
       include: [
         {
@@ -44,7 +44,7 @@ export class DashboardController {
 
   private static async _totalByproductKg(dr?: TDateRange): Promise<number> {
     const row = (await SalesLineItemModel.findOne({
-      attributes: [[fn('SUM', col('quantityKg')), 'total']],
+      attributes: [[fn('SUM', col('quantity_kg')), 'total']],
       where: { productType: PRODUCT_TYPE.BYPRODUCT },
       include: [
         {
@@ -62,7 +62,7 @@ export class DashboardController {
 
   private static async _totalHerderIncome(dr?: TDateRange): Promise<number> {
     const row = (await SettlementModel.findOne({
-      attributes: [[fn('SUM', col('netPayable')), 'total']],
+      attributes: [[fn('SUM', col('net_payable')), 'total']],
       where: { isPaid: true, ...this._dateWhere(dr, 'paidAt') },
       raw: true
     })) as unknown as { total: string | null } | null;
@@ -71,7 +71,7 @@ export class DashboardController {
 
   private static async _activeHerderCount(): Promise<number> {
     const ids = (await RegistrationModel.findAll({
-      attributes: [[fn('DISTINCT', col('herderId')), 'herderId']],
+      attributes: [[fn('DISTINCT', col('herder_id')), 'herderId']],
       raw: true
     })) as unknown as Array<{ herderId: string }>;
     return ids.length;
@@ -93,8 +93,8 @@ export class DashboardController {
     const rows = (await SalesLineItemModel.findAll({
       attributes: [
         'animalType',
-        [fn('SUM', col('quantityKg')), 'totalKg'],
-        [fn('SUM', col('lineAmount')), 'totalAmount']
+        [fn('SUM', col('quantity_kg')), 'totalKg'],
+        [fn('SUM', col('line_amount')), 'totalAmount']
       ],
       where: { productType: PRODUCT_TYPE.MEAT },
       include: [
@@ -106,7 +106,7 @@ export class DashboardController {
           required: true
         }
       ],
-      group: ['animalType'],
+      group: ['animal_type'],
       raw: true
     })) as unknown as Array<{
       animalType: string;
@@ -124,8 +124,8 @@ export class DashboardController {
     const rows = (await SalesLineItemModel.findAll({
       attributes: [
         'byproductType',
-        [fn('SUM', col('quantityKg')), 'totalKg'],
-        [fn('SUM', col('lineAmount')), 'totalAmount']
+        [fn('SUM', col('quantity_kg')), 'totalKg'],
+        [fn('SUM', col('line_amount')), 'totalAmount']
       ],
       where: { productType: PRODUCT_TYPE.BYPRODUCT },
       include: [
@@ -137,7 +137,7 @@ export class DashboardController {
           required: true
         }
       ],
-      group: ['byproductType'],
+      group: ['byproduct_type'],
       raw: true
     })) as unknown as Array<{
       byproductType: string;

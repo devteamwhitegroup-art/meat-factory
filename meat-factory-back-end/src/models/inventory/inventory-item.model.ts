@@ -65,10 +65,11 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
       modelName: "InventoryItemModel",
       tableName: "InventoryItems",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
         { fields: ["sku"], unique: true },
-        { fields: ["productType"] },
+        { fields: ["product_type"] },
       ],
     },
   );

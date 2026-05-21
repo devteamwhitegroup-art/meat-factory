@@ -31,6 +31,6 @@ export default `#graphql
     }
 
     extend type Query {
-        dashboard(dateRange: DateRangeInput): DashboardResponse @adminAuth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        dashboard(dateRange: DateRangeInput): DashboardResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
     }
 `;

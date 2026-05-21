@@ -42,9 +42,10 @@ const httpServer = http.createServer(app);
       express.json(),
       expressMiddleware(server, {
         context: async ({ req }) => {
-          return {
-            token: (req.headers['authorization'] as string) || ''
-          };
+          // Accept `Bearer <token>` (preferred) or a bare token.
+          const raw = (req.headers['authorization'] as string) || '';
+          const token = raw.startsWith('Bearer ') ? raw.slice(7) : raw;
+          return { token };
         }
       })
     );

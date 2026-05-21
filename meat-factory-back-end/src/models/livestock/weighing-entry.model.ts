@@ -62,10 +62,11 @@ export const createWeighingEntryModel = (sequelize: Sequelize) => {
       modelName: "WeighingEntryModel",
       tableName: "WeighingEntries",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registrationId"] },
-        { fields: ["registrationId", "sequenceNo"], unique: true },
+        { fields: ["registration_id"] },
+        { fields: ["registration_id", "sequence_no"], unique: true },
       ],
     },
   );

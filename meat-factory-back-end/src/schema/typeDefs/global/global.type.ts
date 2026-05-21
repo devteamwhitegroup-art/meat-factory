@@ -3,9 +3,8 @@ export const PaginationSchema = `
 `;
 
 export default `#graphql
-    directive @adminAuth(permissions: [String!]) on FIELD_DEFINITION
-    directive @companyAuth on OBJECT | FIELD_DEFINITION
-    directive @sellerAuth on OBJECT | FIELD_DEFINITION
+    directive @authLogin on FIELD_DEFINITION
+    directive @auth(permissions: [String!]) on FIELD_DEFINITION
     
 
      interface IResponse {

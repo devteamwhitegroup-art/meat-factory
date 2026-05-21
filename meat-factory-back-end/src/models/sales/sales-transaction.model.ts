@@ -98,12 +98,13 @@ export const createSalesTransactionModel = (sequelize: Sequelize) => {
       modelName: "SalesTransactionModel",
       tableName: "SalesTransactions",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["transactionCode"], unique: true },
-        { fields: ["customerId"] },
-        { fields: ["paymentStatus"] },
-        { fields: ["transactionDate"] },
+        { fields: ["transaction_code"], unique: true },
+        { fields: ["customer_id"] },
+        { fields: ["payment_status"] },
+        { fields: ["transaction_date"] },
       ],
     },
   );

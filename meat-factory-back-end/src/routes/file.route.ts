@@ -35,7 +35,10 @@ router.post(
   '/upload',
   upload.single('file'),
   asyncHandler(async (req: any, res: Response) => {
-    const authorization = req.headers['authorization'];
+    const rawAuth = req.headers['authorization'] as string | undefined;
+    const authorization = rawAuth?.startsWith('Bearer ')
+      ? rawAuth.slice(7)
+      : rawAuth;
     const file = req.file;
     const folder = req.body?.type as FILE_FOLDER | undefined;
 

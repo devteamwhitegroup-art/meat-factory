@@ -27,8 +27,8 @@ export default `#graphql
     }
 
     extend type Query {
-        herders(search: String, ${PaginationSchema}): HerdersResponse @adminAuth
-        herder(id: ID!): HerderResponse @adminAuth
+        herders(search: String, ${PaginationSchema}): HerdersResponse @authLogin
+        herder(id: ID!): HerderResponse @authLogin
     }
 
     extend type Mutation {
@@ -38,7 +38,7 @@ export default `#graphql
             phone: String
             bankAccount: String
             address: String!
-        ): HerderResponse @adminAuth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
+        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
 
         updateHerder(
             id: ID!
@@ -47,10 +47,10 @@ export default `#graphql
             phone: String
             bankAccount: String
             address: String
-        ): HerderResponse @adminAuth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
+        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
 
         deleteHerder(
             id: ID!
-        ): Response @adminAuth(permissions: ["SUPER_ADMIN", "MANAGER"])
+        ): Response @auth(permissions: ["SUPER_ADMIN", "MANAGER"])
     }
 `;

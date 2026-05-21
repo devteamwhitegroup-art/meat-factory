@@ -78,11 +78,12 @@ export const createCustomerModel = (sequelize: Sequelize) => {
       modelName: "CustomerModel",
       tableName: "Customers",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
         { fields: ["name"] },
-        { fields: ["registrationNumber"] },
-        { fields: ["isActive"] },
+        { fields: ["registration_number"] },
+        { fields: ["is_active"] },
       ],
     },
   );

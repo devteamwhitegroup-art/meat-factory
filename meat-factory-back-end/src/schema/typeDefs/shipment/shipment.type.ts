@@ -45,8 +45,8 @@ export default `#graphql
             salesTransactionId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): ShipmentsResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
-        shipment(id: ID!): ShipmentResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        shipment(id: ID!): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
     }
 
     extend type Mutation {
@@ -56,11 +56,11 @@ export default `#graphql
             weightKg: Float!
             notes: String
             photoFileId: ID
-        ): ShipmentResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         updateShipmentStatus(
             id: ID!
             status: SHIPMENT_STATUS!
-        ): ShipmentResponse @adminAuth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
     }
 `;

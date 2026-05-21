@@ -71,11 +71,12 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
       modelName: "SalesLineItemModel",
       tableName: "SalesLineItems",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["salesTransactionId"] },
-        { fields: ["productType", "animalType"] },
-        { fields: ["productType", "byproductType"] },
+        { fields: ["sales_transaction_id"] },
+        { fields: ["product_type", "animal_type"] },
+        { fields: ["product_type", "byproduct_type"] },
       ],
     },
   );

@@ -108,12 +108,13 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
       modelName: "RegistrationModel",
       tableName: "Registrations",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registrationNumber"], unique: true },
+        { fields: ["registration_number"], unique: true },
         { fields: ["status"] },
-        { fields: ["herderId"] },
-        { fields: ["intakeDate"] },
+        { fields: ["herder_id"] },
+        { fields: ["intake_date"] },
       ],
     },
   );

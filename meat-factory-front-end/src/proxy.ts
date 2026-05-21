@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 // Next 16 renamed `middleware` to `proxy`.
 // Cookie-gate: if no JWT cookie, force login.
-const AUTH_COOKIE = process.env.AUTH_COOKIE_NAME || 'mf_token';
+const AUTH_COOKIE = process.env.AUTH_COOKIE_NAME || 'mf_session';
 
 const PUBLIC_PATHS = new Set<string>(['/login']);
 const PUBLIC_PREFIXES = ['/api/login', '/api/me', '/api/logout'];

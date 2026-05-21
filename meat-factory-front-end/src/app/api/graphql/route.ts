@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers';
 import { env } from '@/lib/env';
 
-// Same-origin GraphQL proxy. The browser urql client posts here so the
+// Same-origin GraphQL proxy. The browser Apollo client posts here so the
 // JWT cookie never has to leave the server. We re-issue the request to
-// the back-end with the BARE token in the Authorization header (no
-// "Bearer " prefix — verified against the back-end auth directive).
+// the back-end with the token as a `Bearer <token>` Authorization header
+// (the back-end strips the prefix before verifying).
 export async function POST(request: Request) {
   const jar = await cookies();
   const token = jar.get(env.AUTH_COOKIE_NAME)?.value ?? '';
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     headers: {
       'content-type':
         request.headers.get('content-type') ?? 'application/json',
-      authorization: token,
+      authorization: `Bearer ${token}`,
     },
     body,
     cache: 'no-store',

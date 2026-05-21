@@ -11,7 +11,7 @@ import { cookies } from 'next/headers';
 import { env } from '@/lib/env';
 
 // Per-request RSC client (request-scoped by registerApolloClient).
-// Hits the back-end directly and attaches the bare JWT from the cookie.
+// Hits the back-end directly and attaches the JWT as `Bearer <token>`.
 export const { getClient, query, PreloadQuery } = registerApolloClient(() => {
   const authLink = new SetContextLink(async (prevContext) => {
     const jar = await cookies();
@@ -19,7 +19,7 @@ export const { getClient, query, PreloadQuery } = registerApolloClient(() => {
     return {
       headers: {
         ...(prevContext.headers as Record<string, string> | undefined),
-        ...(token ? { authorization: token } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
     };
   });

@@ -52,6 +52,7 @@ export const createAdminModel = async (sequelize) => {
       modelName: 'AdminModel',
       tableName: 'Admins',
       timestamps: true,
+      underscored: true,
       sequelize,
       scopes: {
         withPassword: {

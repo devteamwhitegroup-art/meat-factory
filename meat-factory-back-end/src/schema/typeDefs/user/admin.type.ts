@@ -35,7 +35,7 @@ export default `#graphql
     }
 
     extend type Query {
-        currentAdmin: AdminResponse @adminAuth
+        currentAdmin: AdminResponse @authLogin
     }
 
     extend type Mutation {
@@ -48,17 +48,17 @@ export default `#graphql
             param: String!
             password: String!
             role: ADMIN_ROLE
-        ): AdminResponse @adminAuth(permissions: ["SUPER_ADMIN", "MANAGER"])
+        ): AdminResponse @auth(permissions: ["SUPER_ADMIN", "MANAGER"])
 
         updateAdmin(
             id: ID!
             param: String
             password: String
             role: ADMIN_ROLE
-        ): AdminResponse @adminAuth(permissions: ["SUPER_ADMIN", "MANAGER"])
+        ): AdminResponse @auth(permissions: ["SUPER_ADMIN", "MANAGER"])
 
         deleteAdmin(
             id: ID!
-        ): Response @adminAuth(permissions: ["SUPER_ADMIN"])
+        ): Response @auth(permissions: ["SUPER_ADMIN"])
     }
 `;

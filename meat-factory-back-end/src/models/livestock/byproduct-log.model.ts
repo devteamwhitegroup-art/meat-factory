@@ -67,10 +67,11 @@ export const createByproductLogModel = (sequelize: Sequelize) => {
       modelName: "ByproductLogModel",
       tableName: "ByproductLogs",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registrationId"] },
-        { fields: ["registrationId", "byproductType"] },
+        { fields: ["registration_id"] },
+        { fields: ["registration_id", "byproduct_type"] },
       ],
     },
   );

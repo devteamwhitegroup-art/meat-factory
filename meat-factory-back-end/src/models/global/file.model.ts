@@ -49,6 +49,7 @@ export const createFileModel = async (sequelize: Sequelize) => {
       modelName: 'FileModel',
       tableName: 'Files',
       timestamps: true,
+      underscored: true,
       sequelize
     }
   );

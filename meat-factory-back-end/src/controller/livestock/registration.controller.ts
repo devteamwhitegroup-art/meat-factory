@@ -101,9 +101,9 @@ export class RegistrationController {
     context: TContext,
     allowed: ADMIN_ROLE[]
   ): void {
-    if (!context || !allowed.includes(context.staffRole)) {
+    if (!context || !allowed.includes(context.role)) {
       throw new Error(
-        `Forbidden: role ${context?.staffRole} cannot perform this action`
+        `Forbidden: role ${context?.role} cannot perform this action`
       );
     }
   }

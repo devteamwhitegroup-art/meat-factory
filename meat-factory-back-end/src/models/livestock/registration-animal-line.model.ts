@@ -48,9 +48,10 @@ export const createRegistrationAnimalLineModel = (sequelize: Sequelize) => {
       modelName: "RegistrationAnimalLineModel",
       tableName: "RegistrationAnimalLines",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registrationId", "animalType"], unique: true },
+        { fields: ["registration_id", "animal_type"], unique: true },
       ],
     },
   );

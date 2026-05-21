@@ -182,8 +182,8 @@ export default `#graphql
             herderId: ID
             registrationNumber: Int
             ${PaginationSchema}
-        ): RegistrationsResponse @adminAuth
-        registration(id: ID!): RegistrationResponse @adminAuth
+        ): RegistrationsResponse @authLogin
+        registration(id: ID!): RegistrationResponse @authLogin
     }
 
     extend type Mutation {
@@ -194,18 +194,18 @@ export default `#graphql
             photoFileId: ID
             intakeDate: Date
             animalLines: [RegistrationAnimalLineInput!]!
-        ): RegistrationResponse @adminAuth(permissions: ["GUARD", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["GUARD", "MANAGER", "SUPER_ADMIN"])
 
         addWeighingEntry(
             registrationId: ID!
             animalType: ANIMAL_TYPE!
             weightKg: Float!
             photoFileId: ID
-        ): WeighingEntryResponse @adminAuth(permissions: ["SCALE", "MANAGER", "SUPER_ADMIN"])
+        ): WeighingEntryResponse @auth(permissions: ["SCALE", "MANAGER", "SUPER_ADMIN"])
 
         finishWeighing(
             registrationId: ID!
-        ): RegistrationResponse @adminAuth(permissions: ["SCALE", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["SCALE", "MANAGER", "SUPER_ADMIN"])
 
         addByproductLog(
             registrationId: ID!
@@ -213,27 +213,27 @@ export default `#graphql
             count: Int!
             averageWeightKg: Float!
             photoFileId: ID
-        ): ByproductLogResponse @adminAuth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): ByproductLogResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
 
         verifyRegistration(
             registrationId: ID!
             notes: String
             photoFileId: ID
-        ): VerificationResponse @adminAuth(permissions: ["STOREKEEPER", "SCALE", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): VerificationResponse @auth(permissions: ["STOREKEEPER", "SCALE", "MANAGER", "ADMIN", "SUPER_ADMIN"])
 
         createSettlement(
             registrationId: ID!
             lines: [SettlementLineInput!]!
             notes: String
             photoFileId: ID
-        ): SettlementResponse @adminAuth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
 
         markSettlementPaid(
             registrationId: ID!
-        ): SettlementResponse @adminAuth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
 
         cancelRegistration(
             registrationId: ID!
-        ): RegistrationResponse @adminAuth(permissions: ["MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN"])
     }
 `;

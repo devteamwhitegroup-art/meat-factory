@@ -97,10 +97,11 @@ export const createSettlementModel = (sequelize: Sequelize) => {
       modelName: "SettlementModel",
       tableName: "Settlements",
       timestamps: true,
+      underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registrationId"], unique: true },
-        { fields: ["isPaid"] },
+        { fields: ["registration_id"], unique: true },
+        { fields: ["is_paid"] },
       ],
     },
   );

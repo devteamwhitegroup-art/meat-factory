@@ -11,7 +11,7 @@ import {
   Order,
   WhereOptions
 } from 'sequelize';
-import { CONTEXT_ENUM, TContext } from '../../types/global/global.type';
+import { TContext } from '../../types/global/global.type';
 import { AdminModel } from '../../models/user/admin.model';
 import {
   ADMIN_ROLE,
@@ -87,11 +87,7 @@ export class AdminController {
     );
     const { id } = admin;
     await this._matchPassword(password, admin.password);
-    const token = await this.generateJwt({
-      id,
-      role: CONTEXT_ENUM.ADMIN,
-      staffRole: admin.role
-    });
+    const token = await this.generateJwt({ id, role: admin.role });
 
     return { admin, token };
   }
@@ -102,11 +98,7 @@ export class AdminController {
     // Read the live role from the DB row (do not trust the role baked
     // into the JWT — it may have been changed/revoked since issuance).
     const admin = await this.findIdCheck(id);
-    return {
-      id,
-      role: CONTEXT_ENUM.ADMIN,
-      staffRole: admin.role
-    };
+    return { id, role: admin.role };
   }
 
   static async createAdmin(doc: TCreateAdmin): Promise<AdminModel> {

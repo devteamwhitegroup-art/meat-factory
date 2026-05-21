@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   const upstream = await fetch(env.FILE_UPLOAD_UPSTREAM_URL, {
     method: 'POST',
-    headers: { authorization: token }, // fetch sets multipart boundary itself
+    headers: { authorization: `Bearer ${token}` }, // fetch sets multipart boundary itself
     body: fd,
     cache: 'no-store',
   });
