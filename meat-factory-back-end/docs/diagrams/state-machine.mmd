@@ -1,0 +1,26 @@
+%% Meat-Factory ERP — Registration status machine
+%% Render: npx -y @mermaid-js/mermaid-cli -i state-machine.mmd -o state-machine.svg
+stateDiagram-v2
+  [*] --> REGISTERED: Guard createRegistration
+
+  REGISTERED --> WEIGHING: Scale addWeighingEntry (first)
+  WEIGHING --> WEIGHING: addWeighingEntry (more)
+  WEIGHING --> WEIGHED: Scale finishWeighing (>=1 entry)
+
+  WEIGHED --> WEIGHED: Storekeeper addByproductLog
+  WEIGHED --> WEIGHED: verifyRegistration (1st signature)
+  WEIGHED --> VERIFIED: verifyRegistration (2nd, distinct staff)
+
+  VERIFIED --> VERIFIED: createSettlement
+  VERIFIED --> SETTLED: markSettlementPaid --> Inventory IN
+
+  REGISTERED --> CANCELLED: Manager cancelRegistration
+  WEIGHING --> CANCELLED: Manager cancelRegistration
+
+  SETTLED --> [*]
+  CANCELLED --> [*]
+
+  note right of WEIGHED
+    Byproduct logging is allowed ONLY in WEIGHED.
+    Verification needs two DISTINCT staff members.
+  end note

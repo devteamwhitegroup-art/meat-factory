@@ -1,0 +1,21 @@
+%% Meat-Factory ERP — Sales / Inventory flow + stock ledger
+%% Render: npx -y @mermaid-js/mermaid-cli -i sales-inventory-flow.mmd -o sales-inventory-flow.svg
+flowchart TD
+  S[Registration SETTLED<br/>markSettlementPaid] -->|ingestFromSettledRegistration| IN[InventoryMovement IN<br/>source=SETTLEMENT]
+  IN --> ITEM[InventoryItem.quantityKg up]
+
+  C[Customer] --> TX[SalesTransaction<br/>PENDING, code NNNN-NNNN]
+  TX -->|markSalesTransactionPaid| TXP[SalesTransaction PAID]
+
+  TX -. optional link .-> SH[Shipment PENDING]
+  C --> SH
+  SH -->|updateShipmentStatus| LO[Shipment LOADED]
+  LO -->|updateShipmentStatus| DE[Shipment DELIVERED]
+  DE -->|applyShipmentOut| OUT[InventoryMovement OUT<br/>source=SHIPMENT]
+  OUT --> ITEM2[InventoryItem.quantityKg down]
+
+  MAN[Manager/Storekeeper] -->|adjustInventory| ADJ[InventoryMovement ADJUSTMENT<br/>source=MANUAL]
+  ADJ --> ITEM
+
+  classDef guard fill:#eef
+  note1[/"Rules: IN only on settlement-paid, OUT only on shipment-DELIVERED;<br/>both idempotent (sourceRegistrationId / sourceShipmentId);<br/>negative stock blocked under a row lock."/]

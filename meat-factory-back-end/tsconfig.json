@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "lib": [
+      "ES2015",
+      "ES6",
+      "ES7",
+      "ESNext.AsyncIterable",
+      "DOM"
+    ],
+    "module": "commonjs",
+    "moduleDetection": "force",
+    "allowJs": true,
+    "outDir": "./dist",
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false,
+    "strict": true,
+    "esModuleInterop": true,
+    "rootDirs": [
+      "src"
+    ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/utils/environment.d.ts"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

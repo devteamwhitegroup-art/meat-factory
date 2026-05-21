@@ -1,0 +1,160 @@
+%% Meat-Factory ERP — Entity Relationship Diagram
+%% Render: npx -y @mermaid-js/mermaid-cli -i erd.mmd -o erd.svg
+erDiagram
+  Admin {
+    uuid id PK
+    string param "username/email, unique"
+    string password "bcrypt(sha256), hidden"
+    enum role "SUPER_ADMIN..STOREKEEPER"
+  }
+  File {
+    uuid id PK
+    string key
+    string url
+    string mimetype
+  }
+  Herder {
+    uuid id PK
+    string name
+    string registrationNo "Регистр"
+    string phone
+    string bankAccount "Малчны данс"
+    string address
+  }
+  Registration {
+    uuid id PK
+    int registrationNumber "uniq, seq 8821"
+    uuid herderId FK
+    string vehicleNumber
+    string stamp
+    uuid photoFileId FK "nullable"
+    date intakeDate
+    uuid guardId FK
+    enum status "REGISTERED..SETTLED/CANCELLED"
+  }
+  RegistrationAnimalLine {
+    uuid id PK
+    uuid registrationId FK
+    enum animalType
+    int count
+  }
+  WeighingEntry {
+    uuid id PK
+    uuid registrationId FK
+    enum animalType
+    decimal weightKg
+    int sequenceNo
+    uuid scaleOperatorId FK
+  }
+  ByproductLog {
+    uuid id PK
+    uuid registrationId FK
+    enum byproductType
+    int count "ширхэг"
+    decimal averageWeightKg "дундаж жин"
+    decimal totalWeightKg "= count x avg"
+    uuid loggedById FK
+  }
+  Verification {
+    uuid id PK
+    uuid registrationId FK "uniq"
+    uuid firstVerifierId FK
+    uuid secondVerifierId FK "must differ"
+  }
+  Settlement {
+    uuid id PK
+    uuid registrationId FK "uniq"
+    decimal totalMeatAmount
+    decimal totalByproductAmount
+    decimal totalSlaughterCost
+    decimal grossAmount
+    decimal netPayable
+    bool isPaid
+    uuid settledById FK
+  }
+  SettlementLine {
+    uuid id PK
+    uuid settlementId FK
+    enum animalType
+    decimal receivedWeightKg
+    decimal pricePerKg
+    decimal meatAmount
+    decimal byproductAmount
+    decimal slaughterCost
+  }
+  Customer {
+    uuid id PK
+    string name
+    string contactPhone
+    string bankAccount
+    string registrationNumber
+    bool isActive
+  }
+  SalesTransaction {
+    uuid id PK
+    string transactionCode "uniq NNNN-NNNN"
+    uuid customerId FK
+    decimal totalWeightKg
+    decimal amount
+    enum paymentStatus "PAID/PENDING"
+    uuid createdById FK
+  }
+  SalesLineItem {
+    uuid id PK
+    uuid salesTransactionId FK
+    enum productType "MEAT/BYPRODUCT"
+    enum animalType "nullable"
+    enum byproductType "nullable"
+    decimal quantityKg
+    decimal unitPrice
+    decimal lineAmount
+  }
+  Shipment {
+    uuid id PK
+    string shipmentCode "uniq"
+    uuid customerId FK "nullable"
+    uuid salesTransactionId FK "nullable"
+    decimal weightKg
+    enum status "PENDING/LOADED/DELIVERED"
+    uuid loadedById FK
+  }
+  InventoryItem {
+    uuid id PK
+    string sku "uniq e.g. MEAT:COW"
+    enum productType
+    enum animalType "nullable"
+    enum byproductType "nullable"
+    decimal quantityKg "running balance >= 0"
+  }
+  InventoryMovement {
+    uuid id PK
+    uuid inventoryItemId FK
+    enum movementType "IN/OUT/ADJUSTMENT"
+    enum source "SETTLEMENT/SHIPMENT/MANUAL"
+    decimal quantityKg
+    decimal balanceAfterKg
+    uuid sourceRegistrationId "soft ref, no FK"
+    uuid sourceShipmentId FK "nullable"
+  }
+
+  Herder ||--o{ Registration : "herderId"
+  Admin ||--o{ Registration : "guardId"
+  File ||--o{ Registration : "photoFileId"
+  Registration ||--o{ RegistrationAnimalLine : "registrationId"
+  Registration ||--o{ WeighingEntry : "registrationId"
+  Admin ||--o{ WeighingEntry : "scaleOperatorId"
+  Registration ||--o{ ByproductLog : "registrationId"
+  Admin ||--o{ ByproductLog : "loggedById"
+  Registration ||--|| Verification : "registrationId"
+  Admin ||--o{ Verification : "verifier x2"
+  Registration ||--|| Settlement : "registrationId"
+  Admin ||--o{ Settlement : "settledById"
+  Settlement ||--o{ SettlementLine : "settlementId"
+  Customer ||--o{ SalesTransaction : "customerId"
+  Admin ||--o{ SalesTransaction : "createdById"
+  SalesTransaction ||--o{ SalesLineItem : "salesTransactionId"
+  Customer ||--o{ Shipment : "customerId"
+  SalesTransaction ||--o| Shipment : "salesTransactionId"
+  Admin ||--o{ Shipment : "loadedById"
+  InventoryItem ||--o{ InventoryMovement : "inventoryItemId"
+  Shipment ||--o{ InventoryMovement : "sourceShipmentId"

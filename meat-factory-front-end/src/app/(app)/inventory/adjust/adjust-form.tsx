@@ -1,0 +1,170 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMutation } from 'urql';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AdjustInventoryDoc } from '@/lib/queries/inventory';
+import { unwrap } from '@/lib/urql/unwrap';
+import {
+  ANIMAL_MN,
+  ANIMAL_TYPES,
+  BYPRODUCT_MN,
+  BYPRODUCT_TYPES,
+  MOVEMENT_TYPE_MN,
+  PRODUCT_TYPE_MN,
+} from '@/lib/format/enum';
+
+export function AdjustForm() {
+  const router = useRouter();
+  const [, adjust] = useMutation(AdjustInventoryDoc);
+  const [productType, setProductType] = useState<'MEAT' | 'BYPRODUCT'>('MEAT');
+  const [animalType, setAnimalType] = useState('COW');
+  const [byproductType, setByproductType] = useState('LIVER');
+  const [quantityKg, setQuantityKg] = useState('');
+  const [direction, setDirection] = useState<'IN' | 'OUT' | 'ADJUSTMENT'>('IN');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit() {
+    const q = Number(quantityKg);
+    if (!q || q <= 0) {
+      toast.error('Хэмжээ эерэг тоо');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await adjust({
+        productType: productType as never,
+        animalType: productType === 'MEAT' ? (animalType as never) : null,
+        byproductType:
+          productType === 'BYPRODUCT' ? (byproductType as never) : null,
+        quantityKg: q,
+        direction: direction as never,
+        notes: notes.trim() || null,
+      });
+      unwrap(r.data?.adjustInventory);
+      toast.success('Хадгалагдлаа');
+      router.push('/inventory/movements');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="mb-1 text-sm font-medium">Бараа төрөл</div>
+            <Select
+              value={productType}
+              onValueChange={(v) => setProductType(v as 'MEAT' | 'BYPRODUCT')}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEAT">{PRODUCT_TYPE_MN.MEAT}</SelectItem>
+                <SelectItem value="BYPRODUCT">
+                  {PRODUCT_TYPE_MN.BYPRODUCT}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <div className="mb-1 text-sm font-medium">Бүтээгдэхүүн</div>
+            {productType === 'MEAT' ? (
+              <Select
+                value={animalType}
+                onValueChange={(v) => setAnimalType(v ?? 'COW')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANIMAL_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {ANIMAL_MN[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Select
+                value={byproductType}
+                onValueChange={(v) => setByproductType(v ?? 'LIVER')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BYPRODUCT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {BYPRODUCT_MN[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div>
+            <div className="mb-1 text-sm font-medium">Чиглэл</div>
+            <Select
+              value={direction}
+              onValueChange={(v) =>
+                setDirection(v as 'IN' | 'OUT' | 'ADJUSTMENT')
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="IN">{MOVEMENT_TYPE_MN.IN}</SelectItem>
+                <SelectItem value="OUT">{MOVEMENT_TYPE_MN.OUT}</SelectItem>
+                <SelectItem value="ADJUSTMENT">
+                  {MOVEMENT_TYPE_MN.ADJUSTMENT}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <div className="mb-1 text-sm font-medium">Хэмжээ (кг)</div>
+            <Input
+              inputMode="decimal"
+              value={quantityKg}
+              onChange={(e) => setQuantityKg(e.target.value)}
+            />
+          </div>
+        </div>
+        <div>
+          <div className="mb-1 text-sm font-medium">Тэмдэглэл</div>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+          />
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={onSubmit} disabled={busy}>
+            {busy ? '...' : 'Хадгалах'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -1,0 +1,52 @@
+{
+  "name": "dropshipping",
+  "version": "1.0.0",
+  "description": "To make it easy for you to get started with GitLab, here's a list of recommended next steps.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:stg": "cp -f .env.stg .env && tsc -p .",
+    "build:prd": "cp -f .env.prd .env && tsc -p .",
+    "dev": "copy .env.local .env && nodemon",
+    "start": "node ./dist/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/graphql": "^14.2.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/lodash": "^4.17.20",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.3.0",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@apollo/server": "^5.0.0",
+    "@as-integrations/express5": "^1.1.2",
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@graphql-tools/schema": "^10.0.0",
+    "@graphql-tools/utils": "^10.0.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.18",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "file-type": "^21.0.0",
+    "graphql": "^16.11.0",
+    "graphql-scalars": "^1.24.2",
+    "handlebars": "^4.7.8",
+    "ioredis": "^5.8.1",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
+    "pg-pool": "^3.10.1",
+    "resend": "^6.2.0",
+    "sequelize": "^6.37.7"
+  }
+}

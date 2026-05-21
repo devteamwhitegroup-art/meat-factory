@@ -1,0 +1,61 @@
+%% Meat-Factory ERP — Use-case diagram (actors -> use cases)
+%% Render: npx -y @mermaid-js/mermaid-cli -i use-case.mmd -o use-case.svg
+flowchart LR
+  GUARD([Харуул / Guard])
+  SCALE([Жинч / Scale])
+  STORE([Нярав / Storekeeper])
+  MANAGER([Менежер / Manager + Admin])
+  SUPER([Систем админ / Super Admin])
+
+  subgraph LIVESTOCK["Мал бүртгэлийн урсгал"]
+    UC1((Малчин бүртгэх / сонгох))
+    UC2((Зураг оруулах))
+    UC3((Шинэ бүртгэл үүсгэх 8821))
+    UC4((Жин бүртгэх — олон удаа))
+    UC5((Жин дуусгах))
+    UC6((Дайвар бүртгэх: ширхэг + дундаж жин))
+    UC7((Баталгаажуулах — 2 ажилтан))
+    UC8((Тооцоо үүсгэх))
+    UC9((Төлбөр төлсөн гэж тэмдэглэх))
+    UC10((Бүртгэл цуцлах))
+  end
+
+  subgraph SALES["Худалдаа / Нөөц / Тайлан"]
+    UC11((Харилцагч удирдах))
+    UC12((Гүйлгээ үүсгэх / төлбөр))
+    UC13((Ачилт үүсгэх / төлөв шинэчлэх))
+    UC14((Нөөц харах / тохируулах))
+    UC15((Тайлан / Dashboard))
+  end
+
+  subgraph ADMIN_UC["Хэрэглэгчийн удирдлага"]
+    UC16((Ажилтан үүсгэх / устгах))
+  end
+
+  GUARD --> UC1
+  GUARD --> UC2
+  GUARD --> UC3
+  SCALE --> UC4
+  SCALE --> UC5
+  STORE --> UC6
+  STORE --> UC7
+  SCALE --> UC7
+  STORE --> UC8
+  STORE --> UC9
+  STORE --> UC13
+  STORE --> UC14
+
+  MANAGER --> UC1
+  MANAGER --> UC3
+  MANAGER --> UC10
+  MANAGER --> UC11
+  MANAGER --> UC12
+  MANAGER --> UC13
+  MANAGER --> UC14
+  MANAGER --> UC15
+
+  SUPER --> UC16
+  SUPER -. бүх эрх .-> LIVESTOCK
+  SUPER -. бүх эрх .-> SALES
+
+  %% Rule: the 2nd verifier in UC7 must be a DIFFERENT staff member than the 1st.
