@@ -8,32 +8,46 @@ import { compact } from '@/lib/compact';
 
 type Props = {
   searchParams: Promise<{
-    status?: string;
+    stage?: string;
     page?: string;
   }>;
 };
 
-const STATUSES = [
-  { value: '', label: 'Бүгд' },
-  { value: 'REGISTERED', label: 'Бүртгэгдсэн' },
-  { value: 'WEIGHING', label: 'Хэмжигдэж буй' },
-  { value: 'WEIGHED', label: 'Хэмжигдсэн' },
-  { value: 'VERIFIED', label: 'Баталгаажсан' },
-  { value: 'SETTLED', label: 'Тооцоологдсон' },
-  { value: 'CANCELLED', label: 'Цуцлагдсан' },
+// Stage chips: each maps to a SET of statuses that the BE filters as
+// `status IN (…)`. Order = pipeline order so the chips read left-to-right.
+const STAGES: Array<{
+  value: string;
+  label: string;
+  statuses: string[];
+}> = [
+  { value: '', label: 'Бүгд', statuses: [] },
+  { value: 'registered', label: 'Бүртгэгдсэн', statuses: ['REGISTERED'] },
+  {
+    value: 'in_process',
+    // Weighing → verification stage: amount being finalised.
+    label: 'Дүн тооцоолж буй',
+    statuses: ['WEIGHED', 'VERIFIED'],
+  },
+  {
+    value: 'payment_pending',
+    label: 'Төлбөр хүлээгдэж буй',
+    statuses: ['PAYMENT_PENDING'],
+  },
+  { value: 'paid', label: 'Төлбөр хийгдсэн', statuses: ['SETTLED'] },
 ];
 
 export default async function RegistrationsPage({ searchParams }: Props) {
   const sp = await searchParams;
-  const status =
-    sp.status && STATUSES.some((s) => s.value === sp.status)
-      ? sp.status
-      : null;
+  const stage = STAGES.find((s) => s.value === (sp.stage ?? '')) ?? STAGES[0];
   const page = Number(sp.page) || 1;
 
   const { data } = await getClient().query({
     query: RegistrationListDoc,
-    variables: { status: status as never, limit: 24, page },
+    variables: {
+      statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
+      limit: 24,
+      page,
+    },
   });
 
   type Row = NonNullable<
@@ -61,10 +75,10 @@ export default async function RegistrationsPage({ searchParams }: Props) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {STATUSES.map((s) => {
-          const active = (status ?? '') === s.value;
+        {STAGES.map((s) => {
+          const active = stage.value === s.value;
           const href = s.value
-            ? `/registrations?status=${s.value}`
+            ? `/registrations?stage=${s.value}`
             : '/registrations';
           return (
             <Link

@@ -13,6 +13,13 @@ export class SettlementModel extends Model implements TSettlement {
   public totalSlaughterCost!: number;
   public grossAmount!: number;
   public netPayable!: number;
+  // Optional payout override — when the herder asks the money to go to a
+  // different account THIS TIME. When any of these is non-null we use it
+  // instead of the herder's default bank fields. Per-settlement only;
+  // doesn't write back to the herder profile.
+  public payoutBankAccount!: string | null;
+  public payoutBankName!: string | null;
+  public payoutAccountHolderName!: string | null;
   public isPaid!: boolean;
   public paidAt!: Date | null;
   public settledById!: string | null;
@@ -76,6 +83,18 @@ export const createSettlementModel = (sequelize: Sequelize) => {
       netPayable: {
         type: DataTypes.DECIMAL(14, 2),
         allowNull: false,
+      },
+      payoutBankAccount: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      payoutBankName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      payoutAccountHolderName: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       isPaid: {
         type: DataTypes.BOOLEAN,

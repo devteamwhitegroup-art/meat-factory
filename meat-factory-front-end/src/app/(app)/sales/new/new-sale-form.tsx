@@ -22,11 +22,11 @@ import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 import {
   ANIMAL_MN,
-  ANIMAL_TYPES,
   BYPRODUCT_MN,
   BYPRODUCT_TYPES,
   PRODUCT_TYPE_MN,
 } from '@/lib/format/enum';
+import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
 import { formatMNT } from '@/lib/format/money';
 
 type LineRow = {
@@ -39,8 +39,15 @@ type LineRow = {
 
 export function NewSaleForm() {
   const router = useRouter();
+  const { animalTypes } = useAnimalCatalog();
   const { data, loading: fetching } = useQuery(CustomerListDoc, {
-    variables: { isActive: true, limit: 100, page: 1, search: null },
+    variables: {
+      isActive: true,
+      kind: null,
+      limit: 100,
+      page: 1,
+      search: null,
+    },
   });
   const [createSale] = useMutation(CreateSalesTransactionDoc);
   const customers = compact(data?.customers?.customers);
@@ -151,9 +158,19 @@ export function NewSaleForm() {
                 onValueChange={(v) => setCustomerId(v ?? '')}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue
-                    placeholder={fetching ? 'Уншиж байна…' : 'Сонгох'}
-                  />
+                  {/* Explicit text — base-ui Select's auto-match shows the
+                      raw value (UUID) when the SelectItem isn't currently
+                      mounted, so we resolve the label ourselves. */}
+                  {customerId ? (
+                    <span>
+                      {customers.find((c) => c.id === customerId)?.name ??
+                        'Сонгосон'}
+                    </span>
+                  ) : (
+                    <SelectValue
+                      placeholder={fetching ? 'Уншиж байна…' : 'Сонгох'}
+                    />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((c) => (
@@ -217,7 +234,9 @@ export function NewSaleForm() {
                         }}
                       >
                         <SelectTrigger className="h-8 w-32">
-                          <SelectValue />
+                          <span>
+                            {PRODUCT_TYPE_MN[l.productType] ?? l.productType}
+                          </span>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="MEAT">
@@ -232,14 +251,23 @@ export function NewSaleForm() {
                     <td className="py-2">
                       {l.productType === 'MEAT' ? (
                         <Select
-                          value={l.animalType}
+                          value={l.animalType || undefined}
                           onValueChange={(v) => set(i, { animalType: v ?? '' })}
                         >
                           <SelectTrigger className="h-8 w-32">
-                            <SelectValue />
+                            {/* Resolve label manually so the trigger always
+                                shows the Cyrillic name, even before the
+                                catalogue items mount. */}
+                            {l.animalType ? (
+                              <span>
+                                {ANIMAL_MN[l.animalType] ?? l.animalType}
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="Сонгох" />
+                            )}
                           </SelectTrigger>
                           <SelectContent>
-                            {ANIMAL_TYPES.map((t) => (
+                            {animalTypes.map((t) => (
                               <SelectItem key={t} value={t}>
                                 {ANIMAL_MN[t]}
                               </SelectItem>
@@ -248,11 +276,18 @@ export function NewSaleForm() {
                         </Select>
                       ) : (
                         <Select
-                          value={l.byproductType}
+                          value={l.byproductType || undefined}
                           onValueChange={(v) => set(i, { byproductType: v ?? '' })}
                         >
                           <SelectTrigger className="h-8 w-32">
-                            <SelectValue />
+                            {l.byproductType ? (
+                              <span>
+                                {BYPRODUCT_MN[l.byproductType] ??
+                                  l.byproductType}
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="Сонгох" />
+                            )}
                           </SelectTrigger>
                           <SelectContent>
                             {BYPRODUCT_TYPES.map((t) => (

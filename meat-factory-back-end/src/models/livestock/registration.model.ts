@@ -19,14 +19,22 @@ export class RegistrationModel extends Model implements TRegistration {
   public vehicleNumber!: string;
   public stamp!: string | null;
   public photoFileId!: string | null;
+  public signatureFileId!: string | null;
+  public stampFileId!: string | null;
   public intakeDate!: Date;
   public guardId!: string;
   public status!: REGISTRATION_STATUS;
+  // Pre-butchered intake — the herder delivers ready-cut meat instead of
+  // live animals. When true, slaughter cost is treated as 0 in settlement
+  // and the per-animal "cover slaughter from byproducts" toggle is hidden.
+  public isPreButchered!: boolean;
   public createdAt!: Date;
   public updatedAt!: Date;
 
   public herder?: HerderModel;
   public photo?: FileModel;
+  public signature?: FileModel;
+  public stampImage?: FileModel;
   public guard?: AdminModel;
   public animalLines?: RegistrationAnimalLineModel[];
   public weighingEntries?: WeighingEntryModel[];
@@ -42,6 +50,14 @@ export class RegistrationModel extends Model implements TRegistration {
     this.belongsTo(FileModel, {
       as: "photo",
       foreignKey: { name: "photoFileId", allowNull: true },
+    });
+    this.belongsTo(FileModel, {
+      as: "signature",
+      foreignKey: { name: "signatureFileId", allowNull: true },
+    });
+    this.belongsTo(FileModel, {
+      as: "stampImage",
+      foreignKey: { name: "stampFileId", allowNull: true },
     });
     this.belongsTo(AdminModel, {
       as: "guard",
@@ -102,6 +118,11 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         type: DataTypes.ENUM(...Object.values(REGISTRATION_STATUS)),
         allowNull: false,
         defaultValue: REGISTRATION_STATUS.REGISTERED,
+      },
+      isPreButchered: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
     },
     {

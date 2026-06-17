@@ -22,7 +22,13 @@ export type TInventoryItem = {
   sku: string;
   productType: PRODUCT_TYPE;
   animalType: ANIMAL_TYPE | null;
+  // Legacy BYPRODUCT_TYPE enum (HEART, LIVER, ...). Still used by the
+  // manual-adjust path + sales line items.
   byproductType: BYPRODUCT_TYPE | null;
+  // Free-form Mongolian byproduct name (e.g. "Адууны хэл", "Хацар мах").
+  // Populated by livestock byproduct ingestion after Phase-3 redesign —
+  // the byproduct catalogue is name-driven and no longer maps to the enum.
+  byproductName: string | null;
   quantityKg: number;
   createdAt: Date;
   updatedAt: Date;
@@ -70,7 +76,9 @@ export type TGetStock = {
 export type TStockLine = {
   productType: PRODUCT_TYPE;
   animalType?: ANIMAL_TYPE | null;
+  // Set either byproductType OR byproductName for BYPRODUCT lines (not both).
   byproductType?: BYPRODUCT_TYPE | null;
+  byproductName?: string | null;
   quantityKg: number;
 };
 

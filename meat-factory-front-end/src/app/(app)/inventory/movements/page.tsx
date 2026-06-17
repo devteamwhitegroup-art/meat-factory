@@ -7,6 +7,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getClient } from '@/lib/apollo/server';
+import { InventoryTabs } from '@/components/inventory/InventoryTabs';
 import { InventoryMovementsDoc } from '@/lib/queries/inventory';
 import { compact } from '@/lib/compact';
 import {
@@ -16,7 +17,10 @@ import {
 import { formatNumber } from '@/lib/format/money';
 import { fmtDateTime } from '@/lib/format/date';
 
+import { requireCap } from '@/lib/auth/server';
+
 export default async function InventoryMovementsPage() {
+  await requireCap('inventory');
   const { data } = await getClient().query({
     query: InventoryMovementsDoc,
     variables: {
@@ -32,7 +36,12 @@ export default async function InventoryMovementsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Нөөцийн хөдөлгөөн</h1>
+      <h1 className="text-2xl font-semibold">Нөөц</h1>
+      <InventoryTabs />
+      <div className="text-sm text-muted-foreground">
+        Нөөц рүү орох / гарах бүх хөдөлгөөний түүх. Эх үүсвэр нь Тооцоо
+        (орох IN), Ачилт (OUT) эсвэл Гар (Тохируулга).
+      </div>
       {rows.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
           Хөдөлгөөн алга

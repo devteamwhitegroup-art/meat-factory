@@ -18,7 +18,11 @@ export default `#graphql
         sku: String
         productType: PRODUCT_TYPE
         animalType: ANIMAL_TYPE
+        # Legacy enum (HEART/LIVER/…) used by manual adjust + sales SKUs.
         byproductType: BYPRODUCT_TYPE
+        # Free-form Mongolian name used by livestock auto-ingest after
+        # Phase-3 byproduct catalogue redesign.
+        byproductName: String
         quantityKg: Float
         createdAt: Date
         updatedAt: Date
@@ -60,6 +64,26 @@ export default `#graphql
         count: Int
     }
 
+    # Aggregate stats for the inventory dashboard: current totals + the
+    # configured thresholds + alert state + suggested cargo count. Bundled
+    # together to keep the page render to a single round-trip.
+    type InventoryStats {
+        meatStockKg: Float
+        byproductStockKg: Float
+        meatCapacityKg: Float
+        meatAlertThresholdKg: Float
+        cargoCapacityKg: Float
+        alertActive: Boolean
+        cargosToClear: Int
+        lastAlertedAt: Date
+    }
+
+    type InventoryStatsResponse {
+        success: Boolean
+        message: String
+        stats: InventoryStats
+    }
+
     extend type Query {
         inventoryStock(
             productType: PRODUCT_TYPE
@@ -74,6 +98,8 @@ export default `#graphql
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): InventoryMovementsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+
+        inventoryStats: InventoryStatsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
     }
 
     extend type Mutation {

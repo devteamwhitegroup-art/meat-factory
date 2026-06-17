@@ -8,6 +8,7 @@ export const DashboardDoc = graphql(/* GraphQL */ `
       dashboard {
         totalMeatIncome
         totalHerderIncome
+        pendingPayoutAmount
         activeHerderCount
         transactionCount
         pendingServicesCount
@@ -18,9 +19,14 @@ export const DashboardDoc = graphql(/* GraphQL */ `
           totalAmount
         }
         byproductBreakdown {
-          byproductType
+          name
           totalKg
-          totalAmount
+        }
+        pipeline {
+          registered
+          inProcess
+          paymentPending
+          paid
         }
         recentTransactions {
           id

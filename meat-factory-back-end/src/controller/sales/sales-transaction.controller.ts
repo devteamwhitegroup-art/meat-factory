@@ -6,6 +6,7 @@ import {
 import sequelize from '../../config/db-connection';
 import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
 import { SalesLineItemModel } from '../../models/sales/sales-line-item.model';
+import { SalesInstallmentModel } from '../../models/sales/sales-installment.model';
 import { CustomerModel } from '../../models/customer/customer.model';
 import { ShipmentModel } from '../../models/shipment/shipment.model';
 import {
@@ -177,10 +178,102 @@ export class SalesTransactionController {
       include: [
         { model: CustomerModel, as: 'customer' },
         { model: SalesLineItemModel, as: 'lineItems' },
-        { model: ShipmentModel, as: 'shipment' }
+        { model: ShipmentModel, as: 'shipment' },
+        {
+          model: SalesInstallmentModel,
+          as: 'installments',
+          order: [['paidAt', 'ASC']]
+        }
       ]
     });
     if (!tx) throw new Error('Sales transaction not found');
     return tx;
+  }
+
+  // ─── Installments ───────────────────────────────────────────────────
+  //
+  // Each call records one partial payment. When Σ(installments) ≥
+  // tx.amount the transaction auto-flips to PAID. Removing installments
+  // can also flip a PAID tx back to PENDING when outstanding > 0 again.
+
+  private static async _resyncPaymentStatus(
+    txId: string,
+    t?: import('sequelize').Transaction
+  ): Promise<void> {
+    const tx = await SalesTransactionModel.findByPk(txId, { transaction: t });
+    if (!tx) return;
+    const sum = ((await SalesInstallmentModel.sum('amountMnt', {
+      where: { salesTransactionId: txId },
+      transaction: t
+    })) as number | null) ?? 0;
+    const total = Number(tx.amount);
+    const paidEnough = sum >= total - 0.01;
+    if (paidEnough && tx.paymentStatus !== PAYMENT_STATUS.PAID) {
+      const latest = await SalesInstallmentModel.findOne({
+        where: { salesTransactionId: txId },
+        order: [['paidAt', 'DESC']],
+        transaction: t
+      });
+      await tx.update(
+        {
+          paymentStatus: PAYMENT_STATUS.PAID,
+          paidAt: latest?.paidAt ?? new Date()
+        },
+        { transaction: t }
+      );
+    } else if (!paidEnough && tx.paymentStatus === PAYMENT_STATUS.PAID) {
+      await tx.update(
+        { paymentStatus: PAYMENT_STATUS.PENDING, paidAt: null },
+        { transaction: t }
+      );
+    }
+  }
+
+  static async addInstallment(
+    args: {
+      salesTransactionId: string;
+      amountMnt: number;
+      paidAt?: Date | null;
+      notes?: string | null;
+    },
+    context: TContext
+  ): Promise<SalesInstallmentModel> {
+    const tx = await this.findIdCheck(args.salesTransactionId);
+    const amt = Number(args.amountMnt);
+    if (!Number.isFinite(amt) || amt <= 0)
+      throw new Error('Дүн эерэг тоо байх ёстой');
+
+    return await sequelize.transaction(async (t) => {
+      const sumSoFar = ((await SalesInstallmentModel.sum('amountMnt', {
+        where: { salesTransactionId: tx.id },
+        transaction: t
+      })) as number | null) ?? 0;
+      if (sumSoFar + amt > Number(tx.amount) + 0.01)
+        throw new Error(
+          'Хэсэгчилсэн төлбөрийн нийлбэр гүйлгээний дүнгээс илүү байж болохгүй'
+        );
+      const row = await SalesInstallmentModel.create(
+        {
+          salesTransactionId: tx.id,
+          amountMnt: Number(amt.toFixed(2)),
+          paidAt: args.paidAt ? new Date(args.paidAt) : new Date(),
+          notes: args.notes?.trim() || null,
+          createdById: context.id
+        },
+        { transaction: t }
+      );
+      await this._resyncPaymentStatus(tx.id, t);
+      return row;
+    });
+  }
+
+  static async removeInstallment(id: string): Promise<void> {
+    const row = await SalesInstallmentModel.findByPk(id);
+    if (!row) throw new Error('Хэсэгчилсэн төлбөр олдсонгүй');
+    const txId = row.salesTransactionId;
+    await sequelize.transaction(async (t) => {
+      await row.destroy({ transaction: t });
+      await this._resyncPaymentStatus(txId, t);
+    });
   }
 }

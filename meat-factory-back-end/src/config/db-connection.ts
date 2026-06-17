@@ -1,5 +1,7 @@
 import { Sequelize, Options } from "sequelize";
 import { setupModel } from "../models";
+import { AnimalModel } from "../models/livestock/animal.model";
+import { ANIMAL_TYPE } from "../types/livestock/registration.type";
 import config from ".";
 
 const {
@@ -11,7 +13,15 @@ const {
   DB_SYNC_ON_START,
   DB_SYNC_ALTER,
 } = config;
-
+console.log({
+  POSTGRES_DB_USERNAME,
+  POSTGRES_DB_HOST,
+  POSTGRES_DB_PORT,
+  POSTGRES_DB_PASSWORD,
+  POSTGRES_DB_NAME,
+  DB_SYNC_ON_START,
+  DB_SYNC_ALTER,
+});
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000;
 
@@ -35,24 +45,16 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const connectDatabase = async (): Promise<void> => {
   let retries = 0;
-  
+
   while (retries < MAX_RETRIES) {
     try {
       await sequelize.authenticate();
       if (DB_SYNC_ON_START) {
-        // Single sync() resolves FK creation order internally — robust for
-        // the many cross-referencing meat-factory tables. For destructive
-        // schema changes on a dev DB, recreate the volume
-        // (`docker compose down -v`) rather than relying on alter.
         await sequelize.sync({
           logging: false,
           force: false,
           alter: DB_SYNC_ALTER,
         });
-
-        // Human-readable sequential registration number (Бүртгэлийн дугаар),
-        // e.g. 8821. Idempotent; consumed via nextval() inside the
-        // registration create transaction. Best-effort: must not crash boot.
         try {
           await sequelize.query(
             "CREATE SEQUENCE IF NOT EXISTS registration_number_seq START WITH 8821",
@@ -61,6 +63,29 @@ export const connectDatabase = async (): Promise<void> => {
           console.error(
             "⚠️ registration_number_seq create skipped:",
             seqErr instanceof Error ? seqErr.message : "unknown error",
+          );
+        }
+
+        // Seed Animals catalog — one row per ANIMAL_TYPE enum value. The FE
+        // drives its animal lists off this query, so every supported type
+        // must always have a row (price 0 / cover false defaults; admin
+        // edits via /animals).
+        try {
+          for (const t of Object.values(ANIMAL_TYPE)) {
+            await AnimalModel.findOrCreate({
+              where: { animalType: t },
+              defaults: {
+                animalType: t,
+                pricePerAnimal: 0,
+                canCoverSlaughterCost: false,
+                isActive: true,
+              } as never,
+            });
+          }
+        } catch (seedErr) {
+          console.error(
+            "⚠️ Animals catalog seed skipped:",
+            seedErr instanceof Error ? seedErr.message : "unknown error",
           );
         }
       }

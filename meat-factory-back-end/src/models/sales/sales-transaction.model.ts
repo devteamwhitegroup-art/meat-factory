@@ -5,6 +5,7 @@ import {
 } from "../../types/sales/sales-transaction.type";
 import { CustomerModel } from "../customer/customer.model";
 import { SalesLineItemModel } from "./sales-line-item.model";
+import { SalesInstallmentModel } from "./sales-installment.model";
 import { ShipmentModel } from "../shipment/shipment.model";
 import { AdminModel } from "../user/admin.model";
 
@@ -27,6 +28,7 @@ export class SalesTransactionModel
 
   public customer?: CustomerModel;
   public lineItems?: SalesLineItemModel[];
+  public installments?: SalesInstallmentModel[];
   public shipment?: ShipmentModel;
   public createdBy?: AdminModel;
 
@@ -41,6 +43,10 @@ export class SalesTransactionModel
     });
     this.hasMany(SalesLineItemModel, {
       as: "lineItems",
+      foreignKey: { name: "salesTransactionId", allowNull: false },
+    });
+    this.hasMany(SalesInstallmentModel, {
+      as: "installments",
       foreignKey: { name: "salesTransactionId", allowNull: false },
     });
     this.hasOne(ShipmentModel, {

@@ -13,6 +13,7 @@ export class InventoryItemModel extends Model implements TInventoryItem {
   public productType!: PRODUCT_TYPE;
   public animalType!: ANIMAL_TYPE | null;
   public byproductType!: BYPRODUCT_TYPE | null;
+  public byproductName!: string | null;
   public quantityKg!: number;
   public createdAt!: Date;
   public updatedAt!: Date;
@@ -54,6 +55,10 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
         type: DataTypes.ENUM(...Object.values(BYPRODUCT_TYPE)),
         allowNull: true,
         defaultValue: null,
+      },
+      byproductName: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       quantityKg: {
         type: DataTypes.DECIMAL(14, 2),

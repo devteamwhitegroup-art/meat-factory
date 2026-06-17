@@ -1,27 +1,32 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import {
-  ANIMAL_TYPE,
-  TRegistrationAnimalLine,
-} from "../../types/livestock/registration.type";
+import { TRegistrationAnimalLine } from "../../types/livestock/registration.type";
 import { RegistrationModel } from "./registration.model";
+import { AnimalModel } from "./animal.model";
 
+// Each line records "this registration contains N of animalId" — animalType
+// is reached through the joined Animal (FK), no longer a redundant ENUM here.
 export class RegistrationAnimalLineModel
   extends Model
   implements TRegistrationAnimalLine
 {
   public id!: string;
   public registrationId!: string;
-  public animalType!: ANIMAL_TYPE;
+  public animalId!: string;
   public count!: number;
   public createdAt!: Date;
   public updatedAt!: Date;
 
   public registration?: RegistrationModel;
+  public animal?: AnimalModel;
 
   static associate(): void {
     this.belongsTo(RegistrationModel, {
       as: "registration",
       foreignKey: { name: "registrationId", allowNull: false },
+    });
+    this.belongsTo(AnimalModel, {
+      as: "animal",
+      foreignKey: { name: "animalId", allowNull: false },
     });
   }
 }
@@ -35,8 +40,8 @@ export const createRegistrationAnimalLineModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      animalType: {
-        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
+      animalId: {
+        type: DataTypes.UUID,
         allowNull: false,
       },
       count: {
@@ -51,7 +56,8 @@ export const createRegistrationAnimalLineModel = (sequelize: Sequelize) => {
       underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registration_id", "animal_type"], unique: true },
+        { fields: ["registration_id", "animal_id"], unique: true },
+        { fields: ["animal_id"] },
       ],
     },
   );

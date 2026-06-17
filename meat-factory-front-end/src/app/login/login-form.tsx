@@ -41,7 +41,10 @@ export function LoginForm() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          param: values.param.trim(),
+          password: values.password.trim(),
+        }),
       });
       const data = (await res.json()) as { ok: boolean; message?: string };
       if (!data.ok) {

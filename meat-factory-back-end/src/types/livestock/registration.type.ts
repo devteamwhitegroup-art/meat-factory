@@ -10,7 +10,6 @@ export enum ANIMAL_TYPE {
   HORSE = 'HORSE', // Адуу
   GOAT = 'GOAT', // Ямаа
   CAMEL = 'CAMEL', // Тэмээ
-  CALF = 'CALF' // Тугал
 }
 
 // Canonical byproduct (дайвар) enum — shared across domains.
@@ -31,10 +30,10 @@ export enum BYPRODUCT_TYPE {
 }
 
 export enum REGISTRATION_STATUS {
-  REGISTERED = 'REGISTERED', // intake created by guard
-  WEIGHING = 'WEIGHING', // first weighing entry recorded
+  REGISTERED = 'REGISTERED', // intake created by guard (weighing happens in-place)
   WEIGHED = 'WEIGHED', // scale operator finished weighing
-  VERIFIED = 'VERIFIED', // two distinct staff verified
+  VERIFIED = 'VERIFIED', // single signer (нярав / нягтлан / админ) confirmed
+  PAYMENT_PENDING = 'PAYMENT_PENDING', // settlement created, awaiting payment
   SETTLED = 'SETTLED', // settlement paid
   CANCELLED = 'CANCELLED' // voided before weighing finished
 }
@@ -51,9 +50,12 @@ export type TRegistration = {
   vehicleNumber: string;
   stamp: string | null;
   photoFileId: string | null;
+  signatureFileId: string | null;
+  stampFileId: string | null;
   intakeDate: Date;
   guardId: string;
   status: REGISTRATION_STATUS;
+  isPreButchered: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -63,12 +65,18 @@ export type TCreateRegistration = {
   vehicleNumber: string;
   stamp?: string | null;
   photoFileId?: string | null;
+  signatureFileId?: string | null;
+  stampFileId?: string | null;
   intakeDate?: Date | null;
+  isPreButchered?: boolean;
   animalLines: TRegistrationAnimalLineInput[];
 };
 
 export type TGetRegistrations = {
   status?: REGISTRATION_STATUS;
+  // Set filter (status IN […]). Used by the FE stage chips
+  // (e.g. "Дүн тооцоолж буй" = [WEIGHED, VERIFIED]).
+  statuses?: REGISTRATION_STATUS[];
   herderId?: string;
   registrationNumber?: number;
 } & TPagination;
@@ -76,7 +84,8 @@ export type TGetRegistrations = {
 export type TRegistrationAnimalLine = {
   id: string;
   registrationId: string;
-  animalType: ANIMAL_TYPE;
+  // FK to Animals; animalType is reached via the joined Animal row.
+  animalId: string;
   count: number;
   createdAt: Date;
   updatedAt: Date;

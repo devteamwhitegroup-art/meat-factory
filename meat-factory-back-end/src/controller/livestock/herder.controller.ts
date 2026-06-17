@@ -1,5 +1,6 @@
 import { Op, WhereOptions } from 'sequelize';
 import { HerderModel } from '../../models/livestock/herder.model';
+import { HerderAddressModel } from '../../models/livestock/herder-address.model';
 import { RegistrationModel } from '../../models/livestock/registration.model';
 import {
   TCreateHerder,
@@ -10,6 +11,10 @@ import {
 import { TPaginationGeneric } from '../../types/global/global.type';
 import { pagination } from '../../utils';
 
+const HERDER_INCLUDE = [
+  { model: HerderAddressModel, as: 'addressEntry' }
+];
+
 export class HerderController {
   static async findIdCheck(id: string): Promise<HerderModel> {
     const herder = await HerderModel.findByPk(id);
@@ -19,22 +24,50 @@ export class HerderController {
     return herder;
   }
 
-  static async create(doc: TCreateHerder): Promise<THerder> {
-    const { name, registrationNo, phone, bankAccount, address } = doc;
+  // Resolve a catalogue addressId to a row; throws if it doesn't exist.
+  private static async _assertAddressExists(addressId: string): Promise<void> {
+    const row = await HerderAddressModel.findByPk(addressId);
+    if (!row) throw new Error('Сонгосон хаяг олдсонгүй');
+  }
+
+  static async create(doc: TCreateHerder): Promise<HerderModel> {
+    const {
+      name,
+      registrationNo,
+      phone,
+      bankAccount,
+      bankName,
+      accountHolderName,
+      addressId,
+      address
+    } = doc;
 
     if (!name || !name.trim()) throw new Error('Herder name is required');
     if (!registrationNo || !registrationNo.trim())
       throw new Error('Herder registration number is required');
-    if (!address || !address.trim())
-      throw new Error('Herder address is required');
 
-    return await HerderModel.create({
+    // Address: either an addressId from the catalogue OR a non-empty
+    // free-form string. Reject when both are missing.
+    const trimmedAddress = address?.trim() ?? '';
+    if (!addressId && !trimmedAddress)
+      throw new Error('Хаяг шаардлагатай (каталогоос сонгох эсвэл бичих)');
+    if (addressId) await this._assertAddressExists(addressId);
+
+    const row = await HerderModel.create({
       name: name.trim(),
       registrationNo: registrationNo.trim(),
       phone: phone ?? null,
       bankAccount: bankAccount ?? null,
-      address: address.trim()
+      bankName: bankName?.trim() || null,
+      accountHolderName: accountHolderName?.trim() || null,
+      addressId: addressId ?? null,
+      address: trimmedAddress || null
     });
+    // Re-fetch with the address include so resolver `Herder.address` falls
+    // back to the catalogue name cleanly on the first response.
+    return (await HerderModel.findByPk(row.id, {
+      include: HERDER_INCLUDE
+    })) as HerderModel;
   }
 
   static async list(
@@ -56,22 +89,37 @@ export class HerderController {
 
     return await HerderModel.findAndCountAll({
       where,
+      include: HERDER_INCLUDE,
       offset,
       limit,
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      distinct: true
     });
   }
 
   static async getById(id: string): Promise<HerderModel> {
     const herder = await HerderModel.findByPk(id, {
-      include: [{ model: RegistrationModel, as: 'registrations' }]
+      include: [
+        { model: RegistrationModel, as: 'registrations' },
+        { model: HerderAddressModel, as: 'addressEntry' }
+      ]
     });
     if (!herder) throw new Error('Herder not found');
     return herder;
   }
 
   static async update(doc: TUpdateHerder): Promise<HerderModel> {
-    const { id, name, registrationNo, phone, bankAccount, address } = doc;
+    const {
+      id,
+      name,
+      registrationNo,
+      phone,
+      bankAccount,
+      bankName,
+      accountHolderName,
+      addressId,
+      address
+    } = doc;
     const herder = await this.findIdCheck(id);
 
     if (name !== undefined) herder.name = name.trim();
@@ -79,9 +127,21 @@ export class HerderController {
       herder.registrationNo = registrationNo.trim();
     if (phone !== undefined) herder.phone = phone ?? null;
     if (bankAccount !== undefined) herder.bankAccount = bankAccount ?? null;
-    if (address !== undefined) herder.address = address.trim();
+    if (bankName !== undefined)
+      herder.bankName = bankName?.trim() || null;
+    if (accountHolderName !== undefined)
+      herder.accountHolderName = accountHolderName?.trim() || null;
+    if (addressId !== undefined) {
+      if (addressId) await this._assertAddressExists(addressId);
+      herder.addressId = addressId ?? null;
+    }
+    if (address !== undefined)
+      herder.address = address?.trim() || null;
 
-    return await herder.save();
+    await herder.save();
+    return (await HerderModel.findByPk(herder.id, {
+      include: HERDER_INCLUDE
+    })) as HerderModel;
   }
 
   static async remove(id: string): Promise<void> {

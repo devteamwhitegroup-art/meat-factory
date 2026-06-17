@@ -3,7 +3,11 @@ import adminResolver from "./user/admin.resolver";
 
 //Livestock
 import herderResolver from "./livestock/herder.resolver";
+import herderAddressResolver from "./livestock/herder-address.resolver";
 import registrationResolver from "./livestock/registration.resolver";
+import byproductWrapperResolver from "./livestock/byproduct-wrapper.resolver";
+import byproductConstantResolver from "./livestock/byproduct-constant.resolver";
+import animalResolver from "./livestock/animal.resolver";
 
 //Customer
 import customerResolver from "./customer/customer.resolver";
@@ -19,6 +23,10 @@ import inventoryResolver from "./inventory/inventory.resolver";
 
 //Dashboard
 import dashboardResolver from "./dashboard/dashboard.resolver";
+import monthlyBudgetResolver from "./dashboard/monthly-budget.resolver";
+
+//Settings
+import settingsResolver from "./settings/settings.resolver";
 
 export const resolvers = [
   //User
@@ -26,7 +34,11 @@ export const resolvers = [
 
   //Livestock
   herderResolver,
+  herderAddressResolver,
   registrationResolver,
+  byproductWrapperResolver,
+  byproductConstantResolver,
+  animalResolver,
 
   //Customer
   customerResolver,
@@ -42,6 +54,10 @@ export const resolvers = [
 
   //Dashboard
   dashboardResolver,
+  monthlyBudgetResolver,
+
+  //Settings
+  settingsResolver,
 
   //Global
   {

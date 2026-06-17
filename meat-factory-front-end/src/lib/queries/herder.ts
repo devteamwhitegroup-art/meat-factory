@@ -12,7 +12,14 @@ export const HerderListDoc = graphql(/* GraphQL */ `
         registrationNo
         phone
         bankAccount
+        bankName
+        accountHolderName
+        addressId
         address
+        addressEntry {
+          id
+          name
+        }
         createdAt
       }
     }
@@ -30,7 +37,14 @@ export const HerderDoc = graphql(/* GraphQL */ `
         registrationNo
         phone
         bankAccount
+        bankName
+        accountHolderName
+        addressId
         address
+        addressEntry {
+          id
+          name
+        }
         createdAt
         registrations {
           id
@@ -49,13 +63,19 @@ export const CreateHerderDoc = graphql(/* GraphQL */ `
     $registrationNo: String!
     $phone: String
     $bankAccount: String
-    $address: String!
+    $bankName: String
+    $accountHolderName: String
+    $addressId: ID
+    $address: String
   ) {
     createHerder(
       name: $name
       registrationNo: $registrationNo
       phone: $phone
       bankAccount: $bankAccount
+      bankName: $bankName
+      accountHolderName: $accountHolderName
+      addressId: $addressId
       address: $address
     ) {
       success
@@ -66,7 +86,14 @@ export const CreateHerderDoc = graphql(/* GraphQL */ `
         registrationNo
         phone
         bankAccount
+        bankName
+        accountHolderName
+        addressId
         address
+        addressEntry {
+          id
+          name
+        }
       }
     }
   }
@@ -79,6 +106,9 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
     $registrationNo: String
     $phone: String
     $bankAccount: String
+    $bankName: String
+    $accountHolderName: String
+    $addressId: ID
     $address: String
   ) {
     updateHerder(
@@ -87,6 +117,9 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
       registrationNo: $registrationNo
       phone: $phone
       bankAccount: $bankAccount
+      bankName: $bankName
+      accountHolderName: $accountHolderName
+      addressId: $addressId
       address: $address
     ) {
       success
@@ -97,7 +130,14 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
         registrationNo
         phone
         bankAccount
+        bankName
+        accountHolderName
+        addressId
         address
+        addressEntry {
+          id
+          name
+        }
       }
     }
   }

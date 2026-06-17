@@ -22,10 +22,13 @@ import {
 import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDate, fmtDateTime } from '@/lib/format/date';
 import { MarkPaidButton } from './mark-paid-button';
+import { InstallmentsCard } from './installments-card';
+import { requireCap } from '@/lib/auth/server';
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function SalesDetailPage({ params }: Props) {
+  await requireCap('sales');
   const { id } = await params;
   const { data } = await getClient().query({
     query: SalesDetailDoc,
@@ -41,6 +44,13 @@ export default async function SalesDetailPage({ params }: Props) {
   }
   const t = wrap.salesTransaction;
   const lines = compact(t.lineItems);
+  const installments = compact(t.installments).map((i) => ({
+    id: i.id!,
+    amountMnt: Number(i.amountMnt ?? 0),
+    paidAt: String(i.paidAt ?? ''),
+    notes: i.notes ?? null,
+    createdBy: i.createdBy?.param ?? null,
+  }));
 
   return (
     <div className="space-y-4">
@@ -140,6 +150,14 @@ export default async function SalesDetailPage({ params }: Props) {
           </Table>
         </CardContent>
       </Card>
+
+      {t.id ? (
+        <InstallmentsCard
+          txId={t.id}
+          amount={Number(t.amount ?? 0)}
+          installments={installments}
+        />
+      ) : null}
 
       {t.shipment ? (
         <Card>

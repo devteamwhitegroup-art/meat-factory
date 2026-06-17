@@ -1,12 +1,12 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TSettlementLine } from "../../types/livestock/settlement.type";
 import { SettlementModel } from "./settlement.model";
+import { AnimalModel } from "./animal.model";
 
 export class SettlementLineModel extends Model implements TSettlementLine {
   public id!: string;
   public settlementId!: string;
-  public animalType!: ANIMAL_TYPE;
+  public animalId!: string;
   public receivedWeightKg!: number;
   public pricePerKg!: number;
   public meatAmount!: number;
@@ -16,11 +16,16 @@ export class SettlementLineModel extends Model implements TSettlementLine {
   public updatedAt!: Date;
 
   public settlement?: SettlementModel;
+  public animal?: AnimalModel;
 
   static associate(): void {
     this.belongsTo(SettlementModel, {
       as: "settlement",
       foreignKey: { name: "settlementId", allowNull: false },
+    });
+    this.belongsTo(AnimalModel, {
+      as: "animal",
+      foreignKey: { name: "animalId", allowNull: false },
     });
   }
 }
@@ -34,8 +39,8 @@ export const createSettlementLineModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      animalType: {
-        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
+      animalId: {
+        type: DataTypes.UUID,
         allowNull: false,
       },
       receivedWeightKg: {
@@ -69,7 +74,7 @@ export const createSettlementLineModel = (sequelize: Sequelize) => {
       sequelize,
       indexes: [
         { fields: ["settlement_id"] },
-        { fields: ["settlement_id", "animal_type"], unique: true },
+        { fields: ["settlement_id", "animal_id"], unique: true },
       ],
     },
   );

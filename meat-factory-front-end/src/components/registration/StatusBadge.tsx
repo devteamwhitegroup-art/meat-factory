@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 
 const COLOR: Record<string, string> = {
   REGISTERED: 'bg-slate-200 text-slate-800',
-  WEIGHING: 'bg-amber-100 text-amber-800',
   WEIGHED: 'bg-blue-100 text-blue-800',
   VERIFIED: 'bg-indigo-100 text-indigo-800',
+  PAYMENT_PENDING: 'bg-amber-100 text-amber-800',
   SETTLED: 'bg-emerald-100 text-emerald-800',
   CANCELLED: 'bg-rose-100 text-rose-800',
 };

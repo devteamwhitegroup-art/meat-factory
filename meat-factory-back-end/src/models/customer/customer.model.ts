@@ -1,11 +1,12 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import { TCustomer } from "../../types/customer/customer.type";
+import { CUSTOMER_KIND, TCustomer } from "../../types/customer/customer.type";
 import { SalesTransactionModel } from "../sales/sales-transaction.model";
 import { ShipmentModel } from "../shipment/shipment.model";
 
 export class CustomerModel extends Model implements TCustomer {
   public id!: string;
   public name!: string;
+  public kind!: CUSTOMER_KIND;
   public contactPhone!: string | null;
   public address!: string | null;
   public bankAccount!: string | null;
@@ -42,6 +43,11 @@ export const createCustomerModel = (sequelize: Sequelize) => {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      kind: {
+        type: DataTypes.ENUM(...Object.values(CUSTOMER_KIND)),
+        allowNull: false,
+        defaultValue: CUSTOMER_KIND.BROKER,
       },
       contactPhone: {
         type: DataTypes.STRING,
@@ -84,6 +90,7 @@ export const createCustomerModel = (sequelize: Sequelize) => {
         { fields: ["name"] },
         { fields: ["registration_number"] },
         { fields: ["is_active"] },
+        { fields: ["kind"] },
       ],
     },
   );

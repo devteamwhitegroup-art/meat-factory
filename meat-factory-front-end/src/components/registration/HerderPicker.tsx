@@ -31,29 +31,59 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { CreateHerderDoc, HerderListDoc } from '@/lib/queries/herder';
+import { HerderAddressListDoc } from '@/lib/queries/herder-address';
 import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
-const schema = z.object({
-  name: z.string().min(1, 'Нэр шаардлагатай'),
-  registrationNo: z.string().min(1, 'Регистрийн дугаар шаардлагатай'),
-  phone: z.string().optional(),
-  bankAccount: z.string().optional(),
-  address: z.string().min(1, 'Хаяг шаардлагатай'),
-});
+// Either pick an address from the catalogue (addressId) or type one in
+// (address). At least one is required; both are allowed when admin wants to
+// override the catalogue label for an unusual herder.
+const schema = z
+  .object({
+    name: z.string().min(1, 'Нэр шаардлагатай'),
+    registrationNo: z.string().min(1, 'Регистрийн дугаар шаардлагатай'),
+    phone: z.string().optional(),
+    bankAccount: z.string().optional(),
+    bankName: z.string().optional(),
+    accountHolderName: z.string().optional(),
+    addressId: z.string().optional(),
+    address: z.string().optional(),
+  })
+  .refine((v) => (v.addressId && v.addressId.length > 0) || (v.address && v.address.trim().length > 0), {
+    path: ['addressId'],
+    message: 'Хаяг сонгох эсвэл бичих',
+  });
 type Values = z.infer<typeof schema>;
+
+export type PickedHerder = {
+  id: string;
+  name?: string | null;
+  registrationNo?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  bankAccount?: string | null;
+  bankName?: string | null;
+  accountHolderName?: string | null;
+};
 
 type Props = {
   value: string | null;
   onChange: (id: string | null) => void;
+  onSelect?: (herder: PickedHerder | null) => void;
 };
 
-export function HerderPicker({ value, onChange }: Props) {
+export function HerderPicker({ value, onChange, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const { data, loading: fetching, refetch } = useQuery(HerderListDoc, {
     variables: { limit: 50, page: 1 },
   });
   const [createHerder] = useMutation(CreateHerderDoc);
+  // Address catalogue for the dropdown inside the "Шинэ малчин" dialog.
+  const { data: addrData } = useQuery(HerderAddressListDoc, {
+    variables: { search: null, isActive: true },
+    fetchPolicy: 'cache-and-network',
+  });
+  const addresses = compact(addrData?.herderAddresses?.herderAddresses);
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -61,6 +91,9 @@ export function HerderPicker({ value, onChange }: Props) {
       registrationNo: '',
       phone: '',
       bankAccount: '',
+      bankName: '',
+      accountHolderName: '',
+      addressId: '',
       address: '',
     },
   });
@@ -71,6 +104,11 @@ export function HerderPicker({ value, onChange }: Props) {
   }, [open, form]);
 
   const herders = compact(data?.herders?.herders);
+  const labelFor = (h: (typeof herders)[number]) =>
+    `${h.name}${h.registrationNo ? ` — ${h.registrationNo}` : ''}`;
+  const itemLabels = Object.fromEntries(
+    herders.filter((h) => h.id).map((h) => [h.id as string, labelFor(h)]),
+  );
 
   async function onSubmit(values: Values) {
     try {
@@ -80,14 +118,24 @@ export function HerderPicker({ value, onChange }: Props) {
           registrationNo: values.registrationNo.trim(),
           phone: values.phone?.trim() || null,
           bankAccount: values.bankAccount?.trim() || null,
-          address: values.address.trim(),
+          bankName: values.bankName?.trim() || null,
+          accountHolderName: values.accountHolderName?.trim() || null,
+          addressId: values.addressId || null,
+          // Send the free-form fallback only when no catalogue id is set.
+          address:
+            values.addressId
+              ? null
+              : values.address?.trim() || null,
         },
       });
       const created = unwrap(r.data?.createHerder).herder;
       if (!created?.id) throw new Error('Хариу буцаасангүй');
       toast.success(`Малчин нэмэгдлээ: ${created.name}`);
-      refetch();
+      // Refresh the list first so the new herder is in the options before we
+      // set it as the selected value (otherwise the trigger renders blank).
+      await refetch();
       onChange(created.id);
+      onSelect?.(created as PickedHerder);
       setOpen(false);
     } catch (e) {
       toast.error((e as Error).message);
@@ -96,25 +144,40 @@ export function HerderPicker({ value, onChange }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <Select
-        value={value ?? undefined}
-        onValueChange={(v) => onChange(v || null)}
+      <div className="min-w-0 flex-1">
+        <Select
+          items={itemLabels}
+          value={value ?? null}
+          onValueChange={(v) => {
+            const id = (v as string) || null;
+            onChange(id);
+            onSelect?.(
+              (herders.find((h) => h.id === id) as PickedHerder | undefined) ??
+                null,
+            );
+          }}
+        >
+          <SelectTrigger className="h-12 w-full text-base">
+            <SelectValue
+              placeholder={fetching ? 'Уншиж байна…' : 'Малчин сонгох'}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {herders.map((h) => (
+              <SelectItem key={h.id!} value={h.id!}>
+                {labelFor(h)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="h-12 text-base"
+        onClick={() => setOpen(true)}
       >
-        <SelectTrigger className="w-full">
-          <SelectValue
-            placeholder={fetching ? 'Уншиж байна…' : 'Малчин сонгох'}
-          />
-        </SelectTrigger>
-        <SelectContent>
-          {herders.map((h) => (
-            <SelectItem key={h.id!} value={h.id!}>
-              {h.name}
-              {h.registrationNo ? ` — ${h.registrationNo}` : ''}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
         Шинээр нэмэх
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -181,12 +244,94 @@ export function HerderPicker({ value, onChange }: Props) {
               />
               <FormField
                 control={form.control}
+                name="bankName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Банкны нэр</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="ж: Хаан банк"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="accountHolderName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Дансны эзэмшигчийн нэр</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="(зөвхөн өөр хүний данс үед)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="addressId"
+                render={({ field }) => {
+                  // Resolve the picked address's name manually — base-ui
+                  // Select shows the raw UUID in the trigger when the
+                  // matching <SelectItem> isn't currently in the tree.
+                  const selected = addresses.find(
+                    (a) => a.id === field.value,
+                  );
+                  return (
+                    <FormItem>
+                      <FormLabel>Хаяг</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value || undefined}
+                          onValueChange={(v) => field.onChange(v ?? '')}
+                        >
+                          <SelectTrigger className="h-10 w-full">
+                            {field.value ? (
+                              <span>
+                                {selected?.name ?? 'Сонгосон'}
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="Хаягийн жагсаалтаас сонгох" />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addresses.length === 0 ? (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                Хаяг алга. «Малчны хаягууд» хэсэгт нэмнэ үү.
+                              </div>
+                            ) : (
+                              addresses.map((a) => (
+                                <SelectItem key={a.id!} value={a.id!}>
+                                  {a.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+              <FormField
+                control={form.control}
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Хаяг</FormLabel>
+                    <FormLabel>Хаяг (нэмэлт, заавал биш)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        placeholder="Жагсаалтаас сонгоогүй үед бичнэ"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

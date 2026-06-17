@@ -3,6 +3,7 @@ import { CustomerModel } from '../../models/customer/customer.model';
 import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
 import { ShipmentModel } from '../../models/shipment/shipment.model';
 import {
+  CUSTOMER_KIND,
   TCreateCustomer,
   TCustomer,
   TGetCustomers,
@@ -39,6 +40,7 @@ export class CustomerController {
 
     return await CustomerModel.create({
       name: doc.name.trim(),
+      kind: doc.kind ?? CUSTOMER_KIND.BROKER,
       contactPhone: doc.contactPhone ?? null,
       address: doc.address ?? null,
       bankAccount: doc.bankAccount ?? null,
@@ -55,6 +57,7 @@ export class CustomerController {
     const where: WhereOptions = {};
     if (typeof doc.isActive === 'boolean')
       Object.assign(where, { isActive: doc.isActive });
+    if (doc.kind) Object.assign(where, { kind: doc.kind });
     if (doc.search && doc.search.trim())
       Object.assign(where, {
         name: { [Op.iLike]: `%${doc.search.trim()}%` }
@@ -95,6 +98,7 @@ export class CustomerController {
     }
 
     if (doc.name !== undefined) customer.name = doc.name.trim();
+    if (doc.kind !== undefined) customer.kind = doc.kind;
     if (doc.contactPhone !== undefined)
       customer.contactPhone = doc.contactPhone ?? null;
     if (doc.address !== undefined) customer.address = doc.address ?? null;

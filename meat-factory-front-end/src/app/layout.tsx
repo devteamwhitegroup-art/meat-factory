@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ApolloProvider } from "@/lib/apollo/provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -34,8 +35,15 @@ export default function RootLayout({
         className="min-h-full flex flex-col bg-background text-foreground"
         suppressHydrationWarning
       >
-        <ApolloProvider>{children}</ApolloProvider>
-        <Toaster richColors closeButton />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ApolloProvider>{children}</ApolloProvider>
+          <Toaster richColors closeButton />
+        </ThemeProvider>
       </body>
     </html>
   );

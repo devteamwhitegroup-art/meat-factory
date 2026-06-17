@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ROLE_MN } from '@/lib/format/enum';
 import type { NavItem } from '@/lib/auth/roles';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ export function Topbar({
             {ROLE_MN[role] ?? role}
           </span>
         ) : null}
+        <ThemeToggle />
         <Button variant="outline" size="sm" onClick={logout}>
           Гарах
         </Button>

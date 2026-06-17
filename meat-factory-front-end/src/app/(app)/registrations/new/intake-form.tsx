@@ -1,16 +1,18 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation } from '@apollo/client/react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -18,36 +20,71 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { HerderPicker } from '@/components/registration/HerderPicker';
-import { AnimalCountGrid } from '@/components/registration/AnimalCountGrid';
-import { PhotoUpload } from '@/components/common/PhotoUpload';
-import { CreateRegistrationDoc } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/unwrap';
+} from "@/components/ui/form";
+import {
+  HerderPicker,
+  type PickedHerder,
+} from "@/components/registration/HerderPicker";
+import { AnimalCountGrid } from "@/components/registration/AnimalCountGrid";
+import { SignatureField } from "@/components/common/SignatureField";
+import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
+import {
+  CreateRegistrationDoc,
+  NextRegistrationNumberDoc,
+} from "@/lib/queries/registration";
+import { unwrap } from "@/lib/unwrap";
 
 const schema = z.object({
-  herderId: z.string().uuid('Малчин сонгоно уу'),
-  vehicleNumber: z.string().min(1, 'Машины дугаар шаардлагатай'),
-  stamp: z.string().optional(),
+  herderId: z.string().uuid("Малчин сонгоно уу"),
+  vehicleNumber: z.string().min(1, "Машины дугаар шаардлагатай"),
+  stamp: z.string().min(1, "Таних тэмдэг шаардлагатай"),
   intakeDate: z.string().optional(),
+  signatureFileId: z.string().nullable().optional(),
+  stampFileId: z.string().nullable().optional(),
   photoFileId: z.string().nullable().optional(),
+  isPreButchered: z.boolean().optional(),
   counts: z.record(z.string(), z.number()),
 });
 type Values = z.infer<typeof schema>;
+
+function ReadOnlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-base text-muted-foreground">{label}</Label>
+      <div className="flex h-12 items-center rounded-lg border bg-muted/40 px-3 text-base">
+        {value ? value : <span className="text-muted-foreground">—</span>}
+      </div>
+    </div>
+  );
+}
 
 export function IntakeForm() {
   const router = useRouter();
   const [createRegistration] = useMutation(CreateRegistrationDoc);
   const [submitting, setSubmitting] = useState(false);
+  const [herder, setHerder] = useState<PickedHerder | null>(null);
+  const { data: nextData } = useQuery(NextRegistrationNumberDoc, {
+    fetchPolicy: "network-only",
+  });
+  const nextNumber = nextData?.nextRegistrationNumber?.registrationNumber;
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      herderId: '',
-      vehicleNumber: '',
-      stamp: '',
+      herderId: "",
+      vehicleNumber: "",
+      stamp: "",
       intakeDate: new Date().toISOString().slice(0, 10),
+      signatureFileId: null,
+      stampFileId: null,
       photoFileId: null,
+      isPreButchered: false,
       counts: {},
     },
   });
@@ -61,7 +98,19 @@ export function IntakeForm() {
       }));
 
     if (animalLines.length === 0) {
-      toast.error('Дор хаяж нэг малын төрөл сонгоно уу');
+      toast.error("Дор хаяж нэг малын төрөл оруулна уу");
+      return;
+    }
+    if (!values.stampFileId) {
+      toast.error("Тамга зурна уу");
+      return;
+    }
+    if (!values.signatureFileId) {
+      toast.error("Гарын үсэг зурна уу");
+      return;
+    }
+    if (!values.photoFileId) {
+      toast.error("Малыг хүлээж авсан зургийг авна уу");
       return;
     }
 
@@ -71,15 +120,18 @@ export function IntakeForm() {
         variables: {
           herderId: values.herderId,
           vehicleNumber: values.vehicleNumber.trim(),
-          stamp: values.stamp?.trim() || null,
+          stamp: values.stamp.trim(),
+          signatureFileId: values.signatureFileId || null,
+          stampFileId: values.stampFileId || null,
           photoFileId: values.photoFileId || null,
           intakeDate: values.intakeDate ?? null,
+          isPreButchered: !!values.isPreButchered,
           animalLines,
         },
       });
       const reg = unwrap(r.data?.createRegistration).registration;
-      if (!reg?.id) throw new Error('Хариу буцаасангүй');
-      toast.success(`Бүртгэл #${reg.registrationNumber} үүсгэгдлээ`);
+      if (!reg?.id) throw new Error("Хариу буцаасангүй");
+      toast.success(`Бүртгэл №${reg.registrationNumber} үүсгэгдлээ`);
       router.push(`/registrations/${reg.id}`);
       router.refresh();
     } catch (e) {
@@ -91,88 +143,170 @@ export function IntakeForm() {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="grid gap-4 lg:grid-cols-[2fr_3fr]"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-6 p-6">
+            {/* Бүртгэлийн дугаар + Машины дугаар */}
+            <div className="grid items-start gap-6 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-base text-muted-foreground">
+                  Бүртгэлийн дугаар
+                </Label>
+                <div className="text-4xl font-bold tabular-nums">
+                  №{nextNumber ?? "…"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Эцсийн дугаар бүртгэх үед олгогдоно.
+                </p>
+              </div>
+              <FormField
+                control={form.control}
+                name="vehicleNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Машины дугаар</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="8901 ДОУ"
+                        className="h-12 text-lg"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Урьдчилан төхөөрсөн — herder delivers ready-cut meat. When set,
+                settlement zero's out slaughter cost on the BE. */}
+            <Controller
+              control={form.control}
+              name="isPreButchered"
+              render={({ field }) => (
+                <label className="flex cursor-pointer items-start gap-3 rounded-md border bg-muted/30 p-3">
+                  <input
+                    type="checkbox"
+                    checked={!!field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    className="mt-1 h-5 w-5"
+                  />
+                  <div className="space-y-0.5">
+                    <div className="text-base font-medium">
+                      Урьдчилан төхөөрсөн мах
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Малчин нь бэлэн махаар авчирсан тохиолдолд тэмдэглэнэ.
+                      Тооцоонд бойлох (нядалгааны) зардал орохгүй.
+                    </div>
+                  </div>
+                </label>
+              )}
+            />
+
+            <Separator />
+
+            {/* Малчны мэдээлэл */}
+            <div className="text-lg font-semibold">Малчны мэдээлэл</div>
             <FormField
               control={form.control}
               name="herderId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Малчин</FormLabel>
+                  <FormLabel className="text-base">Малчин сонгох</FormLabel>
                   <FormControl>
                     <HerderPicker
                       value={field.value || null}
-                      onChange={(id) => field.onChange(id ?? '')}
+                      onChange={(id) => field.onChange(id ?? "")}
+                      onSelect={setHerder}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="vehicleNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Машины дугаар</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="1234УБА" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="stamp"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Тамга тэмдэг</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="intakeDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Он сар</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ReadOnlyField label="Утасны дугаар" value={herder?.phone} />
+              <ReadOnlyField label="Хаяг" value={herder?.address} />
+              <ReadOnlyField
+                label="Регистрийн дугаар"
+                value={herder?.registrationNo}
+              />
+              <ReadOnlyField label="Малчны нэр" value={herder?.name} />
+            </div>
+
+            <Separator />
+
+            {/* Таних тэмдэг + Он сар */}
+            <div className="grid gap-6 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="stamp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">Таних тэмдэг</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Малын тамганы тайлбар"
+                        className="h-12 text-lg"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <ReadOnlyField
+                label="Он сар"
+                value={form.getValues("intakeDate")}
+              />
+            </div>
+
+            {/* Тамга зурах + Гарын үсэг зурах */}
+            <div className="grid gap-6 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="stampFileId"
+                render={({ field }) => (
+                  <SignatureField
+                    value={field.value ?? null}
+                    onChange={(id) => field.onChange(id)}
+                    label="Тамга (зурах)"
+                    type="register"
+                  />
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="signatureFileId"
+                render={({ field }) => (
+                  <SignatureField
+                    value={field.value ?? null}
+                    onChange={(id) => field.onChange(id)}
+                    label="Гарын үсэг (зурах)"
+                    type="register"
+                  />
+                )}
+              />
+            </div>
+            <Controller
               control={form.control}
               name="photoFileId"
               render={({ field }) => (
-                <FormItem>
-                  <PhotoUpload
-                    value={field.value ?? null}
-                    onChange={(id) => field.onChange(id)}
-                    label="Гэрийн зураг"
-                    type="register"
-                  />
-                  <FormMessage />
-                </FormItem>
+                <PhotoCaptureButton
+                  value={field.value ?? null}
+                  onChange={(id) => field.onChange(id)}
+                  label="Зураг дарах"
+                  type="register"
+                />
               )}
             />
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="space-y-4 p-4">
-            <div className="text-sm font-medium">Малын тоо</div>
+          <CardContent className="space-y-4 p-6">
+            <div className="text-lg font-semibold">Малын тоо</div>
             <Controller
               control={form.control}
               name="counts"
@@ -183,13 +317,17 @@ export function IntakeForm() {
                 />
               )}
             />
-            <div className="flex justify-end">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? 'Бүртгэж байна…' : 'Бүртгэх'}
-              </Button>
-            </div>
           </CardContent>
         </Card>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="h-14 w-full text-lg"
+          disabled={submitting}
+        >
+          {submitting ? "Бүртгэж байна…" : "Бүртгэх"}
+        </Button>
       </form>
     </Form>
   );

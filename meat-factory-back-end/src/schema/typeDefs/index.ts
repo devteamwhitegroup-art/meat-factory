@@ -9,7 +9,11 @@ import adminType from "./user/admin.type";
 
 //Livestock
 import herderType from "./livestock/herder.type";
+import herderAddressType from "./livestock/herder-address.type";
 import registrationType from "./livestock/registration.type";
+import byproductWrapperType from "./livestock/byproduct-wrapper.type";
+import byproductConstantType from "./livestock/byproduct-constant.type";
+import animalType from "./livestock/animal.type";
 
 //Customer
 import customerType from "./customer/customer.type";
@@ -25,6 +29,10 @@ import inventoryType from "./inventory/inventory.type";
 
 //Dashboard
 import dashboardType from "./dashboard/dashboard.type";
+import monthlyBudgetType from "./dashboard/monthly-budget.type";
+
+//Settings
+import settingsType from "./settings/settings.type";
 
 export const mergedGQLSchema = mergeTypeDefs([
   globalType,
@@ -35,7 +43,11 @@ export const mergedGQLSchema = mergeTypeDefs([
 
   //Livestock
   herderType,
+  herderAddressType,
   registrationType,
+  byproductWrapperType,
+  byproductConstantType,
+  animalType,
 
   //Customer
   customerType,
@@ -51,4 +63,8 @@ export const mergedGQLSchema = mergeTypeDefs([
 
   //Dashboard
   dashboardType,
+  monthlyBudgetType,
+
+  //Settings
+  settingsType,
 ]);

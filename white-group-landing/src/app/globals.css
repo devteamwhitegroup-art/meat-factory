@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* The landing site is a fixed light brand design (no dark mode). */
+:root {
+  --radius: 0.625rem;
+  --background: #fcfaf5;
+  --foreground: #211a0e;
+  --card: #ffffff;
+  --card-foreground: #211a0e;
+  --popover: #ffffff;
+  --popover-foreground: #211a0e;
+  --primary: #211a0e;
+  --primary-foreground: #ffffff;
+  --secondary: #f5efe2;
+  --secondary-foreground: #211a0e;
+  --muted: #f5efe2;
+  --muted-foreground: #6f6753;
+  --accent: #f5efe2;
+  --accent-foreground: #211a0e;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: rgba(33, 26, 14, 0.1);
+  --input: rgba(33, 26, 14, 0.14);
+  --ring: #b6892a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Вайт групп brand palette */
+  --color-brand-bg: #fcfaf5;
+  --color-brand-cream: #f5efe2;
+  --color-brand-cream-2: #f0e8d6;
+  --color-brand-ink: #211a0e;
+  --color-brand-ink-2: #3b3322;
+  --color-brand-muted: #6f6753;
+  --color-brand-gold: #b6892a;
+  --color-brand-gold-bright: #d9b24a;
+  --color-brand-gold-deep: #8a6516;
+  --color-brand-line: rgba(33, 26, 14, 0.1);
+
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-manrope), var(--font-geist-sans), sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@utility brand-gold-gradient {
+  background-image: linear-gradient(150deg, #ecce58 0%, #c69a33 48%, #8a6516 100%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    outline-color: var(--color-ring);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  }
+}

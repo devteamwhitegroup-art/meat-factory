@@ -3,6 +3,7 @@ import { graphql } from '@/lib/gql/gql';
 export const RegistrationListDoc = graphql(/* GraphQL */ `
   query Registrations(
     $status: REGISTRATION_STATUS
+    $statuses: [REGISTRATION_STATUS!]
     $herderId: ID
     $registrationNumber: Int
     $limit: Int
@@ -10,6 +11,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
   ) {
     registrations(
       status: $status
+      statuses: $statuses
       herderId: $herderId
       registrationNumber: $registrationNumber
       limit: $limit
@@ -55,12 +57,24 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           url
         }
+        signatureFileId
+        signature {
+          id
+          url
+        }
+        stampFileId
+        stampImage {
+          id
+          url
+        }
         herder {
           id
           name
           registrationNo
           phone
           bankAccount
+          bankName
+          accountHolderName
           address
         }
         guard {
@@ -76,6 +90,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           animalType
           weightKg
+          pricePerKg
           sequenceNo
           createdAt
           scaleOperator {
@@ -89,7 +104,9 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
         }
         byproductLogs {
           id
-          byproductType
+          name
+          animalType
+          canCoverSlaughterCost
           count
           averageWeightKg
           totalWeightKg
@@ -107,14 +124,9 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           firstVerifierId
           firstVerifiedAt
-          secondVerifierId
-          secondVerifiedAt
           notes
+          slaughterCoveredByByproduct
           firstVerifier {
-            id
-            param
-          }
-          secondVerifier {
             id
             param
           }
@@ -130,6 +142,9 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           totalSlaughterCost
           grossAmount
           netPayable
+          payoutBankAccount
+          payoutBankName
+          payoutAccountHolderName
           isPaid
           paidAt
           notes
@@ -162,7 +177,10 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
     $vehicleNumber: String!
     $stamp: String
     $photoFileId: ID
+    $signatureFileId: ID
+    $stampFileId: ID
     $intakeDate: Date
+    $isPreButchered: Boolean
     $animalLines: [RegistrationAnimalLineInput!]!
   ) {
     createRegistration(
@@ -170,7 +188,10 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
       vehicleNumber: $vehicleNumber
       stamp: $stamp
       photoFileId: $photoFileId
+      signatureFileId: $signatureFileId
+      stampFileId: $stampFileId
       intakeDate: $intakeDate
+      isPreButchered: $isPreButchered
       animalLines: $animalLines
     ) {
       success
@@ -179,7 +200,18 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
         id
         registrationNumber
         status
+        isPreButchered
       }
+    }
+  }
+`);
+
+export const NextRegistrationNumberDoc = graphql(/* GraphQL */ `
+  query NextRegistrationNumber {
+    nextRegistrationNumber {
+      success
+      message
+      registrationNumber
     }
   }
 `);
@@ -189,12 +221,14 @@ export const AddWeighingEntryDoc = graphql(/* GraphQL */ `
     $registrationId: ID!
     $animalType: ANIMAL_TYPE!
     $weightKg: Float!
+    $pricePerKg: Float
     $photoFileId: ID
   ) {
     addWeighingEntry(
       registrationId: $registrationId
       animalType: $animalType
       weightKg: $weightKg
+      pricePerKg: $pricePerKg
       photoFileId: $photoFileId
     ) {
       success
@@ -203,9 +237,47 @@ export const AddWeighingEntryDoc = graphql(/* GraphQL */ `
         id
         animalType
         weightKg
+        pricePerKg
         sequenceNo
         createdAt
       }
+    }
+  }
+`);
+
+export const UpdateWeighingEntryDoc = graphql(/* GraphQL */ `
+  mutation UpdateWeighingEntry(
+    $id: ID!
+    $weightKg: Float
+    $pricePerKg: Float
+    $animalType: ANIMAL_TYPE
+    $photoFileId: ID
+  ) {
+    updateWeighingEntry(
+      id: $id
+      weightKg: $weightKg
+      pricePerKg: $pricePerKg
+      animalType: $animalType
+      photoFileId: $photoFileId
+    ) {
+      success
+      message
+      weighingEntry {
+        id
+        animalType
+        weightKg
+        pricePerKg
+        sequenceNo
+      }
+    }
+  }
+`);
+
+export const DeleteWeighingEntryDoc = graphql(/* GraphQL */ `
+  mutation DeleteWeighingEntry($id: ID!) {
+    deleteWeighingEntry(id: $id) {
+      success
+      message
     }
   }
 `);
@@ -223,29 +295,48 @@ export const FinishWeighingDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const AddByproductLogDoc = graphql(/* GraphQL */ `
-  mutation AddByproductLog(
-    $registrationId: ID!
-    $byproductType: BYPRODUCT_TYPE!
-    $count: Int!
-    $averageWeightKg: Float!
-    $photoFileId: ID
-  ) {
-    addByproductLog(
-      registrationId: $registrationId
-      byproductType: $byproductType
-      count: $count
-      averageWeightKg: $averageWeightKg
-      photoFileId: $photoFileId
-    ) {
+export const DerivedByproductsDoc = graphql(/* GraphQL */ `
+  query DerivedByproducts($registrationId: ID!) {
+    derivedByproducts(registrationId: $registrationId) {
       success
       message
-      byproductLog {
+      items {
+        animalType
+        wrapperName
+        name
+        quantity
+        unitWeightKg
+        weightKg
+        canCoverSlaughterCost
+      }
+    }
+  }
+`);
+
+export const SetRegistrationByproductsDoc = graphql(/* GraphQL */ `
+  mutation SetRegistrationByproducts(
+    $registrationId: ID!
+    $items: [ByproductItemInput!]!
+  ) {
+    setRegistrationByproducts(registrationId: $registrationId, items: $items) {
+      success
+      message
+      registration {
         id
-        byproductType
-        count
-        averageWeightKg
-        totalWeightKg
+        status
+      }
+    }
+  }
+`);
+
+export const SetSlaughterCoveredDoc = graphql(/* GraphQL */ `
+  mutation SetSlaughterCovered($registrationId: ID!, $covered: Boolean!) {
+    setSlaughterCovered(registrationId: $registrationId, covered: $covered) {
+      success
+      message
+      verification {
+        id
+        slaughterCoveredByByproduct
       }
     }
   }
@@ -268,8 +359,6 @@ export const VerifyRegistrationDoc = graphql(/* GraphQL */ `
         id
         firstVerifierId
         firstVerifiedAt
-        secondVerifierId
-        secondVerifiedAt
       }
     }
   }
@@ -281,12 +370,18 @@ export const CreateSettlementDoc = graphql(/* GraphQL */ `
     $lines: [SettlementLineInput!]!
     $notes: String
     $photoFileId: ID
+    $payoutBankAccount: String
+    $payoutBankName: String
+    $payoutAccountHolderName: String
   ) {
     createSettlement(
       registrationId: $registrationId
       lines: $lines
       notes: $notes
       photoFileId: $photoFileId
+      payoutBankAccount: $payoutBankAccount
+      payoutBankName: $payoutBankName
+      payoutAccountHolderName: $payoutAccountHolderName
     ) {
       success
       message
@@ -297,6 +392,9 @@ export const CreateSettlementDoc = graphql(/* GraphQL */ `
         totalSlaughterCost
         grossAmount
         netPayable
+        payoutBankAccount
+        payoutBankName
+        payoutAccountHolderName
         isPaid
       }
     }

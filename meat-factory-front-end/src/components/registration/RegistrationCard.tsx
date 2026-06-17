@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from './StatusBadge';
-import { ANIMAL_MN } from '@/lib/format/enum';
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge } from "./StatusBadge";
+import { ANIMAL_MN } from "@/lib/format/enum";
 
 type Line = { animalType: string; count: number };
 type Props = {
@@ -20,18 +20,17 @@ export function RegistrationCard({
   animalLines,
 }: Props) {
   return (
-    <Link href={`/registrations/${id}`} className="block">
-      <Card className="transition-colors hover:bg-muted/40">
+    <Link href={`/registrations/${id}`} className="block h-full">
+      <Card className="flex h-full flex-col transition-colors hover:bg-muted/40">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">
-            Дугаар: {registrationNumber}
+            <p>Дугаар: {registrationNumber}</p>
+            <StatusBadge status={status} />
           </CardTitle>
-          <StatusBadge status={status} />
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {herderName ? (
-            <div className="text-muted-foreground">{herderName}</div>
-          ) : null}
+        <CardContent className="flex flex-1 flex-col gap-2 text-sm">
+          {/* Always reserve the name row so cards line up vertically. */}
+          <div className="text-muted-foreground">{herderName ?? "—"}</div>
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {(animalLines ?? []).map((l) => (
               <span key={l.animalType}>

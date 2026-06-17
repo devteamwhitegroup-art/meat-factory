@@ -5,21 +5,32 @@ export default `#graphql
         totalAmount: Float
     }
 
+    # Byproduct lives entirely in the handoff/log domain after Phase 3 —
+    # no price, no enum, just a free-form name + summed weight.
     type ByproductBreakdownItem {
-        byproductType: String
+        name: String
         totalKg: Float
-        totalAmount: Float
+    }
+
+    # Pipeline counts mirror the FE /registrations stage chips.
+    type PipelineCounts {
+        registered: Int
+        inProcess: Int
+        paymentPending: Int
+        paid: Int
     }
 
     type Dashboard {
         totalMeatIncome: Float
         totalHerderIncome: Float
+        pendingPayoutAmount: Float
         activeHerderCount: Int
         transactionCount: Int
         pendingServicesCount: Int
         totalByproductKg: Float
         animalBreakdown: [AnimalBreakdownItem]
         byproductBreakdown: [ByproductBreakdownItem]
+        pipeline: PipelineCounts
         recentTransactions: [SalesTransaction]
         recentShipments: [Shipment]
     }

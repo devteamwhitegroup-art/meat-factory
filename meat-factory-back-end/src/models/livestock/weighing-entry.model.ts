@@ -1,15 +1,16 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TWeighingEntry } from "../../types/livestock/weighing-entry.type";
 import { RegistrationModel } from "./registration.model";
 import { AdminModel } from "../user/admin.model";
 import { FileModel } from "../global/file.model";
+import { AnimalModel } from "./animal.model";
 
 export class WeighingEntryModel extends Model implements TWeighingEntry {
   public id!: string;
   public registrationId!: string;
-  public animalType!: ANIMAL_TYPE;
+  public animalId!: string;
   public weightKg!: number;
+  public pricePerKg!: number | null;
   public sequenceNo!: number;
   public scaleOperatorId!: string;
   public photoFileId!: string | null;
@@ -17,6 +18,7 @@ export class WeighingEntryModel extends Model implements TWeighingEntry {
   public updatedAt!: Date;
 
   public registration?: RegistrationModel;
+  public animal?: AnimalModel;
   public scaleOperator?: AdminModel;
   public photo?: FileModel;
 
@@ -24,6 +26,10 @@ export class WeighingEntryModel extends Model implements TWeighingEntry {
     this.belongsTo(RegistrationModel, {
       as: "registration",
       foreignKey: { name: "registrationId", allowNull: false },
+    });
+    this.belongsTo(AnimalModel, {
+      as: "animal",
+      foreignKey: { name: "animalId", allowNull: false },
     });
     this.belongsTo(AdminModel, {
       as: "scaleOperator",
@@ -45,13 +51,18 @@ export const createWeighingEntryModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      animalType: {
-        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
+      animalId: {
+        type: DataTypes.UUID,
         allowNull: false,
       },
       weightKg: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
+      },
+      pricePerKg: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: true,
+        defaultValue: null,
       },
       sequenceNo: {
         type: DataTypes.INTEGER,
@@ -67,6 +78,7 @@ export const createWeighingEntryModel = (sequelize: Sequelize) => {
       indexes: [
         { fields: ["registration_id"] },
         { fields: ["registration_id", "sequence_no"], unique: true },
+        { fields: ["animal_id"] },
       ],
     },
   );

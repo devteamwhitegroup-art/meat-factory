@@ -6,7 +6,16 @@ export default `#graphql
         name: String
         registrationNo: String
         phone: String
+        # Bank fields — for settlement payouts.
         bankAccount: String
+        bankName: String
+        accountHolderName: String
+        # Address: addressId references the admin catalogue; addressEntry is
+        # the joined row. The legacy address field stays as a String —
+        # resolver returns addressEntry.name with a fallback to the legacy
+        # column so older FE callers don't break.
+        addressId: ID
+        addressEntry: HerderAddress
         address: String
         createdAt: Date
         updatedAt: Date
@@ -37,7 +46,11 @@ export default `#graphql
             registrationNo: String!
             phone: String
             bankAccount: String
-            address: String!
+            bankName: String
+            accountHolderName: String
+            # Either addressId OR address must be set (server-side validated).
+            addressId: ID
+            address: String
         ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
 
         updateHerder(
@@ -46,6 +59,9 @@ export default `#graphql
             registrationNo: String
             phone: String
             bankAccount: String
+            bankName: String
+            accountHolderName: String
+            addressId: ID
             address: String
         ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
 

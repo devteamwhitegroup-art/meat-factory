@@ -3,19 +3,22 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { BreakdownPie } from '@/components/dashboard/BreakdownPie';
+import { MonthlyOverviewChart } from '@/components/dashboard/MonthlyOverviewChart';
 import { getClient } from '@/lib/apollo/server';
 import { DashboardDoc } from '@/lib/queries/dashboard';
 import { compact } from '@/lib/compact';
 import {
   ANIMAL_MN,
-  BYPRODUCT_MN,
   PAYMENT_STATUS_MN,
   SHIPMENT_STATUS_MN,
 } from '@/lib/format/enum';
 import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
 
+import { requireCap } from '@/lib/auth/server';
+
 export default async function DashboardPage() {
+  await requireCap('dashboard');
   const { data } = await getClient().query({
     query: DashboardDoc,
     variables: { dateRange: null },
@@ -34,15 +37,68 @@ export default async function DashboardPage() {
     value: Number(a.totalKg ?? 0),
   }));
   const byprodSlices = compact(d.byproductBreakdown).map((b) => ({
-    name: BYPRODUCT_MN[b.byproductType ?? ''] ?? b.byproductType ?? '',
+    name: b.name ?? '',
     value: Number(b.totalKg ?? 0),
   }));
   const txns = compact(d.recentTransactions);
   const ships = compact(d.recentShipments);
+  const pipe = d.pipeline;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Тайлан</h1>
+
+      {/* Pipeline tile — clickable shortcuts into the matching /registrations
+          stage chips. Adds at-a-glance pipeline visibility to the dashboard. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Бүртгэлийн урсгал</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Link
+              href="/registrations?stage=registered"
+              className="rounded-md border bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:bg-slate-900/40"
+            >
+              <div className="text-xs text-muted-foreground">Бүртгэгдсэн</div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {pipe?.registered ?? 0}
+              </div>
+            </Link>
+            <Link
+              href="/registrations?stage=in_process"
+              className="rounded-md border bg-blue-50 p-3 transition-colors hover:bg-blue-100 dark:bg-blue-950/30"
+            >
+              <div className="text-xs text-muted-foreground">
+                Дүн тооцоолж буй
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {pipe?.inProcess ?? 0}
+              </div>
+            </Link>
+            <Link
+              href="/registrations?stage=payment_pending"
+              className="rounded-md border bg-amber-50 p-3 transition-colors hover:bg-amber-100 dark:bg-amber-950/30"
+            >
+              <div className="text-xs text-muted-foreground">
+                Төлбөр хүлээгдэж буй
+              </div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {pipe?.paymentPending ?? 0}
+              </div>
+            </Link>
+            <Link
+              href="/registrations?stage=paid"
+              className="rounded-md border bg-emerald-50 p-3 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/30"
+            >
+              <div className="text-xs text-muted-foreground">Төлбөр хийгдсэн</div>
+              <div className="text-2xl font-semibold tabular-nums">
+                {pipe?.paid ?? 0}
+              </div>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
@@ -50,16 +106,21 @@ export default async function DashboardPage() {
           value={formatMNT(d.totalMeatIncome)}
         />
         <MetricCard
-          label="Гүйлгээний тоо"
-          value={String(d.transactionCount ?? 0)}
+          label="Малчдад төлсөн"
+          value={formatMNT(d.totalHerderIncome)}
         />
         <MetricCard
-          label="Малчдын орлого"
-          value={formatMNT(d.totalHerderIncome)}
+          label="Хүлээгдэж буй төлбөр"
+          value={formatMNT(d.pendingPayoutAmount)}
+          accent="amber"
         />
         <MetricCard
           label="Идэвхтэй малчид"
           value={String(d.activeHerderCount ?? 0)}
+        />
+        <MetricCard
+          label="Гүйлгээний тоо"
+          value={String(d.transactionCount ?? 0)}
         />
         <MetricCard
           label="Хүлээгдэж буй гүйлгээ"
@@ -67,10 +128,12 @@ export default async function DashboardPage() {
           accent="amber"
         />
         <MetricCard
-          label="Дайвар (кг)"
+          label="Дайвар (кг, гарт өгсөн)"
           value={formatNumber(d.totalByproductKg) + ' кг'}
         />
       </div>
+
+      <MonthlyOverviewChart monthsBack={12} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <BreakdownPie
@@ -79,9 +142,9 @@ export default async function DashboardPage() {
           emptyText="Махны борлуулалт алга"
         />
         <BreakdownPie
-          title="Дайвар задаргаа"
+          title="Дайвар задаргаа (гарт өгсөн)"
           data={byprodSlices}
-          emptyText="Дайварын борлуулалт алга"
+          emptyText="Дайвар хүлээлгэн өгөөгүй"
         />
       </div>
 

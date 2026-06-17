@@ -20,6 +20,7 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
         productType
         animalType
         byproductType
+        byproductName
         quantityKg
         updatedAt
       }
@@ -56,6 +57,25 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
         createdAt
         notes
         item { id sku }
+      }
+    }
+  }
+`);
+
+export const InventoryStatsDoc = graphql(/* GraphQL */ `
+  query InventoryStats {
+    inventoryStats {
+      success
+      message
+      stats {
+        meatStockKg
+        byproductStockKg
+        meatCapacityKg
+        meatAlertThresholdKg
+        cargoCapacityKg
+        alertActive
+        cargosToClear
+        lastAlertedAt
       }
     }
   }

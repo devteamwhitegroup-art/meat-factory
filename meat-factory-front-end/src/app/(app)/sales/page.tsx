@@ -22,9 +22,12 @@ const TABS = [
   { value: 'PENDING', label: 'Хүлээгдэж буй' },
 ];
 
+import { requireCap } from '@/lib/auth/server';
+
 type Props = { searchParams: Promise<{ status?: string; page?: string }> };
 
 export default async function SalesPage({ searchParams }: Props) {
+  await requireCap('sales');
   const sp = await searchParams;
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;

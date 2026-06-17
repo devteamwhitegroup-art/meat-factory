@@ -55,6 +55,14 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
           unitPrice
           lineAmount
         }
+        installments {
+          id
+          amountMnt
+          paidAt
+          notes
+          createdAt
+          createdBy { id param }
+        }
         shipment { id shipmentCode status weightKg }
       }
     }
@@ -90,5 +98,31 @@ export const MarkSalesTransactionPaidDoc = graphql(/* GraphQL */ `
       message
       salesTransaction { id paymentStatus paidAt }
     }
+  }
+`);
+
+export const AddSalesInstallmentDoc = graphql(/* GraphQL */ `
+  mutation AddSalesInstallment(
+    $salesTransactionId: ID!
+    $amountMnt: Float!
+    $paidAt: Date
+    $notes: String
+  ) {
+    addSalesInstallment(
+      salesTransactionId: $salesTransactionId
+      amountMnt: $amountMnt
+      paidAt: $paidAt
+      notes: $notes
+    ) {
+      success
+      message
+      installment { id amountMnt paidAt notes }
+    }
+  }
+`);
+
+export const RemoveSalesInstallmentDoc = graphql(/* GraphQL */ `
+  mutation RemoveSalesInstallment($id: ID!) {
+    removeSalesInstallment(id: $id) { success message }
   }
 `);

@@ -2,9 +2,7 @@ import { ANIMAL_TYPE } from './registration.type';
 
 export type TSettlementLineInput = {
   animalType: ANIMAL_TYPE;
-  pricePerKg: number;
   slaughterCost?: number; // Бой зардал (default 0)
-  byproductPricePerKg?: number; // monetary rate for allocated byproduct
 };
 
 export type TCreateSettlement = {
@@ -12,12 +10,18 @@ export type TCreateSettlement = {
   lines: TSettlementLineInput[];
   notes?: string | null;
   photoFileId?: string | null;
+  // Per-settlement payout override. When any field is set we use it instead
+  // of the herder's default bank fields (doesn't mutate the herder).
+  payoutBankAccount?: string | null;
+  payoutBankName?: string | null;
+  payoutAccountHolderName?: string | null;
 };
 
 export type TSettlementLine = {
   id: string;
   settlementId: string;
-  animalType: ANIMAL_TYPE;
+  // Persisted FK; the GraphQL animalType field is resolved via the joined Animal.
+  animalId: string;
   receivedWeightKg: number; // Хүлээн авсан
   pricePerKg: number;
   meatAmount: number;
@@ -35,6 +39,10 @@ export type TSettlement = {
   totalSlaughterCost: number;
   grossAmount: number; // Нийт төлбөр
   netPayable: number;
+  // Optional payout override (per settlement). Null = use the herder's bank.
+  payoutBankAccount: string | null;
+  payoutBankName: string | null;
+  payoutAccountHolderName: string | null;
   isPaid: boolean;
   paidAt: Date | null;
   settledById: string | null;
@@ -44,12 +52,16 @@ export type TSettlement = {
   updatedAt: Date;
 };
 
-// Plain DTO handed to InventoryController on settlement-paid (Phase 2).
+// Plain DTO handed to InventoryController on settlement-paid.
 // Defined here so livestock never imports the inventory module.
 export type TRegistrationIngestLine = {
   productType: 'MEAT' | 'BYPRODUCT';
   animalType?: ANIMAL_TYPE | null;
   byproductType?: string | null;
+  // Free-form byproduct name (e.g. "Адууны хэл"). Set for BYPRODUCT lines
+  // coming from the post-Phase-3 catalogue; mutually exclusive with
+  // byproductType.
+  byproductName?: string | null;
   quantityKg: number;
 };
 

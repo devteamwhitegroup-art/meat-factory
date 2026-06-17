@@ -26,6 +26,26 @@ export default `#graphql
         updatedAt: Date
     }
 
+    # One partial payment against a SalesTransaction. Outstanding =
+    # tx.amount − Σ(installments.amountMnt). When ≤ 0 the tx auto-flips PAID.
+    type SalesInstallment {
+        id: ID
+        salesTransactionId: ID
+        amountMnt: Float
+        paidAt: Date
+        notes: String
+        createdById: ID
+        createdBy: Admin
+        createdAt: Date
+        updatedAt: Date
+    }
+
+    type SalesInstallmentResponse {
+        success: Boolean
+        message: String
+        installment: SalesInstallment
+    }
+
     type SalesTransaction {
         id: ID
         transactionCode: String
@@ -40,6 +60,7 @@ export default `#graphql
         createdBy: Admin
         notes: String
         lineItems: [SalesLineItem]
+        installments: [SalesInstallment]
         shipment: Shipment
         createdAt: Date
         updatedAt: Date
@@ -88,5 +109,14 @@ export default `#graphql
         markSalesTransactionPaid(
             id: ID!
         ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+
+        addSalesInstallment(
+            salesTransactionId: ID!
+            amountMnt: Float!
+            paidAt: Date
+            notes: String
+        ): SalesInstallmentResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+
+        removeSalesInstallment(id: ID!): Response @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
     }
 `;

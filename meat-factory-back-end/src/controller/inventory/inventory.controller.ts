@@ -1,7 +1,10 @@
-import { Op, Transaction, WhereOptions } from 'sequelize';
+import { Op, Transaction, WhereOptions, fn, col } from 'sequelize';
 import sequelize from '../../config/db-connection';
 import { InventoryItemModel } from '../../models/inventory/inventory-item.model';
 import { InventoryMovementModel } from '../../models/inventory/inventory-movement.model';
+import { AnimalModel } from '../../models/livestock/animal.model';
+import { SettingsController } from '../settings/settings.controller';
+import { sendTelegramMessage } from '../../function/telegram';
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
@@ -42,15 +45,31 @@ export class InventoryController {
     if (line.productType === PRODUCT_TYPE.MEAT) {
       if (!line.animalType)
         throw new Error('MEAT inventory line requires an animalType');
-      if (line.byproductType)
-        throw new Error('MEAT inventory line cannot have a byproductType');
+      if (line.byproductType || line.byproductName)
+        throw new Error('MEAT inventory line cannot have a byproductType/Name');
       return `MEAT:${line.animalType}`;
     }
-    if (!line.byproductType)
-      throw new Error('BYPRODUCT inventory line requires a byproductType');
     if (line.animalType)
       throw new Error('BYPRODUCT inventory line cannot have an animalType');
-    return `BYPRODUCT:${line.byproductType}`;
+    // Two byproduct flavours:
+    //  • legacy ENUM (HEART/LIVER/…) — used by manual adjust + sales SKUs.
+    //  • named (Адууны хэл / Хацар мах) — used by livestock auto-ingest
+    //    after the Phase-3 catalogue redesign.
+    // Distinct SKU prefixes prevent the two paths from colliding even if
+    // someone names a free-form byproduct "LIVER".
+    if (line.byproductType) {
+      if (line.byproductName)
+        throw new Error(
+          'BYPRODUCT line must use either byproductType OR byproductName'
+        );
+      return `BYPRODUCT:${line.byproductType}`;
+    }
+    if (line.byproductName) {
+      const name = line.byproductName.trim();
+      if (!name) throw new Error('byproductName cannot be empty');
+      return `BYPN:${name}`;
+    }
+    throw new Error('BYPRODUCT line requires byproductType or byproductName');
   }
 
   private static async _getOrCreateItem(
@@ -65,6 +84,7 @@ export class InventoryController {
         productType: line.productType,
         animalType: line.animalType ?? null,
         byproductType: line.byproductType ?? null,
+        byproductName: line.byproductName?.trim() || null,
         quantityKg: 0
       },
       transaction: t
@@ -129,30 +149,149 @@ export class InventoryController {
     });
     if (already) return; // idempotent
 
+    // Yield haircut — Animal.yieldPercent (default 100) is applied to MEAT
+    // lines so horse (70%) stocks bone-out kg, not carcass kg. Byproducts are
+    // already weighed by the storekeeper and pass through unchanged.
+    const meatTypes = Array.from(
+      new Set(
+        payload.lines
+          .filter((l) => l.productType === 'MEAT' && l.animalType)
+          .map((l) => l.animalType as ANIMAL_TYPE)
+      )
+    );
+    const yieldByType: Record<string, number> = {};
+    if (meatTypes.length > 0) {
+      const rows = await AnimalModel.findAll({
+        where: { animalType: { [Op.in]: meatTypes } }
+      });
+      for (const r of rows)
+        yieldByType[r.animalType] = Number(r.yieldPercent);
+    }
+
     await sequelize.transaction(async (t) => {
       for (const l of payload.lines) {
         if (!l.quantityKg || l.quantityKg <= 0) continue;
+        const isMeat = l.productType === 'MEAT';
+        const yieldPct =
+          isMeat && l.animalType ? (yieldByType[l.animalType] ?? 100) : 100;
+        const adjustedQty =
+          yieldPct === 100
+            ? l.quantityKg
+            : Number(((l.quantityKg * yieldPct) / 100).toFixed(2));
         const line: TStockLine = {
-          productType:
-            l.productType === 'MEAT'
-              ? PRODUCT_TYPE.MEAT
-              : PRODUCT_TYPE.BYPRODUCT,
+          productType: isMeat ? PRODUCT_TYPE.MEAT : PRODUCT_TYPE.BYPRODUCT,
           animalType: (l.animalType as ANIMAL_TYPE | null) ?? null,
           byproductType: (l.byproductType as BYPRODUCT_TYPE | null) ?? null,
-          quantityKg: l.quantityKg
+          byproductName: l.byproductName ?? null,
+          quantityKg: adjustedQty
         };
+        const yieldNote =
+          isMeat && yieldPct !== 100
+            ? ` (yield ${yieldPct}% from ${l.quantityKg} carcass kg)`
+            : '';
         await this._applyMovement(
           {
             movementType: MOVEMENT_TYPE.IN,
             source: MOVEMENT_SOURCE.SETTLEMENT,
             line,
             sourceRegistrationId: payload.registrationId,
-            notes: `Settlement ingest for registration ${payload.registrationId}`
+            notes: `Settlement ingest for registration ${payload.registrationId}${yieldNote}`
           },
           t
         );
       }
     });
+
+    // After the transaction commits, check whether the new meat total crossed
+    // the storage threshold and notify via Telegram (fire-and-forget so the
+    // settlement-paid response isn't blocked by a slow webhook).
+    void this._maybeFireStorageAlert();
+  }
+
+  // Total kg currently in stock for a product type. Used by the analytics
+  // tile + the alert hook.
+  static async totalKg(productType: PRODUCT_TYPE): Promise<number> {
+    const row = (await InventoryItemModel.findOne({
+      attributes: [[fn('SUM', col('quantity_kg')), 'total']],
+      where: { productType },
+      raw: true
+    })) as unknown as { total: string | null } | null;
+    return Number(row?.total ?? 0);
+  }
+
+  // Inventory summary for the FE analytics block. Bundles totals + settings
+  // + alert state in one round-trip so the page renders without a fan-out.
+  static async stats(): Promise<{
+    meatStockKg: number;
+    byproductStockKg: number;
+    meatCapacityKg: number;
+    meatAlertThresholdKg: number;
+    cargoCapacityKg: number;
+    alertActive: boolean;
+    cargosToClear: number;
+    lastAlertedAt: Date | null;
+  }> {
+    const [meat, byprod, settings] = await Promise.all([
+      this.totalKg(PRODUCT_TYPE.MEAT),
+      this.totalKg(PRODUCT_TYPE.BYPRODUCT),
+      SettingsController.get()
+    ]);
+    const cap = Number(settings.cargoCapacityKg);
+    const thr = Number(settings.meatAlertThresholdKg);
+    return {
+      meatStockKg: meat,
+      byproductStockKg: byprod,
+      meatCapacityKg: Number(settings.meatCapacityKg),
+      meatAlertThresholdKg: thr,
+      cargoCapacityKg: cap,
+      alertActive: thr > 0 && meat >= thr,
+      // ceil(meat / cargoCap). Returns 0 when cargoCap unset.
+      cargosToClear: cap > 0 ? Math.ceil(meat / cap) : 0,
+      lastAlertedAt: settings.lastAlertedAt
+    };
+  }
+
+  // Threshold-crossing check. Sends a Telegram message at most:
+  //   - once per crossing (debounced by lastAlertedStockKg falling below
+  //     threshold and re-rising), AND
+  //   - at most once per 12h cool-down window.
+  private static async _maybeFireStorageAlert(): Promise<void> {
+    try {
+      const settings = await SettingsController.get();
+      const threshold = Number(settings.meatAlertThresholdKg);
+      if (threshold <= 0) return; // alerts disabled
+      const meatKg = await this.totalKg(PRODUCT_TYPE.MEAT);
+      if (meatKg < threshold) return;
+      const last = Number(settings.lastAlertedStockKg);
+      const lastAt = settings.lastAlertedAt;
+      const COOL_DOWN_MS = 12 * 60 * 60 * 1000;
+      const tooSoon =
+        lastAt && Date.now() - new Date(lastAt).getTime() < COOL_DOWN_MS;
+      // Still above threshold after the previous alert AND inside the
+      // cool-down window: stay quiet.
+      if (last >= threshold && tooSoon) return;
+
+      const cap = Number(settings.meatCapacityKg);
+      const cargoCap = Number(settings.cargoCapacityKg);
+      const cargosToClear = cargoCap > 0 ? Math.ceil(meatKg / cargoCap) : 0;
+      const message =
+        `<b>⚠️ Махны нөөц босго давсан</b>\n` +
+        `Нөөц: <b>${meatKg.toFixed(2)} кг</b>` +
+        (cap > 0 ? ` / ${cap.toFixed(0)} кг багтаамж` : '') +
+        `\n` +
+        `Босго: ${threshold.toFixed(0)} кг\n` +
+        (cargoCap > 0 && cargosToClear > 0
+          ? `Санал болгох ачилт: <b>${cargosToClear}</b> ачаа (1 ачаа ≈ ${cargoCap.toFixed(0)} кг)\n`
+          : '') +
+        `Шинэ ачилт үүсгэнэ үү.`;
+      const ok = await sendTelegramMessage(message);
+      if (ok) await SettingsController.stampAlert(meatKg);
+    } catch (e) {
+      console.error(
+        '[inventory] storage alert hook error:',
+        e instanceof Error ? e.message : 'unknown'
+      );
+    }
   }
 
   // Called by ShipmentController when a shipment is delivered. Runs in

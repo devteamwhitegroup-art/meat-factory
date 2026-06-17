@@ -1,14 +1,27 @@
 import { graphql } from '@/lib/gql/gql';
 
 export const CustomerListDoc = graphql(/* GraphQL */ `
-  query Customers($search: String, $isActive: Boolean, $limit: Int, $page: Int) {
-    customers(search: $search, isActive: $isActive, limit: $limit, page: $page) {
+  query Customers(
+    $search: String
+    $isActive: Boolean
+    $kind: CUSTOMER_KIND
+    $limit: Int
+    $page: Int
+  ) {
+    customers(
+      search: $search
+      isActive: $isActive
+      kind: $kind
+      limit: $limit
+      page: $page
+    ) {
       success
       message
       count
       customers {
         id
         name
+        kind
         contactPhone
         address
         bankAccount
@@ -29,6 +42,7 @@ export const CustomerDoc = graphql(/* GraphQL */ `
       customer {
         id
         name
+        kind
         contactPhone
         address
         bankAccount
@@ -43,6 +57,7 @@ export const CustomerDoc = graphql(/* GraphQL */ `
 export const CreateCustomerDoc = graphql(/* GraphQL */ `
   mutation CreateCustomer(
     $name: String!
+    $kind: CUSTOMER_KIND
     $contactPhone: String
     $address: String
     $bankAccount: String
@@ -51,6 +66,7 @@ export const CreateCustomerDoc = graphql(/* GraphQL */ `
   ) {
     createCustomer(
       name: $name
+      kind: $kind
       contactPhone: $contactPhone
       address: $address
       bankAccount: $bankAccount
@@ -59,7 +75,7 @@ export const CreateCustomerDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      customer { id name }
+      customer { id name kind }
     }
   }
 `);
@@ -68,6 +84,7 @@ export const UpdateCustomerDoc = graphql(/* GraphQL */ `
   mutation UpdateCustomer(
     $id: ID!
     $name: String
+    $kind: CUSTOMER_KIND
     $contactPhone: String
     $address: String
     $bankAccount: String
@@ -78,6 +95,7 @@ export const UpdateCustomerDoc = graphql(/* GraphQL */ `
     updateCustomer(
       id: $id
       name: $name
+      kind: $kind
       contactPhone: $contactPhone
       address: $address
       bankAccount: $bankAccount
@@ -87,7 +105,7 @@ export const UpdateCustomerDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      customer { id name isActive }
+      customer { id name kind isActive }
     }
   }
 `);

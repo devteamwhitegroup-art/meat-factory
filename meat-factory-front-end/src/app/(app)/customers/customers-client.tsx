@@ -34,16 +34,33 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   CreateCustomerDoc,
   CustomerListDoc,
   DeleteCustomerDoc,
   UpdateCustomerDoc,
 } from '@/lib/queries/customer';
+import { Customer_Kind } from '@/lib/gql/graphql';
+import { CUSTOMER_KIND_MN } from '@/lib/format/enum';
 import { unwrap } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
+const KIND_VALUES = ['BROKER', 'FACTORY'] as const;
+
 const schema = z.object({
   name: z.string().min(1, 'Нэр шаардлагатай'),
+  kind: z.enum(KIND_VALUES),
   contactPhone: z.string().optional(),
   address: z.string().optional(),
   bankAccount: z.string().optional(),
@@ -55,6 +72,7 @@ type Values = z.infer<typeof schema>;
 type EditTarget = {
   id?: string | null;
   name?: string | null;
+  kind?: Customer_Kind | string | null;
   contactPhone?: string | null;
   address?: string | null;
   bankAccount?: string | null;
@@ -66,10 +84,14 @@ type EditTarget = {
 export function CustomersClient() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [kindFilter, setKindFilter] = useState<'ALL' | 'BROKER' | 'FACTORY'>(
+    'ALL',
+  );
   const { data, loading: fetching, refetch } = useQuery(CustomerListDoc, {
     variables: {
       search: search || null,
       isActive: null,
+      kind: kindFilter === 'ALL' ? null : (kindFilter as Customer_Kind),
       limit: 20,
       page,
     },
@@ -85,6 +107,7 @@ export function CustomersClient() {
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
+      kind: 'BROKER',
       contactPhone: '',
       address: '',
       bankAccount: '',
@@ -97,6 +120,7 @@ export function CustomersClient() {
     setEditing(null);
     form.reset({
       name: '',
+      kind: 'BROKER',
       contactPhone: '',
       address: '',
       bankAccount: '',
@@ -108,8 +132,10 @@ export function CustomersClient() {
 
   function openEdit(c: NonNullable<EditTarget>) {
     setEditing(c);
+    const k = (c.kind as 'BROKER' | 'FACTORY' | null) ?? 'BROKER';
     form.reset({
       name: c.name ?? '',
+      kind: k,
       contactPhone: c.contactPhone ?? '',
       address: c.address ?? '',
       bankAccount: c.bankAccount ?? '',
@@ -126,6 +152,7 @@ export function CustomersClient() {
           variables: {
             id: editing.id,
             name: values.name.trim(),
+            kind: values.kind as Customer_Kind,
             contactPhone: values.contactPhone?.trim() || null,
             address: values.address?.trim() || null,
             bankAccount: values.bankAccount?.trim() || null,
@@ -140,6 +167,7 @@ export function CustomersClient() {
         const r = await createCustomer({
           variables: {
             name: values.name.trim(),
+            kind: values.kind as Customer_Kind,
             contactPhone: values.contactPhone?.trim() || null,
             address: values.address?.trim() || null,
             bankAccount: values.bankAccount?.trim() || null,
@@ -185,15 +213,30 @@ export function CustomersClient() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Input
-          placeholder="Хайх (нэр)"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-sm"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="Хайх (нэр)"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="max-w-xs"
+          />
+          <Tabs
+            value={kindFilter}
+            onValueChange={(v) => {
+              setKindFilter(v as 'ALL' | 'BROKER' | 'FACTORY');
+              setPage(1);
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value="ALL">Бүгд</TabsTrigger>
+              <TabsTrigger value="BROKER">{CUSTOMER_KIND_MN.BROKER}</TabsTrigger>
+              <TabsTrigger value="FACTORY">{CUSTOMER_KIND_MN.FACTORY}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         <Button onClick={openCreate}>Шинэ харилцагч</Button>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent className="w-full sm:max-w-md">
@@ -216,6 +259,36 @@ export function CustomersClient() {
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="kind"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Төрөл</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Сонгох">
+                              <span>{CUSTOMER_KIND_MN[field.value]}</span>
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="BROKER">
+                            {CUSTOMER_KIND_MN.BROKER}
+                          </SelectItem>
+                          <SelectItem value="FACTORY">
+                            {CUSTOMER_KIND_MN.FACTORY}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -310,6 +383,7 @@ export function CustomersClient() {
             <TableHeader>
               <TableRow>
                 <TableHead>Нэр</TableHead>
+                <TableHead>Төрөл</TableHead>
                 <TableHead>Утас</TableHead>
                 <TableHead>Регистр / ТТД</TableHead>
                 <TableHead>Идэвхтэй</TableHead>
@@ -320,6 +394,17 @@ export function CustomersClient() {
               {customers.map((c) => (
                 <TableRow key={c.id!}>
                   <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        c.kind === 'FACTORY'
+                          ? 'border-0 bg-sky-100 text-sky-800'
+                          : 'border-0 bg-amber-100 text-amber-800'
+                      }
+                    >
+                      {CUSTOMER_KIND_MN[c.kind ?? 'BROKER'] ?? '—'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{c.contactPhone ?? '—'}</TableCell>
                   <TableCell>
                     {[c.registrationNumber, c.taxId]

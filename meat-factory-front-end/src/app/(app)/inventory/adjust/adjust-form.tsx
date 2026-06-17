@@ -20,15 +20,16 @@ import { AdjustInventoryDoc } from '@/lib/queries/inventory';
 import { unwrap } from '@/lib/unwrap';
 import {
   ANIMAL_MN,
-  ANIMAL_TYPES,
   BYPRODUCT_MN,
   BYPRODUCT_TYPES,
   MOVEMENT_TYPE_MN,
   PRODUCT_TYPE_MN,
 } from '@/lib/format/enum';
+import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
 
 export function AdjustForm() {
   const router = useRouter();
+  const { animalTypes } = useAnimalCatalog();
   const [adjust] = useMutation(AdjustInventoryDoc);
   const [productType, setProductType] = useState<'MEAT' | 'BYPRODUCT'>('MEAT');
   const [animalType, setAnimalType] = useState('COW');
@@ -99,7 +100,7 @@ export function AdjustForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ANIMAL_TYPES.map((t) => (
+                  {animalTypes.map((t) => (
                     <SelectItem key={t} value={t}>
                       {ANIMAL_MN[t]}
                     </SelectItem>

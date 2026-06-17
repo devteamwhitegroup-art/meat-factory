@@ -7,9 +7,11 @@ function landingFor(role: string | null | undefined): string {
     case 'GUARD':
       return '/registrations/new';
     case 'SCALE':
-      return '/registrations?status=WEIGHING';
+      // Scale lands on the in-process pipe (still REGISTERED rows pending
+      // weigh-up).
+      return '/registrations?stage=registered';
     case 'STOREKEEPER':
-      return '/registrations?status=WEIGHED';
+      return '/registrations?stage=in_process';
     case 'MODERATOR':
       return '/registrations';
     case 'SUPER_ADMIN':

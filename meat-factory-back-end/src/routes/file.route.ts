@@ -74,6 +74,13 @@ router.post(
       mimetype: ext
     });
 
+    // S3 / Spaces v4 signing requires user-metadata values to be US-ASCII —
+    // a Cyrillic/Mongolian filename (e.g. phone-captured "Зураг_2026.jpg")
+    // breaks the canonical request with "signature does not match". Sanitize
+    // every metadata value to ASCII before signing.
+    const asciiOnly = (v: string): string =>
+      (v || '').normalize('NFKD').replace(/[^\x20-\x7E]/g, '_');
+
     await putObject({
       key,
       file: file.buffer,
@@ -81,7 +88,7 @@ router.post(
       // Stamp the object for clarity / audit.
       meta: {
         folder,
-        originalName: file.originalname ?? '',
+        originalName: asciiOnly(file.originalname ?? ''),
         uploadedAt: new Date().toISOString(),
         ...(uploadedBy ? { uploadedBy } : {})
       }

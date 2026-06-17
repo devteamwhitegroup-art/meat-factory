@@ -37,6 +37,17 @@ export default {
           count: 0
         };
       }
+    },
+    inventoryStats: async () => {
+      try {
+        return {
+          success: true,
+          message: 'Success',
+          stats: await InventoryController.stats()
+        };
+      } catch (error) {
+        return { success: false, message: error.message, stats: null };
+      }
     }
   },
   Mutation: {

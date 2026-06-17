@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx --yes create-next-app@latest meat-factory-front-end --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-pnpm --no-turbopack --skip-install --yes)"
+      "Bash(npx --yes create-next-app@latest meat-factory-front-end --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-pnpm --no-turbopack --skip-install --yes)",
+      "Bash(cd /d/work/additional/meat-factory/meat-factory-back-end && find . -type f -name \"*.ts\" | grep -E \"\\(customer|models/index|schema\\)\" | head -30)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -X POST http://localhost:8086/graphql -H \"Content-Type: application/json\" -d '{\"query\":\"mutation{loginAdmin\\(param:\\\\\"admin@example.com\\\\\",password:\\\\\"admin123\\\\\"\\){success token}}\"}')",
+      "Bash(pnpm gen *)",
+      "Bash(echo \"gen exit=$?\")",
+      "Bash(pnpm build *)",
+      "Bash(echo \"build exit=$?\")"
     ]
   }
 }

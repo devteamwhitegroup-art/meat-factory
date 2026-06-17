@@ -15,6 +15,13 @@ export type TShipment = {
   status: SHIPMENT_STATUS;
   shippedAt: Date | null;
   loadedById: string;
+  // Truck / vehicle identifier copied from the storekeeper's notebook
+  // (e.g. "Лиаз 134467"). Optional — older shipments stay null.
+  vehiclePlate: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
+  // Free-form loading serial (truck sticker, paper-pad sequence, …).
+  serialNumber: string | null;
   notes: string | null;
   photoFileId: string | null;
   createdAt: Date;
@@ -25,6 +32,10 @@ export type TCreateShipment = {
   customerId?: string | null;
   salesTransactionId?: string | null;
   weightKg: number;
+  vehiclePlate?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+  serialNumber?: string | null;
   notes?: string | null;
   photoFileId?: string | null;
 };

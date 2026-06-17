@@ -21,6 +21,9 @@ type Props = {
   onChange: (fileId: string | null) => void;
   type?: UploadFolder;
   label?: string;
+  // When set, tablet/phone browsers open the camera directly instead of the
+  // file picker. 'environment' = back camera, 'user' = front. Desktop ignores.
+  capture?: 'environment' | 'user';
 };
 
 export function PhotoUpload({
@@ -28,6 +31,7 @@ export function PhotoUpload({
   onChange,
   type = 'other',
   label = 'Зураг оруулах',
+  capture,
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -71,6 +75,7 @@ export function PhotoUpload({
         <Input
           type="file"
           accept="image/jpeg,image/png,image/gif,video/mp4"
+          {...(capture ? { capture } : {})}
           disabled={uploading}
           onChange={(e) => {
             const f = e.target.files?.[0];

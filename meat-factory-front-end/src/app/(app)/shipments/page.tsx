@@ -29,9 +29,12 @@ const STATUS_COLOR: Record<string, string> = {
   DELIVERED: 'border-0 bg-emerald-100 text-emerald-800',
 };
 
+import { requireCap } from '@/lib/auth/server';
+
 type Props = { searchParams: Promise<{ status?: string; page?: string }> };
 
 export default async function ShipmentsPage({ searchParams }: Props) {
+  await requireCap('shipments');
   const sp = await searchParams;
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;

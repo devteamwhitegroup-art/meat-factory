@@ -9,18 +9,37 @@ export type StaffRole =
 
 // Match the back-end @adminAuth(permissions:[...]) lists exactly.
 export const CAPS = {
-  createRegistration: ['GUARD', 'MANAGER', 'SUPER_ADMIN'],
-  weigh: ['SCALE', 'MANAGER', 'SUPER_ADMIN'],
+  createRegistration: ['GUARD', 'STOREKEEPER', 'MANAGER', 'SUPER_ADMIN'],
+  // Anyone on the floor except the gate guard can run the scale — cover for
+  // shifts where the named SCALE operator isn't around.
+  weigh: [
+    'SCALE',
+    'STOREKEEPER',
+    'MODERATOR',
+    'MANAGER',
+    'ADMIN',
+    'SUPER_ADMIN',
+  ],
   byproduct: ['STOREKEEPER', 'MANAGER', 'SUPER_ADMIN'],
-  verify: ['STOREKEEPER', 'SCALE', 'MANAGER', 'ADMIN', 'SUPER_ADMIN'],
+  verify: ['STOREKEEPER', 'MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   settle: ['STOREKEEPER', 'MANAGER', 'SUPER_ADMIN'],
+  // Read-only access to the settlement page — SCALE included so weighers can
+  // verify their own per-entry name is correct on the final receipt.
+  settleView: ['STOREKEEPER', 'MANAGER', 'ADMIN', 'SUPER_ADMIN', 'SCALE'],
   cancelRegistration: ['MANAGER', 'SUPER_ADMIN'],
+  herders: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'GUARD'],
+  herderAddresses: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   customers: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   sales: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   shipments: ['MANAGER', 'STOREKEEPER', 'ADMIN', 'SUPER_ADMIN'],
   inventory: ['MANAGER', 'STOREKEEPER', 'ADMIN', 'SUPER_ADMIN'],
   inventoryAdjust: ['MANAGER', 'SUPER_ADMIN'],
+  byproductConstants: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
+  animals: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
+  // System-wide thresholds: storage capacity, alert threshold, cargo capacity.
+  settings: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   dashboard: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
+  monthlyBudgets: ['MANAGER', 'ADMIN', 'SUPER_ADMIN'],
   admins: ['SUPER_ADMIN', 'MANAGER'],
   deleteAdmin: ['SUPER_ADMIN'],
 } as const satisfies Record<string, readonly StaffRole[]>;
@@ -50,10 +69,15 @@ const OFFICE_NAV: NavItem[] = [
   { href: '/dashboard', label: 'Тайлан' },
   { href: '/registrations', label: 'Бүртгэл' },
   { href: '/herders', label: 'Малчид' },
+  { href: '/herder-addresses', label: 'Малчны хаягууд' },
   { href: '/customers', label: 'Харилцагч' },
   { href: '/sales', label: 'Гүйлгээ' },
   { href: '/shipments', label: 'Ачилт' },
   { href: '/inventory', label: 'Нөөц' },
+  { href: '/byproduct-constants', label: 'Дайвар норм' },
+  { href: '/animals', label: 'Малын тохиргоо' },
+  { href: '/monthly-budgets', label: 'Сарын төсөв' },
+  { href: '/settings', label: 'Систем тохиргоо' },
   { href: '/admins', label: 'Хэрэглэгч' },
 ];
 
@@ -70,11 +94,12 @@ export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {
     { href: '/registrations', label: 'Миний бүртгэл' },
   ],
   SCALE: [
-    { href: '/registrations?status=WEIGHING', label: 'Жигнэх дараалал' },
+    { href: '/registrations?stage=registered', label: 'Жиглэх дараалал' },
     { href: '/registrations', label: 'Бүртгэл' },
   ],
   STOREKEEPER: [
-    { href: '/registrations?status=WEIGHED', label: 'Тооцоо хүлээгдэж буй' },
+    { href: '/registrations/new', label: 'Шинэ бүртгэл' },
+    { href: '/registrations?stage=in_process', label: 'Тооцоо хүлээгдэж буй' },
     { href: '/registrations', label: 'Бүртгэл' },
     { href: '/inventory', label: 'Нөөц' },
     { href: '/shipments', label: 'Ачилт' },

@@ -1,8 +1,19 @@
 import { TPagination } from '../global/global.type';
 
+// BROKER  = individual middle-man / one-off buyer (no commercial paper trail)
+// FACTORY = downstream meat factory / big repeat client
+//
+// No field-level differences — this is just a tag so the sales + shipment
+// dropdowns can filter and the customer list can show the right badge.
+export enum CUSTOMER_KIND {
+  BROKER = 'BROKER',
+  FACTORY = 'FACTORY'
+}
+
 export type TCustomer = {
   id: string;
   name: string;
+  kind: CUSTOMER_KIND;
   contactPhone: string | null;
   address: string | null;
   bankAccount: string | null;
@@ -15,6 +26,7 @@ export type TCustomer = {
 
 export type TCreateCustomer = {
   name: string;
+  kind?: CUSTOMER_KIND;
   contactPhone?: string | null;
   address?: string | null;
   bankAccount?: string | null;
@@ -30,4 +42,5 @@ export type TUpdateCustomer = Partial<TCreateCustomer> & {
 export type TGetCustomers = {
   search?: string;
   isActive?: boolean;
+  kind?: CUSTOMER_KIND;
 } & TPagination;
