@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ROLE_MN } from '@/lib/format/enum';
-import type { NavItem } from '@/lib/auth/roles';
+import { navIsActive, type NavItem, type StaffRole } from '@/lib/auth/roles';
 import { cn } from '@/lib/utils';
 
 export function Topbar({
@@ -13,7 +13,7 @@ export function Topbar({
   navItems = [],
   brand = 'FactoryOS',
 }: {
-  role: string | null;
+  role: StaffRole | null;
   navItems?: NavItem[];
   brand?: string;
 }) {
@@ -31,9 +31,7 @@ export function Topbar({
         {navItems.length > 0 ? (
           <nav className="flex items-center gap-1">
             {navItems.map((i) => {
-              const path = i.href.split('?')[0];
-              const active =
-                pathname === path || pathname.startsWith(path + '/');
+              const active = navIsActive(pathname, i.href);
               return (
                 <Link
                   key={i.href}

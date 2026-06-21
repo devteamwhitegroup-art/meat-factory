@@ -1,4 +1,4 @@
-import { Op, WhereOptions } from 'sequelize';
+import { IncludeOptions, Op, WhereOptions } from 'sequelize';
 import { ByproductConstantModel } from '../../models/livestock/byproduct-constant.model';
 import { ByproductWrapperModel } from '../../models/livestock/byproduct-wrapper.model';
 import { AnimalModel } from '../../models/livestock/animal.model';
@@ -11,13 +11,15 @@ import {
 } from '../../types/livestock/byproduct-constant.type';
 import { ANIMAL_TYPE } from '../../types/livestock/registration.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 export class ByproductConstantController {
-  static async findIdCheck(id: string): Promise<ByproductConstantModel> {
-    const row = await ByproductConstantModel.findByPk(id);
-    if (!row) throw new Error('Byproduct constant not found');
-    return row;
+  static findIdCheck(id: string): Promise<ByproductConstantModel> {
+    return findOrThrow(
+      ByproductConstantModel,
+      id,
+      'Byproduct constant not found'
+    );
   }
 
   private static async _assertUnique(
@@ -59,7 +61,6 @@ export class ByproductConstantController {
   static async list(
     doc: TGetByproductConstants
   ): Promise<TPaginationGeneric<TByproductConstant>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (doc.wrapperId) Object.assign(where, { wrapperId: doc.wrapperId });
     if (typeof doc.isActive === 'boolean')
@@ -70,7 +71,7 @@ export class ByproductConstantController {
       });
 
     // Filter by animalType joins through wrapper → animal.
-    const wrapperInclude: any = {
+    const wrapperInclude: IncludeOptions = {
       model: ByproductWrapperModel,
       as: 'wrapper'
     };
@@ -88,11 +89,9 @@ export class ByproductConstantController {
       ];
     }
 
-    return await ByproductConstantModel.findAndCountAll({
+    return listPaginated(ByproductConstantModel, doc, {
       where,
       include: [wrapperInclude],
-      offset,
-      limit,
       order: [['name', 'ASC']],
       distinct: true
     });

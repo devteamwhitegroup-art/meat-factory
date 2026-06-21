@@ -15,10 +15,10 @@
     "moduleResolution": "node",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "useUnknownInCatchVariables": false,
+    "useUnknownInCatchVariables": true,
     "strict": true,
     "esModuleInterop": true,
     "rootDirs": [

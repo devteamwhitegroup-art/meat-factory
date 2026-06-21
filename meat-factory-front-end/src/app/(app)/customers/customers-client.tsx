@@ -5,7 +5,6 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +52,7 @@ import {
 } from '@/lib/queries/customer';
 import { Customer_Kind } from '@/lib/gql/graphql';
 import { CUSTOMER_KIND_MN } from '@/lib/format/enum';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 
 const KIND_VALUES = ['BROKER', 'FACTORY'] as const;
@@ -146,24 +145,24 @@ export function CustomersClient() {
   }
 
   async function onSubmit(values: Values) {
-    try {
-      if (editing?.id) {
-        const r = await updateCustomer({
-          variables: {
-            id: editing.id,
-            name: values.name.trim(),
-            kind: values.kind as Customer_Kind,
-            contactPhone: values.contactPhone?.trim() || null,
-            address: values.address?.trim() || null,
-            bankAccount: values.bankAccount?.trim() || null,
-            registrationNumber: values.registrationNumber?.trim() || null,
-            taxId: values.taxId?.trim() || null,
-            isActive: editing.isActive ?? true,
-          },
-        });
-        unwrap(r.data?.updateCustomer);
-        toast.success('Шинэчлэгдлээ');
-      } else {
+    await runMutation(
+      async () => {
+        if (editing?.id) {
+          const r = await updateCustomer({
+            variables: {
+              id: editing.id,
+              name: values.name.trim(),
+              kind: values.kind as Customer_Kind,
+              contactPhone: values.contactPhone?.trim() || null,
+              address: values.address?.trim() || null,
+              bankAccount: values.bankAccount?.trim() || null,
+              registrationNumber: values.registrationNumber?.trim() || null,
+              taxId: values.taxId?.trim() || null,
+              isActive: editing.isActive ?? true,
+            },
+          });
+          return r.data?.updateCustomer;
+        }
         const r = await createCustomer({
           variables: {
             name: values.name.trim(),
@@ -175,36 +174,34 @@ export function CustomersClient() {
             taxId: values.taxId?.trim() || null,
           },
         });
-        unwrap(r.data?.createCustomer);
-        toast.success('Харилцагч нэмэгдлээ');
-      }
-      setOpen(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+        return r.data?.createCustomer;
+      },
+      {
+        success: editing?.id ? 'Шинэчлэгдлээ' : 'Харилцагч нэмэгдлээ',
+        onSuccess: () => {
+          setOpen(false);
+          refetch();
+        },
+      },
+    );
   }
 
   async function toggleActive(id: string, isActive: boolean) {
-    try {
-      const r = await updateCustomer({ variables: { id, isActive: !isActive } });
-      unwrap(r.data?.updateCustomer);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await updateCustomer({ variables: { id, isActive: !isActive } })).data
+          ?.updateCustomer,
+      { onSuccess: refetch },
+    );
   }
 
   async function onDelete(id: string) {
     if (!confirm('Устгах уу?')) return;
-    try {
-      const r = await deleteCustomer({ variables: { id } });
-      unwrap(r.data?.deleteCustomer);
-      toast.success('Устгагдлаа');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await deleteCustomer({ variables: { id } })).data?.deleteCustomer,
+      { success: 'Устгагдлаа', onSuccess: refetch },
+    );
   }
 
   const customers = compact(data?.customers?.customers);

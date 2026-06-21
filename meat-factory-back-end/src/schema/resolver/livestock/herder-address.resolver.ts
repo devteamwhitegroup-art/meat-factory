@@ -1,67 +1,34 @@
 import { HerderAddressController } from '../../../controller/livestock/herder-address.controller';
+import {
+  TCreateHerderAddress,
+  TGetHerderAddresses,
+  TUpdateHerderAddress
+} from '../../../types/livestock/herder-address.type';
+import { wrapList, wrapOne, wrapVoid } from '../../../utils';
 
 export default {
   Query: {
-    herderAddresses: async (_, doc) => {
-      try {
-        const { rows, count } = await HerderAddressController.list(doc);
-        return {
-          success: true,
-          message: 'Success',
-          herderAddresses: rows,
-          count
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          herderAddresses: [],
-          count: 0
-        };
-      }
-    },
-    herderAddress: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          herderAddress: await HerderAddressController.getById(id)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, herderAddress: null };
-      }
-    }
+    herderAddresses: wrapList('herderAddresses', (doc: TGetHerderAddresses) =>
+      HerderAddressController.list(doc)
+    ),
+    herderAddress: wrapOne('herderAddress', ({ id }: { id: string }) =>
+      HerderAddressController.getById(id)
+    )
   },
   Mutation: {
-    createHerderAddress: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Хаяг нэмэгдлээ',
-          herderAddress: await HerderAddressController.create(doc)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, herderAddress: null };
-      }
-    },
-    updateHerderAddress: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Хаяг шинэчлэгдлээ',
-          herderAddress: await HerderAddressController.update(doc)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, herderAddress: null };
-      }
-    },
-    deleteHerderAddress: async (_, { id }) => {
-      try {
-        await HerderAddressController.remove(id);
-        return { success: true, message: 'Хаяг устгагдлаа' };
-      } catch (error) {
-        return { success: false, message: error.message };
-      }
-    }
+    createHerderAddress: wrapOne(
+      'herderAddress',
+      (doc: TCreateHerderAddress) => HerderAddressController.create(doc),
+      'Хаяг нэмэгдлээ'
+    ),
+    updateHerderAddress: wrapOne(
+      'herderAddress',
+      (doc: TUpdateHerderAddress) => HerderAddressController.update(doc),
+      'Хаяг шинэчлэгдлээ'
+    ),
+    deleteHerderAddress: wrapVoid(
+      'Хаяг устгагдлаа',
+      ({ id }: { id: string }) => HerderAddressController.remove(id)
+    )
   }
 };

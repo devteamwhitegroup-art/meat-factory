@@ -83,10 +83,7 @@ const OFFICE_NAV: NavItem[] = [
 
 export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {
   SUPER_ADMIN: OFFICE_NAV,
-  ADMIN: OFFICE_NAV.filter((n) => n.href !== '/admins').concat({
-    href: '/admins',
-    label: 'Хэрэглэгч',
-  }),
+  ADMIN: OFFICE_NAV,
   MANAGER: OFFICE_NAV,
   MODERATOR: [{ href: '/registrations', label: 'Бүртгэл' }],
   GUARD: [
@@ -109,4 +106,11 @@ export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {
 export function navItemsFor(role: string | null | undefined): NavItem[] {
   if (!role) return [];
   return NAV_BY_ROLE[role as StaffRole] ?? [];
+}
+
+// Active-state test for nav links: matches the exact path or any sub-route,
+// ignoring the query string. Shared by Topbar and Sidebar.
+export function navIsActive(pathname: string, href: string): boolean {
+  const path = href.split('?')[0];
+  return pathname === path || pathname.startsWith(path + '/');
 }

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -39,7 +38,7 @@ import {
 } from '@/lib/queries/byproduct-constant';
 import { ANIMAL_MN } from '@/lib/format/enum';
 import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 
 type WrapperForm = { id?: string; name: string };
@@ -100,50 +99,49 @@ export function ByproductConstantsClient() {
       toast.error('Багцын нэр оруулна уу');
       return;
     }
-    try {
-      if (wrapperForm.id) {
-        const r = await updateWrapper({
-          variables: {
-            id: wrapperForm.id,
-            name: wrapperForm.name.trim(),
-          },
-        });
-        unwrap(r.data?.updateByproductWrapper);
-      } else {
+    await runMutation(
+      async () => {
+        if (wrapperForm.id) {
+          const r = await updateWrapper({
+            variables: {
+              id: wrapperForm.id,
+              name: wrapperForm.name.trim(),
+            },
+          });
+          return r.data?.updateByproductWrapper;
+        }
         const r = await createWrapper({
           variables: {
             animalType: animalType as never,
             name: wrapperForm.name.trim(),
           },
         });
-        unwrap(r.data?.createByproductWrapper);
-      }
-      toast.success('Хадгалагдлаа');
-      setWrapperSheet(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+        return r.data?.createByproductWrapper;
+      },
+      {
+        success: 'Хадгалагдлаа',
+        onSuccess: () => {
+          setWrapperSheet(false);
+          refetch();
+        },
+      },
+    );
   }
   async function toggleWrapperActive(id: string, isActive: boolean) {
-    try {
-      const r = await updateWrapper({ variables: { id, isActive: !isActive } });
-      unwrap(r.data?.updateByproductWrapper);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await updateWrapper({ variables: { id, isActive: !isActive } })).data
+          ?.updateByproductWrapper,
+      { onSuccess: refetch },
+    );
   }
   async function removeWrapper(id: string) {
     if (!confirm('Багц болон доторх дайваруудыг устгах уу?')) return;
-    try {
-      const r = await deleteWrapper({ variables: { id } });
-      unwrap(r.data?.deleteByproductWrapper);
-      toast.success('Устгагдлаа');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await deleteWrapper({ variables: { id } })).data?.deleteByproductWrapper,
+      { success: 'Устгагдлаа', onSuccess: refetch },
+    );
   }
 
   // ── item handlers ──
@@ -179,18 +177,19 @@ export function ByproductConstantsClient() {
     const weight = itemForm.unitWeight.trim()
       ? Number(itemForm.unitWeight)
       : null;
-    try {
-      if (itemForm.id) {
-        const r = await updateItem({
-          variables: {
-            id: itemForm.id,
-            name: itemForm.name.trim(),
-            quantityPerAnimal: Math.floor(Number(itemForm.qty)),
-            unitWeightKg: weight,
-          },
-        });
-        unwrap(r.data?.updateByproductConstant);
-      } else {
+    await runMutation(
+      async () => {
+        if (itemForm.id) {
+          const r = await updateItem({
+            variables: {
+              id: itemForm.id,
+              name: itemForm.name.trim(),
+              quantityPerAnimal: Math.floor(Number(itemForm.qty)),
+              unitWeightKg: weight,
+            },
+          });
+          return r.data?.updateByproductConstant;
+        }
         const r = await createItem({
           variables: {
             wrapperId: itemForm.wrapperId,
@@ -199,25 +198,24 @@ export function ByproductConstantsClient() {
             unitWeightKg: weight,
           },
         });
-        unwrap(r.data?.createByproductConstant);
-      }
-      toast.success('Хадгалагдлаа');
-      setItemSheet(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+        return r.data?.createByproductConstant;
+      },
+      {
+        success: 'Хадгалагдлаа',
+        onSuccess: () => {
+          setItemSheet(false);
+          refetch();
+        },
+      },
+    );
   }
   async function removeItem(id: string) {
     if (!confirm('Дайвар устгах уу?')) return;
-    try {
-      const r = await deleteItem({ variables: { id } });
-      unwrap(r.data?.deleteByproductConstant);
-      toast.success('Устгагдлаа');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await deleteItem({ variables: { id } })).data?.deleteByproductConstant,
+      { success: 'Устгагдлаа', onSuccess: refetch },
+    );
   }
 
   return (

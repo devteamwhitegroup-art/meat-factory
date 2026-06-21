@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { navItemsFor, type StaffRole } from '@/lib/auth/roles';
+import { navItemsFor, navIsActive, type StaffRole } from '@/lib/auth/roles';
 
 export function Sidebar({ role }: { role: StaffRole | null }) {
   const pathname = usePathname();
@@ -18,9 +18,7 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
       </div>
       <nav className="flex flex-col gap-1 px-2">
         {items.map((i) => {
-          const path = i.href.split('?')[0];
-          const active =
-            pathname === path || pathname.startsWith(path + '/');
+          const active = navIsActive(pathname, i.href);
           return (
             <Link
               key={i.href}

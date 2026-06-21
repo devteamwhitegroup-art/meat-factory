@@ -1,30 +1,16 @@
 import { AnimalController } from '../../../controller/livestock/animal.controller';
+import { TUpsertAnimal } from '../../../types/livestock/animal.type';
+import { wrapItems, wrapOne } from '../../../utils';
 
 export default {
   Query: {
-    animals: async () => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          animals: await AnimalController.list()
-        };
-      } catch (error) {
-        return { success: false, message: error.message, animals: [] };
-      }
-    }
+    animals: wrapItems('animals', () => AnimalController.list())
   },
   Mutation: {
-    upsertAnimal: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Хадгалагдлаа',
-          animal: await AnimalController.upsert(doc)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, animal: null };
-      }
-    }
+    upsertAnimal: wrapOne(
+      'animal',
+      (doc: TUpsertAnimal) => AnimalController.upsert(doc),
+      'Хадгалагдлаа'
+    )
   }
 };

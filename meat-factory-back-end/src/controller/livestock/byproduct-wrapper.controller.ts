@@ -1,4 +1,4 @@
-import { Op, WhereOptions } from 'sequelize';
+import { IncludeOptions, Op, WhereOptions } from 'sequelize';
 import { ByproductWrapperModel } from '../../models/livestock/byproduct-wrapper.model';
 import { ByproductConstantModel } from '../../models/livestock/byproduct-constant.model';
 import { AnimalModel } from '../../models/livestock/animal.model';
@@ -11,7 +11,7 @@ import {
 } from '../../types/livestock/byproduct-wrapper.type';
 import { ANIMAL_TYPE } from '../../types/livestock/registration.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 // Wrappers belong-to an Animal row by id. The public API still accepts
 // animalType for ergonomics — we resolve it via AnimalController.resolveByType
@@ -24,10 +24,8 @@ const WRAPPER_INCLUDE = [
 ];
 
 export class ByproductWrapperController {
-  static async findIdCheck(id: string): Promise<ByproductWrapperModel> {
-    const row = await ByproductWrapperModel.findByPk(id);
-    if (!row) throw new Error('Багц олдсонгүй');
-    return row;
+  static findIdCheck(id: string): Promise<ByproductWrapperModel> {
+    return findOrThrow(ByproductWrapperModel, id, 'Багц олдсонгүй');
   }
 
   private static async _assertUnique(
@@ -60,7 +58,6 @@ export class ByproductWrapperController {
   static async list(
     doc: TGetByproductWrappers
   ): Promise<TPaginationGeneric<TByproductWrapper>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (typeof doc.isActive === 'boolean')
       Object.assign(where, { isActive: doc.isActive });
@@ -70,7 +67,7 @@ export class ByproductWrapperController {
       });
 
     // animalType filter joins through the Animals table.
-    const animalInclude: any = { model: AnimalModel, as: 'animal' };
+    const animalInclude: IncludeOptions = { model: AnimalModel, as: 'animal' };
     if (doc.animalType) {
       if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
         throw new Error(`Invalid animal type: ${doc.animalType}`);
@@ -78,22 +75,18 @@ export class ByproductWrapperController {
       animalInclude.required = true;
     }
 
-    return await ByproductWrapperModel.findAndCountAll({
+    return listPaginated(ByproductWrapperModel, doc, {
       where,
       include: [{ model: ByproductConstantModel, as: 'items' }, animalInclude],
-      offset,
-      limit,
       order: [['name', 'ASC']],
       distinct: true
     });
   }
 
-  static async getById(id: string): Promise<ByproductWrapperModel> {
-    const row = await ByproductWrapperModel.findByPk(id, {
+  static getById(id: string): Promise<ByproductWrapperModel> {
+    return findOrThrow(ByproductWrapperModel, id, 'Багц олдсонгүй', {
       include: WRAPPER_INCLUDE
     });
-    if (!row) throw new Error('Багц олдсонгүй');
-    return row;
   }
 
   static async update(

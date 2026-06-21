@@ -20,10 +20,6 @@ export default {
   SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || '',
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || '',
 
-  RESEND_MAIL_API_KEY: process.env.RESEND_MAIL_API_KEY || '',
-  NODE_MAILER_USER: process.env.NODE_MAILER_USER || '',
-  NODE_MAILER_PASS: process.env.NODE_MAILER_PASS || '',
-
   // Telegram bot used for storage-threshold alerts. Both must be set for the
   // alert to fire; otherwise the helper logs and skips.
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',

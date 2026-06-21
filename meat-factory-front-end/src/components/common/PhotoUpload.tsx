@@ -4,17 +4,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
 
-export type UploadFolder =
-  | 'register'
-  | 'herd'
-  | 'scale'
-  | 'byproduct'
-  | 'verify'
-  | 'settlement'
-  | 'shipment'
-  | 'staff'
-  | 'other';
+export type { UploadFolder };
 
 type Props = {
   value: string | null;
@@ -33,38 +25,17 @@ export function PhotoUpload({
   label = 'Зураг оруулах',
   capture,
 }: Props) {
-  const [uploading, setUploading] = useState(false);
+  const { upload, uploading } = useFileUpload(type);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   async function handleFile(file: File) {
-    setUploading(true);
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
+    setPreviewUrl(URL.createObjectURL(file));
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('type', type);
-      const res = await fetch('/api/file-upload', {
-        method: 'POST',
-        body: fd,
-      });
-      const data = (await res.json()) as {
-        success: boolean;
-        message?: string;
-        id?: string;
-      };
-      if (!data.success || !data.id) {
-        toast.error(data.message ?? 'Зураг ачаалах амжилтгүй');
-        onChange(null);
-      } else {
-        onChange(data.id);
-        toast.success('Зураг ачааллаа');
-      }
-    } catch {
-      toast.error('Сүлжээний алдаа');
+      onChange(await upload(file));
+      toast.success('Зураг ачааллаа');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Сүлжээний алдаа');
       onChange(null);
-    } finally {
-      setUploading(false);
     }
   }
 

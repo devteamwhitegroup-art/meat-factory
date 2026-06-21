@@ -1,84 +1,46 @@
 import { AdminController } from '../../../controller/user/admin.controller';
+import {
+  TAdmin,
+  TAdminLoginInput,
+  TCreateAdmin
+} from '../../../types/user/admin.type';
+import { errorMessage, wrapOne, wrapVoid } from '../../../utils';
 
 export default {
   Query: {
-    currentAdmin: async (_, __, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          admin: await AdminController.currentAdmin(context)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-    }
+    currentAdmin: wrapOne('admin', (_args, context) =>
+      AdminController.currentAdmin(context)
+    )
   },
   Mutation: {
-    loginAdmin: async (_, doc) => {
+    // Two-payload envelope (admin + token) — kept explicit; the wrap helpers
+    // only build a single data key.
+    loginAdmin: async (_: unknown, doc: TAdminLoginInput) => {
       try {
         const { admin, token } = await AdminController.login(doc);
-        return {
-          success: true,
-          message: 'Login successful',
-          admin,
-          token
-        };
+        return { success: true, message: 'Login successful', admin, token };
       } catch (error) {
         return {
           success: false,
-          message: error.message,
+          message: errorMessage(error),
           admin: null,
           token: null
         };
       }
     },
-    createAdmin: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Admin created successfully',
-          admin: await AdminController.createAdmin(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          admin: null
-        };
-      }
-    },
-    updateAdmin: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Admin updated successfully',
-          admin: await AdminController.updateAdmin(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          admin: null
-        };
-      }
-    },
-    deleteAdmin: async (_, doc) => {
-      try {
-        await AdminController.deleteAdmin(doc);
-        return {
-          success: true,
-          message: 'Admin deleted successfully'
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-    }
+    createAdmin: wrapOne(
+      'admin',
+      (doc: TCreateAdmin) => AdminController.createAdmin(doc),
+      'Admin created successfully'
+    ),
+    updateAdmin: wrapOne(
+      'admin',
+      (doc: Partial<TAdmin> & { id: string }) =>
+        AdminController.updateAdmin(doc),
+      'Admin updated successfully'
+    ),
+    deleteAdmin: wrapVoid('Admin deleted successfully', (doc: { id: string }) =>
+      AdminController.deleteAdmin(doc)
+    )
   }
 };

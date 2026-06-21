@@ -1,14 +1,11 @@
 import { FileModel } from '../../models/global/file.model';
 import { TCreateFile, TFile } from '../../types/global/file.type';
 import { Model } from 'sequelize';
+import { findOrThrow } from '../../utils';
 
 export class FileController {
-  static async findIdCheck(id: string) {
-    const file = await FileModel.findByPk(id);
-    if (!file) {
-      throw new Error('File олдсонгүй');
-    }
-    return file;
+  static findIdCheck(id: string) {
+    return findOrThrow(FileModel, id, 'File олдсонгүй');
   }
 
   static async createFile(doc: TCreateFile): Promise<TFile & Model> {

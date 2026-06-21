@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,7 @@ import {
   RegistrationDetailDoc,
   SetRegistrationByproductsDoc,
 } from "@/lib/queries/registration";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 
 type Row = {
@@ -101,6 +100,9 @@ export function ByproductClient({ id }: { id: string }) {
               unitWeightKg:
                 l.averageWeightKg != null ? Number(l.averageWeightKg) : null,
             }));
+    // Seed editable rows once, after the derived/saved queries settle (the
+    // `seeded` guard runs this a single time) — a legitimate async-data seed.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRows(base);
     setSeeded(true);
   }, [reg, derivedItems, savedLogs, derived, derivedLoading, seeded]);
@@ -161,16 +163,13 @@ export function ByproductClient({ id }: { id: string }) {
       .filter((i) => i.quantity > 0);
 
     setBusy(true);
-    try {
-      const r = await save({ variables: { registrationId: id, items } });
-      unwrap(r.data?.setRegistrationByproducts);
-      toast.success("Дайвар хадгалагдлаа");
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (await save({ variables: { registrationId: id, items } })).data
+          ?.setRegistrationByproducts,
+      { success: "Дайвар хадгалагдлаа", onSuccess: refetch },
+    );
+    setBusy(false);
   }
 
   const editable = reg.status === "WEIGHED";

@@ -110,7 +110,9 @@ import {
 } from "./dashboard/monthly-budget.model";
 
 export const setupModel = (sequelize: Sequelize) => {
-  // ── Phase 1: init() — parent-before-child (FK topological order) ──
+  // ── Phase 1: init() every model. Call order is NOT significant here — FK
+  // columns and associations are wired in Phase 2 (associate). The load-bearing
+  // rule is that ALL init() run before ANY associate() (circular-import safety). ──
   //User
   createAdminModel(sequelize);
 

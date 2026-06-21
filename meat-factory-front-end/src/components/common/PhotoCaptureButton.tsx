@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { CameraIcon, CheckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import type { UploadFolder } from '@/components/common/PhotoUpload';
+import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
 
 type Props = {
   value: string | null;
@@ -23,30 +23,16 @@ export function PhotoCaptureButton({
   label = 'Зураг дарах',
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const { upload, uploading } = useFileUpload(type);
 
   async function handleFile(file: File) {
-    setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('type', type);
-      const res = await fetch('/api/file-upload', { method: 'POST', body: fd });
-      const data = (await res.json()) as {
-        success: boolean;
-        message?: string;
-        id?: string;
-      };
-      if (!data.success || !data.id) {
-        throw new Error(data.message ?? 'Хадгалах амжилтгүй');
-      }
-      onChange(data.id);
+      onChange(await upload(file));
       toast.success('Зураг даруулсан');
     } catch (e) {
       onChange(null);
-      toast.error((e as Error).message);
+      toast.error(e instanceof Error ? e.message : 'Хадгалах амжилтгүй');
     } finally {
-      setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
     }
   }
@@ -75,11 +61,7 @@ export function PhotoCaptureButton({
         onClick={() => inputRef.current?.click()}
       >
         {done ? <CheckIcon /> : <CameraIcon />}
-        {uploading
-          ? 'Хадгалж байна…'
-          : done
-            ? 'Дахин дарах'
-            : label}
+        {uploading ? 'Хадгалж байна…' : done ? 'Дахин дарах' : label}
       </Button>
     </>
   );

@@ -25,7 +25,7 @@ import { CustomerController } from '../customer/customer.controller';
 import { SalesTransactionController } from '../sales/sales-transaction.controller';
 import { InventoryController } from '../inventory/inventory.controller';
 import { FileController } from '../global/file.controller';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 const MAX_CODE_RETRIES = 5;
 
@@ -36,10 +36,8 @@ const FORWARD: Record<SHIPMENT_STATUS, SHIPMENT_STATUS | null> = {
 };
 
 export class ShipmentController {
-  static async findIdCheck(id: string): Promise<ShipmentModel> {
-    const s = await ShipmentModel.findByPk(id);
-    if (!s) throw new Error('Shipment not found');
-    return s;
+  static findIdCheck(id: string): Promise<ShipmentModel> {
+    return findOrThrow(ShipmentModel, id, 'Shipment not found');
   }
 
   private static _rand4(): number {
@@ -150,7 +148,6 @@ export class ShipmentController {
   static async list(
     doc: TGetShipments
   ): Promise<TPaginationGeneric<TShipment>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (doc.status) Object.assign(where, { status: doc.status });
     if (doc.customerId) Object.assign(where, { customerId: doc.customerId });
@@ -165,21 +162,19 @@ export class ShipmentController {
       Object.assign(where, { createdAt: range });
     }
 
-    return await ShipmentModel.findAndCountAll({
+    return listPaginated(ShipmentModel, doc, {
       where,
       include: [
         { model: CustomerModel, as: 'customer' },
         { model: SalesTransactionModel, as: 'salesTransaction' }
       ],
-      offset,
-      limit,
       order: [['createdAt', 'DESC']],
       distinct: true
     });
   }
 
-  static async getById(id: string): Promise<ShipmentModel> {
-    const s = await ShipmentModel.findByPk(id, {
+  static getById(id: string): Promise<ShipmentModel> {
+    return findOrThrow(ShipmentModel, id, 'Shipment not found', {
       include: [
         { model: CustomerModel, as: 'customer' },
         { model: SalesTransactionModel, as: 'salesTransaction' },
@@ -196,8 +191,6 @@ export class ShipmentController {
         }
       ]
     });
-    if (!s) throw new Error('Shipment not found');
-    return s;
   }
 
   // Loading info: driver name/phone, serial number, vehicle plate. Allowed at
@@ -246,8 +239,7 @@ export class ShipmentController {
   }
 
   static async removePhoto(id: string): Promise<void> {
-    const row = await ShipmentPhotoModel.findByPk(id);
-    if (!row) throw new Error('Зураг олдсонгүй');
+    const row = await findOrThrow(ShipmentPhotoModel, id, 'Зураг олдсонгүй');
     await row.destroy();
   }
 
@@ -372,8 +364,11 @@ export class ShipmentController {
     id: string,
     pricePerKg: number | null
   ): Promise<ShipmentCargoEntryModel> {
-    const entry = await ShipmentCargoEntryModel.findByPk(id);
-    if (!entry) throw new Error('Ачилтын мөр олдсонгүй');
+    const entry = await findOrThrow(
+      ShipmentCargoEntryModel,
+      id,
+      'Ачилтын мөр олдсонгүй'
+    );
     const shipment = await this.findIdCheck(entry.shipmentId);
     this._assertCargoEditable(shipment);
     if (pricePerKg == null) {
@@ -392,8 +387,11 @@ export class ShipmentController {
     id: string,
     _context: TContext
   ): Promise<void> {
-    const entry = await ShipmentCargoEntryModel.findByPk(id);
-    if (!entry) throw new Error('Ачилтын мөр олдсонгүй');
+    const entry = await findOrThrow(
+      ShipmentCargoEntryModel,
+      id,
+      'Ачилтын мөр олдсонгүй'
+    );
     const shipment = await this.findIdCheck(entry.shipmentId);
     this._assertCargoEditable(shipment);
     const { shipmentId } = entry;

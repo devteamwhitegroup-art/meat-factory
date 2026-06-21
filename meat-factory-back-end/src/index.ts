@@ -11,6 +11,7 @@ import { connectDatabase } from './config/db-connection';
 import { authDirectiveTransformer } from './schema/directives/auth.directive';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import router from './routes';
+import { errorMessage } from './utils';
 const { PORT } = config;
 
 const app = express();
@@ -56,8 +57,7 @@ const httpServer = http.createServer(app);
       }
     );
   } catch (error) {
-    console.log(error.message || 'An error occurred while starting the server');
-    console.error('Failed to start server:', error);
+    console.error('Failed to start server:', errorMessage(error));
     process.exit(1);
   }
 })();

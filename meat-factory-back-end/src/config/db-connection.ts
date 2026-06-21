@@ -13,15 +13,7 @@ const {
   DB_SYNC_ON_START,
   DB_SYNC_ALTER,
 } = config;
-console.log({
-  POSTGRES_DB_USERNAME,
-  POSTGRES_DB_HOST,
-  POSTGRES_DB_PORT,
-  POSTGRES_DB_PASSWORD,
-  POSTGRES_DB_NAME,
-  DB_SYNC_ON_START,
-  DB_SYNC_ALTER,
-});
+
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000;
 
@@ -79,7 +71,7 @@ export const connectDatabase = async (): Promise<void> => {
                 pricePerAnimal: 0,
                 canCoverSlaughterCost: false,
                 isActive: true,
-              } as never,
+              },
             });
           }
         } catch (seedErr) {

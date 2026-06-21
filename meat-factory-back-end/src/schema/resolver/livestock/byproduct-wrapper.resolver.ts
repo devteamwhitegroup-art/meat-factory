@@ -1,6 +1,12 @@
 import { ByproductWrapperController } from '../../../controller/livestock/byproduct-wrapper.controller';
 import { AnimalModel } from '../../../models/livestock/animal.model';
 import { ByproductWrapperModel } from '../../../models/livestock/byproduct-wrapper.model';
+import {
+  TCreateByproductWrapper,
+  TGetByproductWrappers,
+  TUpdateByproductWrapper
+} from '../../../types/livestock/byproduct-wrapper.type';
+import { wrapList, wrapOne, wrapVoid } from '../../../utils';
 
 // Cache for animalType lookup when the wrapper was loaded without its animal
 // include (e.g. through a nested association).
@@ -25,78 +31,28 @@ export default {
     }
   },
   Query: {
-    byproductWrappers: async (_, doc) => {
-      try {
-        const { rows, count } = await ByproductWrapperController.list(doc);
-        return {
-          success: true,
-          message: 'Success',
-          byproductWrappers: rows,
-          count
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductWrappers: [],
-          count: 0
-        };
-      }
-    },
-    byproductWrapper: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          byproductWrapper: await ByproductWrapperController.getById(id)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductWrapper: null
-        };
-      }
-    }
+    byproductWrappers: wrapList(
+      'byproductWrappers',
+      (doc: TGetByproductWrappers) => ByproductWrapperController.list(doc)
+    ),
+    byproductWrapper: wrapOne('byproductWrapper', ({ id }: { id: string }) =>
+      ByproductWrapperController.getById(id)
+    )
   },
   Mutation: {
-    createByproductWrapper: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Багц нэмэгдлээ',
-          byproductWrapper: await ByproductWrapperController.create(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductWrapper: null
-        };
-      }
-    },
-    updateByproductWrapper: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Багц шинэчлэгдлээ',
-          byproductWrapper: await ByproductWrapperController.update(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductWrapper: null
-        };
-      }
-    },
-    deleteByproductWrapper: async (_, { id }) => {
-      try {
-        await ByproductWrapperController.remove(id);
-        return { success: true, message: 'Багц устгагдлаа' };
-      } catch (error) {
-        return { success: false, message: error.message };
-      }
-    }
+    createByproductWrapper: wrapOne(
+      'byproductWrapper',
+      (doc: TCreateByproductWrapper) => ByproductWrapperController.create(doc),
+      'Багц нэмэгдлээ'
+    ),
+    updateByproductWrapper: wrapOne(
+      'byproductWrapper',
+      (doc: TUpdateByproductWrapper) => ByproductWrapperController.update(doc),
+      'Багц шинэчлэгдлээ'
+    ),
+    deleteByproductWrapper: wrapVoid(
+      'Багц устгагдлаа',
+      ({ id }: { id: string }) => ByproductWrapperController.remove(id)
+    )
   }
 };

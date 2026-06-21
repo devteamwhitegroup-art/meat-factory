@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +28,7 @@ import {
   VerifyRegistrationDoc,
 } from '@/lib/queries/registration';
 import { AnimalListDoc } from '@/lib/queries/animal';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 
 export function VerifyClient({ id }: { id: string }) {
@@ -69,42 +68,46 @@ export function VerifyClient({ id }: { id: string }) {
 
   async function toggleCover() {
     setBusy(true);
-    try {
-      const r = await setCovered({
-        variables: { registrationId: id, covered: !covered },
-      });
-      unwrap(r.data?.setSlaughterCovered);
-      toast.success(
-        covered ? 'Нөхөлт цуцлагдлаа' : 'Бой зардал дайвараар нөхөгдлөө',
-      );
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (
+          await setCovered({
+            variables: { registrationId: id, covered: !covered },
+          })
+        ).data?.setSlaughterCovered,
+      {
+        success: covered
+          ? 'Нөхөлт цуцлагдлаа'
+          : 'Бой зардал дайвараар нөхөгдлөө',
+        onSuccess: refetch,
+      },
+    );
+    setBusy(false);
   }
 
   async function sign() {
     setBusy(true);
-    try {
-      const r = await verify({
-        variables: {
-          registrationId: id,
-          notes: notes.trim() || null,
-          photoFileId: photoFileId ?? null,
+    await runMutation(
+      async () =>
+        (
+          await verify({
+            variables: {
+              registrationId: id,
+              notes: notes.trim() || null,
+              photoFileId: photoFileId ?? null,
+            },
+          })
+        ).data?.verifyRegistration,
+      {
+        success: 'Баталгаажилт амжилттай',
+        onSuccess: () => {
+          setNotes('');
+          setPhotoFileId(null);
+          refetch();
         },
-      });
-      unwrap(r.data?.verifyRegistration);
-      toast.success('Баталгаажилт амжилттай');
-      setNotes('');
-      setPhotoFileId(null);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
+    setBusy(false);
   }
 
   return (

@@ -3,7 +3,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { RegistrationCard } from '@/components/registration/RegistrationCard';
 import { getClient } from '@/lib/apollo/server';
 import { RegistrationListDoc } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/unwrap';
+import { unwrapList } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
 
 type Props = {
@@ -50,20 +50,11 @@ export default async function RegistrationsPage({ searchParams }: Props) {
     },
   });
 
-  type Row = NonNullable<
-    NonNullable<NonNullable<typeof data>['registrations']>['registrations']
-  >[number];
-  let rows: NonNullable<Row>[] = [];
-  let count = 0;
-  let errorMsg: string | null = null;
-
-  try {
-    const d = unwrap(data?.registrations);
-    rows = compact(d.registrations);
-    count = d.count ?? 0;
-  } catch (e) {
-    errorMsg = (e as Error).message;
-  }
+  const {
+    rows,
+    count,
+    error: errorMsg,
+  } = unwrapList(data?.registrations, data?.registrations?.registrations);
 
   return (
     <div className="space-y-6">

@@ -22,7 +22,7 @@ import {
   UpsertMonthlyBudgetDoc,
 } from '@/lib/queries/monthly-budget';
 import { compact } from '@/lib/compact';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { formatMNT } from '@/lib/format/money';
 
 const MN_MONTH = [
@@ -71,34 +71,35 @@ export function MonthlyBudgetsClient() {
       toast.error('Дүн сөрөг байж болохгүй');
       return;
     }
-    try {
-      const r = await upsert({
-        variables: {
-          year: y,
-          month: m,
-          amountMnt: a,
-          notes: notes.trim() || null,
+    await runMutation(
+      async () =>
+        (
+          await upsert({
+            variables: {
+              year: y,
+              month: m,
+              amountMnt: a,
+              notes: notes.trim() || null,
+            },
+          })
+        ).data?.upsertMonthlyBudget,
+      {
+        success: 'Хадгалагдлаа',
+        onSuccess: () => {
+          setAmount('');
+          setNotes('');
+          refetch();
         },
-      });
-      unwrap(r.data?.upsertMonthlyBudget);
-      toast.success('Хадгалагдлаа');
-      setAmount('');
-      setNotes('');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+      },
+    );
   }
 
   async function onDelete(id: string) {
     if (!confirm('Устгах уу?')) return;
-    try {
-      const r = await remove({ variables: { id } });
-      unwrap(r.data?.deleteMonthlyBudget);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () => (await remove({ variables: { id } })).data?.deleteMonthlyBudget,
+      { onSuccess: refetch },
+    );
   }
 
   function onEdit(b: (typeof budgets)[number]) {

@@ -32,19 +32,16 @@ export function SettlementPreview({
     0,
   );
 
-  let totalMeat = 0;
-  let totalSlaughter = 0;
-
   const rows = lines.map((l) => {
     const received = receivedByType[l.animalType] ?? 0;
     const meat = meatByType[l.animalType] ?? 0;
     const avgPrice = received > 0 ? meat / received : 0;
     const slaughter = Number(l.slaughterCost) || 0;
-    totalMeat += meat;
-    totalSlaughter += slaughter;
     return { ...l, received, meat, avgPrice, slaughter };
   });
 
+  const totalMeat = rows.reduce((sum, r) => sum + r.meat, 0);
+  const totalSlaughter = rows.reduce((sum, r) => sum + r.slaughter, 0);
   const net = totalMeat - totalSlaughter;
 
   return (

@@ -12,7 +12,7 @@ import { env } from '@/lib/env';
 
 // Per-request RSC client (request-scoped by registerApolloClient).
 // Hits the back-end directly and attaches the JWT as `Bearer <token>`.
-export const { getClient, query, PreloadQuery } = registerApolloClient(() => {
+export const { getClient } = registerApolloClient(() => {
   const authLink = new SetContextLink(async (prevContext) => {
     const jar = await cookies();
     const token = jar.get(env.AUTH_COOKIE_NAME)?.value ?? '';

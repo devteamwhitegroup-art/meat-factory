@@ -4,25 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
-import { PencilIcon, Trash2Icon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NumericKeypad } from '@/components/forms/NumericKeypad';
 import { PhotoUpload } from '@/components/common/PhotoUpload';
 import { StatusBadge } from '@/components/registration/StatusBadge';
 import { ANIMAL_MN } from '@/lib/format/enum';
-import { fmtDateTime, fromNow } from '@/lib/format/date';
 import { formatNumber } from '@/lib/format/money';
 import {
   AddWeighingEntryDoc,
@@ -31,8 +22,10 @@ import {
   RegistrationDetailDoc,
   UpdateWeighingEntryDoc,
 } from '@/lib/queries/registration';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
+import { WeighEntryDialog } from './_components/WeighEntryDialog';
+import { WeighingHistoryList } from './_components/WeighingHistoryList';
 
 function readRole(): string | null {
   if (typeof document === 'undefined') return null;
@@ -74,6 +67,9 @@ export function WeighClient({ id }: { id: string }) {
   const [deleteWeighing] = useMutation(DeleteWeighingEntryDoc);
 
   const [role, setRole] = useState<string | null>(null);
+  // role comes from a client-only cookie; defer to post-mount to avoid an
+  // SSR/client hydration mismatch (documented client-only-after-mount pattern).
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setRole(readRole()), []);
 
   const [editing, setEditing] = useState<{ id: string; seq: number } | null>(
@@ -91,12 +87,9 @@ export function WeighClient({ id }: { id: string }) {
   const activeTab = tab ?? types[0] ?? null;
   const [keypad, setKeypad] = useState('');
   // Last-entered price is remembered across entries of the same animal type
-  // (operator doesn't re-type it for each animal). It's cleared automatically
-  // when activeTab changes — each type is its own negotiation.
+  // (operator doesn't re-type it for each animal). It's cleared when the active
+  // tab changes (see the Tabs onValueChange) — each type is its own negotiation.
   const [price, setPrice] = useState('');
-  useEffect(() => {
-    setPrice('');
-  }, [activeTab]);
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -125,46 +118,52 @@ export function WeighClient({ id }: { id: string }) {
       return;
     }
     setBusy(true);
-    try {
-      const r = await addWeighing({
-        variables: {
-          registrationId: id,
-          animalType: activeTab as never,
-          weightKg: w,
-          pricePerKg: p,
-          photoFileId: photoFileId ?? null,
+    await runMutation(
+      async () =>
+        (
+          await addWeighing({
+            variables: {
+              registrationId: id,
+              animalType: activeTab as never,
+              weightKg: w,
+              pricePerKg: p,
+              photoFileId: photoFileId ?? null,
+            },
+          })
+        ).data?.addWeighingEntry,
+      {
+        success: `${formatNumber(w)} кг · ${formatNumber(p)}₮/кг`,
+        onSuccess: () => {
+          setKeypad('');
+          // Keep `price` — same animal type usually shares the negotiated rate.
+          setPhotoFileId(null);
+          refetch();
         },
-      });
-      unwrap(r.data?.addWeighingEntry);
-      toast.success(`${formatNumber(w)} кг · ${formatNumber(p)}₮/кг`);
-      setKeypad('');
-      // Keep `price` — same animal type usually shares the negotiated rate.
-      setPhotoFileId(null);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
+    setBusy(false);
   }
 
   async function finish() {
     setBusy(true);
-    try {
-      const r = await finishWeighing({ variables: { registrationId: id } });
-      unwrap(r.data?.finishWeighing);
-      toast.success('Жин бүртгэл дууссан');
-      router.push(`/registrations/${id}`);
-      router.refresh();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (await finishWeighing({ variables: { registrationId: id } })).data
+          ?.finishWeighing,
+      {
+        success: 'Жин бүртгэл дууссан',
+        onSuccess: () => {
+          router.push(`/registrations/${id}`);
+          router.refresh();
+        },
+      },
+    );
+    setBusy(false);
   }
 
   async function saveEdit() {
     if (!editing) return;
+    const entryId = editing.id;
     const w = Number(editWeight);
     if (!w || w <= 0) {
       toast.error('Жин 0-ээс их байх ёстой');
@@ -176,34 +175,34 @@ export function WeighClient({ id }: { id: string }) {
       return;
     }
     setBusy(true);
-    try {
-      const r = await updateWeighing({
-        variables: { id: editing.id, weightKg: w, pricePerKg: p },
-      });
-      unwrap(r.data?.updateWeighingEntry);
-      toast.success('Жин засагдлаа');
-      setEditing(null);
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (
+          await updateWeighing({
+            variables: { id: entryId, weightKg: w, pricePerKg: p },
+          })
+        ).data?.updateWeighingEntry,
+      {
+        success: 'Жин засагдлаа',
+        onSuccess: () => {
+          setEditing(null);
+          refetch();
+        },
+      },
+    );
+    setBusy(false);
   }
 
   async function removeEntry(entryId: string, seq: number) {
     if (!window.confirm(`#${seq} бичлэгийг устгах уу?`)) return;
     setBusy(true);
-    try {
-      const r = await deleteWeighing({ variables: { id: entryId } });
-      unwrap(r.data?.deleteWeighingEntry);
-      toast.success('Бичлэг устгагдлаа');
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (await deleteWeighing({ variables: { id: entryId } })).data
+          ?.deleteWeighingEntry,
+      { success: 'Бичлэг устгагдлаа', onSuccess: refetch },
+    );
+    setBusy(false);
   }
 
   type W = ReturnType<typeof compact<NonNullable<NonNullable<typeof reg.weighingEntries>[number]>>>[number];
@@ -251,7 +250,13 @@ export function WeighClient({ id }: { id: string }) {
         </Button>
       </div>
 
-      <Tabs value={activeTab ?? ''} onValueChange={(v) => setTab(v)}>
+      <Tabs
+        value={activeTab ?? ''}
+        onValueChange={(v) => {
+          setTab(v);
+          setPrice('');
+        }}
+      >
         <TabsList>
           {types.map((t) => (
             <TabsTrigger key={t} value={t}>
@@ -304,88 +309,20 @@ export function WeighClient({ id }: { id: string }) {
                   <CardTitle>Түүх</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {(entriesByType[t]?.length ?? 0) === 0 ? (
-                    <div className="text-sm text-muted-foreground">
-                      Бичлэг алга
-                    </div>
-                  ) : (
-                    <ul className="space-y-2 text-sm">
-                      {[...(entriesByType[t] ?? [])]
-                        .sort(
-                          (a, b) =>
-                            (b.sequenceNo ?? 0) - (a.sequenceNo ?? 0),
-                        )
-                        .map((w) => (
-                          <li
-                            key={w.id!}
-                            className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-                          >
-                            <span className="font-medium">
-                              #{displayNoById[w.id!] ?? w.sequenceNo} ·{' '}
-                              {formatNumber(w.weightKg)} кг
-                              {w.pricePerKg != null ? (
-                                <span className="ml-1 font-normal text-muted-foreground">
-                                  · {formatNumber(w.pricePerKg)}₮/кг
-                                </span>
-                              ) : null}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span
-                                className="mr-1 text-xs text-muted-foreground"
-                                title={fmtDateTime(w.createdAt)}
-                              >
-                                {fromNow(w.createdAt)}
-                              </span>
-                              {editable ? (
-                                <>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Засах"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      setEditing({
-                                        id: w.id!,
-                                        seq:
-                                          displayNoById[w.id!] ??
-                                          w.sequenceNo ??
-                                          0,
-                                      });
-                                      setEditWeight(String(w.weightKg ?? ''));
-                                      setEditPrice(
-                                        w.pricePerKg != null
-                                          ? String(w.pricePerKg)
-                                          : '',
-                                      );
-                                    }}
-                                  >
-                                    <PencilIcon />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Устгах"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      removeEntry(
-                                        w.id!,
-                                        displayNoById[w.id!] ??
-                                          w.sequenceNo ??
-                                          0,
-                                      )
-                                    }
-                                  >
-                                    <Trash2Icon className="text-destructive" />
-                                  </Button>
-                                </>
-                              ) : null}
-                            </div>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
+                  <WeighingHistoryList
+                    entries={entriesByType[t] ?? []}
+                    displayNoById={displayNoById}
+                    editable={editable}
+                    busy={busy}
+                    onEdit={(w, seq) => {
+                      setEditing({ id: w.id!, seq });
+                      setEditWeight(String(w.weightKg ?? ''));
+                      setEditPrice(
+                        w.pricePerKg != null ? String(w.pricePerKg) : '',
+                      );
+                    }}
+                    onRemove={removeEntry}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -393,53 +330,17 @@ export function WeighClient({ id }: { id: string }) {
         ))}
       </Tabs>
 
-      <Dialog
+      <WeighEntryDialog
         open={editing !== null}
-        onOpenChange={(o) => !o && setEditing(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Жин засах — #{editing?.seq}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-sm text-muted-foreground">Жин (кг)</label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={editWeight}
-                onChange={(e) => setEditWeight(e.target.value)}
-                className="h-12 text-lg"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm text-muted-foreground">
-                Үнэ / кг (₮)
-              </label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={editPrice}
-                onChange={(e) => setEditPrice(e.target.value)}
-                className="h-12 text-lg"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setEditing(null)}
-            >
-              Болих
-            </Button>
-            <Button type="button" onClick={saveEdit} disabled={busy}>
-              Хадгалах
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        seq={editing?.seq}
+        weight={editWeight}
+        price={editPrice}
+        onWeightChange={setEditWeight}
+        onPriceChange={setEditPrice}
+        onSave={saveEdit}
+        onClose={() => setEditing(null)}
+        busy={busy}
+      />
     </div>
   );
 }

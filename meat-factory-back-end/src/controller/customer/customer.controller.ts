@@ -10,13 +10,11 @@ import {
   TUpdateCustomer
 } from '../../types/customer/customer.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 export class CustomerController {
-  static async findIdCheck(id: string): Promise<CustomerModel> {
-    const customer = await CustomerModel.findByPk(id);
-    if (!customer) throw new Error('Customer not found');
-    return customer;
+  static findIdCheck(id: string): Promise<CustomerModel> {
+    return findOrThrow(CustomerModel, id, 'Customer not found');
   }
 
   private static async _assertUniqueRegistrationNumber(
@@ -53,7 +51,6 @@ export class CustomerController {
   static async list(
     doc: TGetCustomers
   ): Promise<TPaginationGeneric<TCustomer>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (typeof doc.isActive === 'boolean')
       Object.assign(where, { isActive: doc.isActive });
@@ -63,23 +60,19 @@ export class CustomerController {
         name: { [Op.iLike]: `%${doc.search.trim()}%` }
       });
 
-    return await CustomerModel.findAndCountAll({
+    return listPaginated(CustomerModel, doc, {
       where,
-      offset,
-      limit,
       order: [['createdAt', 'DESC']]
     });
   }
 
-  static async getById(id: string): Promise<CustomerModel> {
-    const customer = await CustomerModel.findByPk(id, {
+  static getById(id: string): Promise<CustomerModel> {
+    return findOrThrow(CustomerModel, id, 'Customer not found', {
       include: [
         { model: SalesTransactionModel, as: 'salesTransactions' },
         { model: ShipmentModel, as: 'shipments' }
       ]
     });
-    if (!customer) throw new Error('Customer not found');
-    return customer;
   }
 
   static async update(doc: TUpdateCustomer): Promise<CustomerModel> {

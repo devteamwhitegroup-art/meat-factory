@@ -1,8 +1,13 @@
-import { GraphQLSchema, defaultFieldResolver } from "graphql";
+import {
+  GraphQLSchema,
+  defaultFieldResolver,
+  GraphQLResolveInfo,
+} from "graphql";
 import { mapSchema, MapperKind, getDirectives } from "@graphql-tools/utils";
 import { isEmpty } from "lodash";
 import { AdminController } from "../../controller/user/admin.controller";
-import { TContext } from "../../types/global/global.type";
+import { TBaseContext, TContext } from "../../types/global/global.type";
+import { errorMessage } from "../../utils";
 
 // @authLogin — any authenticated staff member.
 // @auth(permissions: [ROLE]) — authenticated AND role ∈ permissions.
@@ -18,7 +23,12 @@ export const authDirectiveTransformer = async (schema: GraphQLSchema) => {
         const { resolve = defaultFieldResolver } = fieldConfig;
         const { name, args } = authDirective;
 
-        fieldConfig.resolve = async function (root, fieldArgs, context, info) {
+        fieldConfig.resolve = async function (
+          root: unknown,
+          fieldArgs: Record<string, unknown>,
+          context: TBaseContext,
+          info: GraphQLResolveInfo,
+        ) {
           try {
             if (isEmpty(context.token)) {
               throw new Error("Token is empty");
@@ -45,7 +55,7 @@ export const authDirectiveTransformer = async (schema: GraphQLSchema) => {
               info,
             );
           } catch (error) {
-            return { success: false, message: error.message };
+            return { success: false, message: errorMessage(error) };
           }
         };
       }

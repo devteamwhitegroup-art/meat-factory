@@ -1,5 +1,26 @@
 import { RegistrationController } from '../../../controller/livestock/registration.controller';
+import { WeighingController } from '../../../controller/livestock/weighing.controller';
+import { ByproductLogController } from '../../../controller/livestock/byproduct-log.controller';
+import { VerificationController } from '../../../controller/livestock/verification.controller';
+import { SettlementController } from '../../../controller/livestock/settlement.controller';
 import { AnimalModel } from '../../../models/livestock/animal.model';
+import { RegistrationAnimalLineModel } from '../../../models/livestock/registration-animal-line.model';
+import { WeighingEntryModel } from '../../../models/livestock/weighing-entry.model';
+import { ByproductLogModel } from '../../../models/livestock/byproduct-log.model';
+import { SettlementLineModel } from '../../../models/livestock/settlement-line.model';
+import {
+  TCreateRegistration,
+  TGetRegistrations
+} from '../../../types/livestock/registration.type';
+import {
+  TCreateWeighingEntry,
+  TUpdateWeighingEntry
+} from '../../../types/livestock/weighing-entry.type';
+import { TByproductItemInput } from '../../../types/livestock/byproduct-log.type';
+import { TVerifyInput } from '../../../types/livestock/verification.type';
+import { TCreateSettlement } from '../../../types/livestock/settlement.type';
+import { TDateRange } from '../../../types/dashboard/dashboard.type';
+import { wrapItems, wrapList, wrapOne, wrapVoid } from '../../../utils';
 
 // animalType is no longer a column on these four tables — it's reached via
 // the FK to Animals. The field resolvers keep the existing GraphQL surface
@@ -16,247 +37,120 @@ async function resolveAnimalType(row: {
 
 export default {
   RegistrationAnimalLine: {
-    animalType: (row) => resolveAnimalType(row),
-    animal: (row) => row.animal ?? null
+    animalType: (row: RegistrationAnimalLineModel) => resolveAnimalType(row),
+    animal: (row: RegistrationAnimalLineModel) => row.animal ?? null
   },
   WeighingEntry: {
-    animalType: (row) => resolveAnimalType(row),
-    animal: (row) => row.animal ?? null
+    animalType: (row: WeighingEntryModel) => resolveAnimalType(row),
+    animal: (row: WeighingEntryModel) => row.animal ?? null
   },
   ByproductLog: {
-    animalType: (row) => resolveAnimalType(row),
-    animal: (row) => row.animal ?? null
+    animalType: (row: ByproductLogModel) => resolveAnimalType(row),
+    animal: (row: ByproductLogModel) => row.animal ?? null
   },
   SettlementLine: {
-    animalType: (row) => resolveAnimalType(row),
-    animal: (row) => row.animal ?? null
+    animalType: (row: SettlementLineModel) => resolveAnimalType(row),
+    animal: (row: SettlementLineModel) => row.animal ?? null
   },
   Query: {
-    registrations: async (_, doc) => {
-      try {
-        const { rows, count } = await RegistrationController.list(doc);
-        return {
-          success: true,
-          message: 'Success',
-          registrations: rows,
-          count
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          registrations: [],
-          count: 0
-        };
-      }
-    },
-    registration: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          registration: await RegistrationController.getById(id)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, registration: null };
-      }
-    },
-    nextRegistrationNumber: async () => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          registrationNumber:
-            await RegistrationController.previewNextRegistrationNumber()
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          registrationNumber: null
-        };
-      }
-    },
-    derivedByproducts: async (_, { registrationId }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          items: await RegistrationController.derivedByproducts(registrationId)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, items: [] };
-      }
-    },
-    byproductHandoff: async (_, { dateRange }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          items: await RegistrationController.byproductHandoff(dateRange)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, items: [] };
-      }
-    }
+    registrations: wrapList('registrations', (doc: TGetRegistrations) =>
+      RegistrationController.list(doc)
+    ),
+    registration: wrapOne('registration', ({ id }: { id: string }) =>
+      RegistrationController.getById(id)
+    ),
+    nextRegistrationNumber: wrapOne('registrationNumber', () =>
+      RegistrationController.previewNextRegistrationNumber()
+    ),
+    derivedByproducts: wrapItems(
+      'items',
+      ({ registrationId }: { registrationId: string }) =>
+        ByproductLogController.derivedByproducts(registrationId)
+    ),
+    byproductHandoff: wrapItems(
+      'items',
+      ({ dateRange }: { dateRange?: TDateRange }) =>
+        ByproductLogController.byproductHandoff(dateRange)
+    )
   },
   Mutation: {
-    createRegistration: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Registration created successfully',
-          registration: await RegistrationController.create(doc, context)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, registration: null };
-      }
-    },
-    addWeighingEntry: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Weighing entry added',
-          weighingEntry: await RegistrationController.addWeighingEntry(
-            doc,
-            context
-          )
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          weighingEntry: null
-        };
-      }
-    },
-    finishWeighing: async (_, { registrationId }, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Weighing finished',
-          registration: await RegistrationController.finishWeighing(
-            registrationId,
-            context
-          )
-        };
-      } catch (error) {
-        return { success: false, message: error.message, registration: null };
-      }
-    },
-    updateWeighingEntry: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Weighing entry updated',
-          weighingEntry: await RegistrationController.updateWeighingEntry(
-            doc,
-            context
-          )
-        };
-      } catch (error) {
-        return { success: false, message: error.message, weighingEntry: null };
-      }
-    },
-    deleteWeighingEntry: async (_, { id }, context) => {
-      try {
-        await RegistrationController.deleteWeighingEntry(id, context);
-        return { success: true, message: 'Weighing entry deleted' };
-      } catch (error) {
-        return { success: false, message: error.message };
-      }
-    },
-    setRegistrationByproducts: async (_, { registrationId, items }, context) => {
-      try {
-        await RegistrationController.setRegistrationByproducts(
+    createRegistration: wrapOne(
+      'registration',
+      (doc: TCreateRegistration, ctx) =>
+        RegistrationController.create(doc, ctx),
+      'Registration created successfully'
+    ),
+    addWeighingEntry: wrapOne(
+      'weighingEntry',
+      (doc: TCreateWeighingEntry, ctx) =>
+        WeighingController.addWeighingEntry(doc, ctx),
+      'Weighing entry added'
+    ),
+    finishWeighing: wrapOne(
+      'registration',
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        WeighingController.finishWeighing(registrationId, ctx),
+      'Weighing finished'
+    ),
+    updateWeighingEntry: wrapOne(
+      'weighingEntry',
+      (doc: TUpdateWeighingEntry, ctx) =>
+        WeighingController.updateWeighingEntry(doc, ctx),
+      'Weighing entry updated'
+    ),
+    deleteWeighingEntry: wrapVoid(
+      'Weighing entry deleted',
+      ({ id }: { id: string }, ctx) =>
+        WeighingController.deleteWeighingEntry(id, ctx)
+    ),
+    setRegistrationByproducts: wrapOne(
+      'registration',
+      async (
+        {
+          registrationId,
+          items
+        }: { registrationId: string; items: TByproductItemInput[] },
+        ctx
+      ) => {
+        await ByproductLogController.setRegistrationByproducts(
           registrationId,
           items,
-          context
+          ctx
         );
-        return {
-          success: true,
-          message: 'Дайвар хадгалагдлаа',
-          registration: await RegistrationController.getById(registrationId)
-        };
-      } catch (error) {
-        return { success: false, message: error.message, registration: null };
-      }
-    },
-    setSlaughterCovered: async (_, { registrationId, covered }, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Хадгалагдлаа',
-          verification: await RegistrationController.setSlaughterCovered(
-            registrationId,
-            covered,
-            context
-          )
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          verification: null
-        };
-      }
-    },
-    verifyRegistration: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Verification recorded',
-          verification: await RegistrationController.verify(doc, context)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          verification: null
-        };
-      }
-    },
-    createSettlement: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Settlement created',
-          settlement: await RegistrationController.createSettlement(
-            doc,
-            context
-          )
-        };
-      } catch (error) {
-        return { success: false, message: error.message, settlement: null };
-      }
-    },
-    markSettlementPaid: async (_, { registrationId }, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Settlement marked paid',
-          settlement: await RegistrationController.markSettlementPaid(
-            registrationId,
-            context
-          )
-        };
-      } catch (error) {
-        return { success: false, message: error.message, settlement: null };
-      }
-    },
-    cancelRegistration: async (_, { registrationId }, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Registration cancelled',
-          registration: await RegistrationController.cancel(
-            registrationId,
-            context
-          )
-        };
-      } catch (error) {
-        return { success: false, message: error.message, registration: null };
-      }
-    }
+        return RegistrationController.getById(registrationId);
+      },
+      'Дайвар хадгалагдлаа'
+    ),
+    setSlaughterCovered: wrapOne(
+      'verification',
+      (
+        { registrationId, covered }: { registrationId: string; covered: boolean },
+        ctx
+      ) => VerificationController.setSlaughterCovered(registrationId, covered, ctx),
+      'Хадгалагдлаа'
+    ),
+    verifyRegistration: wrapOne(
+      'verification',
+      (doc: TVerifyInput, ctx) => VerificationController.verify(doc, ctx),
+      'Verification recorded'
+    ),
+    createSettlement: wrapOne(
+      'settlement',
+      (doc: TCreateSettlement, ctx) =>
+        SettlementController.createSettlement(doc, ctx),
+      'Settlement created'
+    ),
+    markSettlementPaid: wrapOne(
+      'settlement',
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        SettlementController.markSettlementPaid(registrationId, ctx),
+      'Settlement marked paid'
+    ),
+    cancelRegistration: wrapOne(
+      'registration',
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        RegistrationController.cancel(registrationId, ctx),
+      'Registration cancelled'
+    )
   }
 };

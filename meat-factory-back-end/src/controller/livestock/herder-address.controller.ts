@@ -7,13 +7,11 @@ import {
   TUpdateHerderAddress
 } from '../../types/livestock/herder-address.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 export class HerderAddressController {
-  static async findIdCheck(id: string): Promise<HerderAddressModel> {
-    const row = await HerderAddressModel.findByPk(id);
-    if (!row) throw new Error('Хаяг олдсонгүй');
-    return row;
+  static findIdCheck(id: string): Promise<HerderAddressModel> {
+    return findOrThrow(HerderAddressModel, id, 'Хаяг олдсонгүй');
   }
 
   // Case-insensitive uniqueness guard for the catalogue.
@@ -46,7 +44,6 @@ export class HerderAddressController {
   static async list(
     doc: TGetHerderAddresses
   ): Promise<TPaginationGeneric<THerderAddress>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (typeof doc.isActive === 'boolean')
       Object.assign(where, { isActive: doc.isActive });
@@ -55,10 +52,8 @@ export class HerderAddressController {
         name: { [Op.iLike]: `%${doc.search.trim()}%` }
       });
 
-    return await HerderAddressModel.findAndCountAll({
+    return listPaginated(HerderAddressModel, doc, {
       where,
-      offset,
-      limit,
       order: [['name', 'ASC']]
     });
   }

@@ -33,7 +33,7 @@ export class AnimalController {
         canCoverSlaughterCost: false,
         yieldPercent: animalType === ANIMAL_TYPE.HORSE ? 70 : 100,
         isActive: true
-      } as never
+      }
     });
     return row;
   }

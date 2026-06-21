@@ -29,7 +29,7 @@ import {
   HerderAddressListDoc,
   UpdateHerderAddressDoc,
 } from '@/lib/queries/herder-address';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 
 type Form = { id?: string; name: string };
@@ -63,44 +63,41 @@ export function HerderAddressesClient() {
       toast.error('Хаягийн нэр оруулна уу');
       return;
     }
-    try {
-      if (form.id) {
-        const r = await updateRow({ variables: { id: form.id, name } });
-        unwrap(r.data?.updateHerderAddress);
-      } else {
+    await runMutation(
+      async () => {
+        if (form.id) {
+          const r = await updateRow({ variables: { id: form.id, name } });
+          return r.data?.updateHerderAddress;
+        }
         const r = await createRow({ variables: { name } });
-        unwrap(r.data?.createHerderAddress);
-      }
-      toast.success('Хадгалагдлаа');
-      setSheetOpen(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+        return r.data?.createHerderAddress;
+      },
+      {
+        success: 'Хадгалагдлаа',
+        onSuccess: () => {
+          setSheetOpen(false);
+          refetch();
+        },
+      },
+    );
   }
 
   async function toggleActive(id: string, isActive: boolean) {
-    try {
-      const r = await updateRow({
-        variables: { id, isActive: !isActive },
-      });
-      unwrap(r.data?.updateHerderAddress);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await updateRow({ variables: { id, isActive: !isActive } })).data
+          ?.updateHerderAddress,
+      { onSuccess: refetch },
+    );
   }
 
   async function onDelete(id: string) {
     if (!confirm('Энэ хаягийг устгах уу?')) return;
-    try {
-      const r = await deleteRow({ variables: { id } });
-      unwrap(r.data?.deleteHerderAddress);
-      toast.success('Устгагдлаа');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await deleteRow({ variables: { id } })).data?.deleteHerderAddress,
+      { success: 'Устгагдлаа', onSuccess: refetch },
+    );
   }
 
   return (

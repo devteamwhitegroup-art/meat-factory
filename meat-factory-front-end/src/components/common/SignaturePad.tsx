@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import type { UploadFolder } from '@/components/common/PhotoUpload';
+import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
 
 type Props = {
   value: string | null;
@@ -27,7 +27,7 @@ export function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const dirty = useRef(false);
-  const [uploading, setUploading] = useState(false);
+  const { upload, uploading } = useFileUpload(type);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -98,7 +98,6 @@ export function SignaturePad({
       toast.error('Эхлээд зурна уу');
       return;
     }
-    setUploading(true);
     try {
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob((b) => resolve(b), 'image/png'),
@@ -107,30 +106,13 @@ export function SignaturePad({
       const file = new File([blob], `signature-${Date.now()}.png`, {
         type: 'image/png',
       });
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('type', type);
-      const res = await fetch('/api/file-upload', { method: 'POST', body: fd });
-      const data = (await res.json()) as {
-        success: boolean;
-        message?: string;
-        id?: string;
-      };
-      if (!data.success || !data.id) {
-        toast.error(data.message ?? 'Хадгалах амжилтгүй');
-        onChange(null);
-        setSaved(false);
-      } else {
-        onChange(data.id);
-        setSaved(true);
-        toast.success('Хадгаллаа');
-      }
+      onChange(await upload(file));
+      setSaved(true);
+      toast.success('Хадгаллаа');
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(e instanceof Error ? e.message : 'Хадгалах амжилтгүй');
       onChange(null);
       setSaved(false);
-    } finally {
-      setUploading(false);
     }
   }
 

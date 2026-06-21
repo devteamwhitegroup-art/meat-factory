@@ -19,23 +19,17 @@ import {
   TAdminLoginInput,
   TCreateAdmin
 } from '../../types/user/admin.type';
+import { findOrThrow } from '../../utils';
 
 const { ADMIN_JWT_TOKEN_SALT, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD } = config;
 
 export class AdminController {
-  static async findIdCheck(
+  static findIdCheck(
     id: string,
     include?: Array<IncludeOptions>,
     order?: Order
   ): Promise<TAdmin & Model> {
-    const admin = await AdminModel.findByPk(id, {
-      include,
-      order
-    });
-    if (!admin) {
-      throw new Error('admin not found');
-    }
-    return admin;
+    return findOrThrow(AdminModel, id, 'admin not found', { include, order });
   }
 
   static async getExistingAdmin<M extends Model>(
@@ -60,7 +54,10 @@ export class AdminController {
     return admin;
   }
 
-  static async _matchPassword(password, adminPassword): Promise<void> {
+  static async _matchPassword(
+    password: string,
+    adminPassword: string
+  ): Promise<void> {
     const match = await bcrypt.compare(
       createHmac('sha256', password).digest('hex'),
       adminPassword

@@ -10,6 +10,7 @@ import {
 import {
   PAYMENT_STATUS
 } from '../../types/sales/sales-transaction.type';
+import { findOrThrow } from '../../utils';
 
 const MAX_MONTHS_BACK = 36;
 
@@ -57,8 +58,7 @@ export class MonthlyBudgetController {
   }
 
   static async remove(id: string): Promise<void> {
-    const row = await MonthlyBudgetModel.findByPk(id);
-    if (!row) throw new Error('Төсөв олдсонгүй');
+    const row = await findOrThrow(MonthlyBudgetModel, id, 'Төсөв олдсонгүй');
     await row.destroy();
   }
 

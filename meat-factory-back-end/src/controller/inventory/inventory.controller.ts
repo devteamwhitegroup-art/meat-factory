@@ -22,7 +22,7 @@ import {
 // Type-only import (erased at runtime — no module cycle).
 import type { TRegistrationIngestDTO } from '../../types/livestock/settlement.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 type ApplyArgs = {
   movementType: MOVEMENT_TYPE;
@@ -35,10 +35,8 @@ type ApplyArgs = {
 };
 
 export class InventoryController {
-  static async findIdCheck(id: string): Promise<InventoryItemModel> {
-    const item = await InventoryItemModel.findByPk(id);
-    if (!item) throw new Error('Inventory item not found');
-    return item;
+  static findIdCheck(id: string): Promise<InventoryItemModel> {
+    return findOrThrow(InventoryItemModel, id, 'Inventory item not found');
   }
 
   private static _buildSku(line: TStockLine): string {
@@ -357,6 +355,9 @@ export class InventoryController {
     })) as InventoryItemModel;
   }
 
+  // Stock-on-hand is a bounded reference set (one row per SKU), so it is
+  // intentionally returned in full rather than paginated — the inventory
+  // dashboard consumes the whole list for its meat/byproduct split.
   static async getStock(
     doc: TGetStock
   ): Promise<TPaginationGeneric<InventoryItemModel>> {
@@ -375,7 +376,6 @@ export class InventoryController {
   static async listMovements(
     doc: TGetMovements
   ): Promise<TPaginationGeneric<InventoryMovementModel>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (doc.inventoryItemId)
       Object.assign(where, { inventoryItemId: doc.inventoryItemId });
@@ -391,11 +391,9 @@ export class InventoryController {
       Object.assign(where, { createdAt: range });
     }
 
-    return await InventoryMovementModel.findAndCountAll({
+    return listPaginated(InventoryMovementModel, doc, {
       where,
       include: [{ model: InventoryItemModel, as: 'item' }],
-      offset,
-      limit,
       order: [['createdAt', 'DESC']]
     });
   }

@@ -54,14 +54,16 @@ export const createFileModel = async (sequelize: Sequelize) => {
     }
   );
 
+  // Best-effort cleanup of the backing storage object when a File row is
+  // destroyed. Storage failures are logged but not rethrown, so a remote
+  // hiccup can't block the DB delete.
   FileModel.beforeDestroy(async (file) => {
     try {
-      console.log('Removing file from storage: ', file.key);
       if (file.key) {
         await removeObject(file.key);
       }
     } catch (error) {
-      console.log('Error removing file from storage: ', error);
+      console.error('Error removing file from storage:', error);
     }
   });
 };

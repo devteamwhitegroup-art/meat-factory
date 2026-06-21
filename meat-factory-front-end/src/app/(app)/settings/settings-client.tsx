@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
 
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsDoc, UpdateSettingsDoc } from '@/lib/queries/settings';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 
 type Form = {
   meatCapacityKg: string;
@@ -28,20 +28,24 @@ export function SettingsClient() {
 
   const s = data?.settings?.settings;
 
-  useEffect(() => {
-    if (!s || form) return;
-    setForm({
-      meatCapacityKg: String(s.meatCapacityKg ?? 0),
-      meatAlertThresholdKg: String(s.meatAlertThresholdKg ?? 0),
-      cargoCapacityKg: String(s.cargoCapacityKg ?? 0),
-    });
-  }, [s, form]);
+  // Editable copy derived from the server snapshot. `form` holds the working
+  // edits once the user changes a field; until then we render the server values
+  // directly — no effect needed to seed state.
+  const effective: Form | null =
+    form ??
+    (s
+      ? {
+          meatCapacityKg: String(s.meatCapacityKg ?? 0),
+          meatAlertThresholdKg: String(s.meatAlertThresholdKg ?? 0),
+          cargoCapacityKg: String(s.cargoCapacityKg ?? 0),
+        }
+      : null);
 
   async function onSave() {
-    if (!form) return;
-    const m = Number(form.meatCapacityKg);
-    const t = Number(form.meatAlertThresholdKg);
-    const c = Number(form.cargoCapacityKg);
+    if (!effective) return;
+    const m = Number(effective.meatCapacityKg);
+    const t = Number(effective.meatAlertThresholdKg);
+    const c = Number(effective.cargoCapacityKg);
     if ([m, t, c].some((n) => !Number.isFinite(n) || n < 0)) {
       toast.error('Утга сөрөг байж болохгүй');
       return;
@@ -51,26 +55,24 @@ export function SettingsClient() {
       return;
     }
     setBusy(true);
-    try {
-      const r = await save({
-        variables: {
-          meatCapacityKg: m,
-          meatAlertThresholdKg: t,
-          cargoCapacityKg: c,
-        },
-      });
-      unwrap(r.data?.updateSettings);
-      toast.success('Хадгалагдлаа');
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (
+          await save({
+            variables: {
+              meatCapacityKg: m,
+              meatAlertThresholdKg: t,
+              cargoCapacityKg: c,
+            },
+          })
+        ).data?.updateSettings,
+      { success: 'Хадгалагдлаа', onSuccess: refetch },
+    );
+    setBusy(false);
   }
 
   if (loading && !s) return <Skeleton className="h-48 w-full" />;
-  if (!form) return null;
+  if (!effective) return null;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -85,9 +87,9 @@ export function SettingsClient() {
               id="cap"
               type="number"
               inputMode="decimal"
-              value={form.meatCapacityKg}
+              value={effective.meatCapacityKg}
               onChange={(e) =>
-                setForm({ ...form, meatCapacityKg: e.target.value })
+                setForm({ ...effective, meatCapacityKg: e.target.value })
               }
               className="h-11 text-right tabular-nums"
             />
@@ -109,9 +111,9 @@ export function SettingsClient() {
               id="thr"
               type="number"
               inputMode="decimal"
-              value={form.meatAlertThresholdKg}
+              value={effective.meatAlertThresholdKg}
               onChange={(e) =>
-                setForm({ ...form, meatAlertThresholdKg: e.target.value })
+                setForm({ ...effective, meatAlertThresholdKg: e.target.value })
               }
               className="h-11 text-right tabular-nums"
             />
@@ -134,9 +136,9 @@ export function SettingsClient() {
               id="cargo"
               type="number"
               inputMode="decimal"
-              value={form.cargoCapacityKg}
+              value={effective.cargoCapacityKg}
               onChange={(e) =>
-                setForm({ ...form, cargoCapacityKg: e.target.value })
+                setForm({ ...effective, cargoCapacityKg: e.target.value })
               }
               className="h-11 text-right tabular-nums"
             />

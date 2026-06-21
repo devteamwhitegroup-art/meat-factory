@@ -5,7 +5,6 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 import { fmtDate } from '@/lib/format/date';
 
@@ -162,35 +161,33 @@ export function HerdersClient() {
         ? null
         : values.address?.trim() || null,
     };
-    try {
-      if (editing?.id) {
-        const r = await updateHerder({
-          variables: { id: editing.id, ...sharedVars },
-        });
-        unwrap(r.data?.updateHerder);
-        toast.success('Шинэчлэгдлээ');
-      } else {
+    await runMutation(
+      async () => {
+        if (editing?.id) {
+          const r = await updateHerder({
+            variables: { id: editing.id, ...sharedVars },
+          });
+          return r.data?.updateHerder;
+        }
         const r = await createHerder({ variables: sharedVars });
-        unwrap(r.data?.createHerder);
-        toast.success('Малчин нэмэгдлээ');
-      }
-      setSheetOpen(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+        return r.data?.createHerder;
+      },
+      {
+        success: editing?.id ? 'Шинэчлэгдлээ' : 'Малчин нэмэгдлээ',
+        onSuccess: () => {
+          setSheetOpen(false);
+          refetch();
+        },
+      },
+    );
   }
 
   async function onDelete(id: string) {
     if (!confirm('Устгах уу?')) return;
-    try {
-      const r = await deleteHerder({ variables: { id } });
-      unwrap(r.data?.deleteHerder);
-      toast.success('Устгагдлаа');
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () => (await deleteHerder({ variables: { id } })).data?.deleteHerder,
+      { success: 'Устгагдлаа', onSuccess: refetch },
+    );
   }
 
   const herders = (data?.herders?.herders ?? []).filter(

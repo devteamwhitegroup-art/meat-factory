@@ -1,79 +1,35 @@
 import { ByproductConstantController } from '../../../controller/livestock/byproduct-constant.controller';
+import {
+  TCreateByproductConstant,
+  TGetByproductConstants,
+  TUpdateByproductConstant
+} from '../../../types/livestock/byproduct-constant.type';
+import { wrapList, wrapOne, wrapVoid } from '../../../utils';
 
 export default {
   Query: {
-    byproductConstants: async (_, doc) => {
-      try {
-        const { rows, count } = await ByproductConstantController.list(doc);
-        return {
-          success: true,
-          message: 'Success',
-          byproductConstants: rows,
-          count
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductConstants: [],
-          count: 0
-        };
-      }
-    },
-    byproductConstant: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          byproductConstant: await ByproductConstantController.getById(id)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductConstant: null
-        };
-      }
-    }
+    byproductConstants: wrapList(
+      'byproductConstants',
+      (doc: TGetByproductConstants) => ByproductConstantController.list(doc)
+    ),
+    byproductConstant: wrapOne('byproductConstant', ({ id }: { id: string }) =>
+      ByproductConstantController.getById(id)
+    )
   },
   Mutation: {
-    createByproductConstant: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Дайвар норм нэмэгдлээ',
-          byproductConstant: await ByproductConstantController.create(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductConstant: null
-        };
-      }
-    },
-    updateByproductConstant: async (_, doc) => {
-      try {
-        return {
-          success: true,
-          message: 'Дайвар норм шинэчлэгдлээ',
-          byproductConstant: await ByproductConstantController.update(doc)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          byproductConstant: null
-        };
-      }
-    },
-    deleteByproductConstant: async (_, { id }) => {
-      try {
-        await ByproductConstantController.remove(id);
-        return { success: true, message: 'Дайвар норм устгагдлаа' };
-      } catch (error) {
-        return { success: false, message: error.message };
-      }
-    }
+    createByproductConstant: wrapOne(
+      'byproductConstant',
+      (doc: TCreateByproductConstant) => ByproductConstantController.create(doc),
+      'Дайвар норм нэмэгдлээ'
+    ),
+    updateByproductConstant: wrapOne(
+      'byproductConstant',
+      (doc: TUpdateByproductConstant) => ByproductConstantController.update(doc),
+      'Дайвар норм шинэчлэгдлээ'
+    ),
+    deleteByproductConstant: wrapVoid(
+      'Дайвар норм устгагдлаа',
+      ({ id }: { id: string }) => ByproductConstantController.remove(id)
+    )
   }
 };

@@ -9,7 +9,7 @@ import {
   InventoryStatsDoc,
   InventoryStockDoc,
 } from '@/lib/queries/inventory';
-import { compact } from '@/lib/compact';
+import { unwrapList } from '@/lib/unwrap';
 import { formatNumber } from '@/lib/format/money';
 
 import { requireCap } from '@/lib/auth/server';
@@ -24,7 +24,10 @@ export default async function InventoryPage() {
     }),
     client.query({ query: InventoryStatsDoc }),
   ]);
-  const items = compact(stockResp.data?.inventoryStock?.inventoryItems);
+  const { rows: items, error: stockError } = unwrapList(
+    stockResp.data?.inventoryStock,
+    stockResp.data?.inventoryStock?.inventoryItems,
+  );
   const stats = statsResp.data?.inventoryStats?.stats;
 
   const meatStock = Number(stats?.meatStockKg ?? 0);
@@ -166,7 +169,11 @@ export default async function InventoryPage() {
       </div>
 
       {/* ─── Stock split: Мах vs Дайвар ──────────────────────────── */}
-      {items.length === 0 ? (
+      {stockError ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {stockError}
+        </div>
+      ) : items.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
           Нөөц байхгүй
         </div>

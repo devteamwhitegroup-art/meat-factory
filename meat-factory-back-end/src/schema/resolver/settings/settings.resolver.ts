@@ -1,32 +1,16 @@
 import { SettingsController } from '../../../controller/settings/settings.controller';
+import { TUpdateSettings } from '../../../types/settings/settings.type';
+import { wrapOne } from '../../../utils';
 
 export default {
   Query: {
-    settings: async () => {
-      try {
-        const row = await SettingsController.get();
-        return {
-          success: true,
-          message: 'Success',
-          settings: row
-        };
-      } catch (error) {
-        return { success: false, message: error.message, settings: null };
-      }
-    }
+    settings: wrapOne('settings', () => SettingsController.get())
   },
   Mutation: {
-    updateSettings: async (_, doc) => {
-      try {
-        const row = await SettingsController.update(doc);
-        return {
-          success: true,
-          message: 'Тохиргоо хадгалагдлаа',
-          settings: row
-        };
-      } catch (error) {
-        return { success: false, message: error.message, settings: null };
-      }
-    }
+    updateSettings: wrapOne(
+      'settings',
+      (doc: TUpdateSettings) => SettingsController.update(doc),
+      'Тохиргоо хадгалагдлаа'
+    )
   }
 };

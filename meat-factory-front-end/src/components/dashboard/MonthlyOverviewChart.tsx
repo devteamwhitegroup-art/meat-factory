@@ -3,7 +3,6 @@
 import { useQuery } from '@apollo/client/react';
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -43,7 +42,7 @@ function formatTick(n: number): string {
 // Sources: paid SalesTransactions for income, paid Settlements for herder
 // cost, MonthlyBudget table for the target.
 export function MonthlyOverviewChart({ monthsBack = 12 }: { monthsBack?: number }) {
-  const { data, loading } = useQuery(MonthlyOverviewDoc, {
+  const { data, loading, error } = useQuery(MonthlyOverviewDoc, {
     variables: { monthsBack },
     fetchPolicy: 'cache-and-network',
   });
@@ -63,6 +62,10 @@ export function MonthlyOverviewChart({ monthsBack = 12 }: { monthsBack?: number 
       <CardContent className="h-80">
         {loading && chartData.length === 0 ? (
           <Skeleton className="h-full w-full" />
+        ) : error ? (
+          <div className="flex h-full items-center justify-center text-sm text-destructive">
+            Өгөгдөл ачаалахад алдаа гарлаа
+          </div>
         ) : chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Өгөгдөл алга
@@ -96,7 +99,3 @@ export function MonthlyOverviewChart({ monthsBack = 12 }: { monthsBack?: number 
     </Card>
   );
 }
-
-// Suppress recharts unused import warning when ComposedChart not used:
-// (BarChart is still re-exported in case we swap)
-void BarChart;

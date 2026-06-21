@@ -18,15 +18,17 @@ import {
 } from '../../types/sales/sales-transaction.type';
 import { TContext, TPaginationGeneric } from '../../types/global/global.type';
 import { CustomerController } from '../customer/customer.controller';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 const MAX_CODE_RETRIES = 5;
 
 export class SalesTransactionController {
-  static async findIdCheck(id: string): Promise<SalesTransactionModel> {
-    const tx = await SalesTransactionModel.findByPk(id);
-    if (!tx) throw new Error('Sales transaction not found');
-    return tx;
+  static findIdCheck(id: string): Promise<SalesTransactionModel> {
+    return findOrThrow(
+      SalesTransactionModel,
+      id,
+      'Sales transaction not found'
+    );
   }
 
   private static _rand4(): number {
@@ -149,7 +151,6 @@ export class SalesTransactionController {
   static async list(
     doc: TGetSalesTransactions
   ): Promise<TPaginationGeneric<TSalesTransaction>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
     if (doc.paymentStatus)
       Object.assign(where, { paymentStatus: doc.paymentStatus });
@@ -163,31 +164,32 @@ export class SalesTransactionController {
       Object.assign(where, { transactionDate: range });
     }
 
-    return await SalesTransactionModel.findAndCountAll({
+    return listPaginated(SalesTransactionModel, doc, {
       where,
       include: [{ model: CustomerModel, as: 'customer' }],
-      offset,
-      limit,
       order: [['createdAt', 'DESC']],
       distinct: true
     });
   }
 
-  static async getById(id: string): Promise<SalesTransactionModel> {
-    const tx = await SalesTransactionModel.findByPk(id, {
-      include: [
-        { model: CustomerModel, as: 'customer' },
-        { model: SalesLineItemModel, as: 'lineItems' },
-        { model: ShipmentModel, as: 'shipment' },
-        {
-          model: SalesInstallmentModel,
-          as: 'installments',
-          order: [['paidAt', 'ASC']]
-        }
-      ]
-    });
-    if (!tx) throw new Error('Sales transaction not found');
-    return tx;
+  static getById(id: string): Promise<SalesTransactionModel> {
+    return findOrThrow(
+      SalesTransactionModel,
+      id,
+      'Sales transaction not found',
+      {
+        include: [
+          { model: CustomerModel, as: 'customer' },
+          { model: SalesLineItemModel, as: 'lineItems' },
+          { model: ShipmentModel, as: 'shipment' },
+          {
+            model: SalesInstallmentModel,
+            as: 'installments',
+            order: [['paidAt', 'ASC']]
+          }
+        ]
+      }
+    );
   }
 
   // ─── Installments ───────────────────────────────────────────────────
@@ -268,8 +270,11 @@ export class SalesTransactionController {
   }
 
   static async removeInstallment(id: string): Promise<void> {
-    const row = await SalesInstallmentModel.findByPk(id);
-    if (!row) throw new Error('Хэсэгчилсэн төлбөр олдсонгүй');
+    const row = await findOrThrow(
+      SalesInstallmentModel,
+      id,
+      'Хэсэгчилсэн төлбөр олдсонгүй'
+    );
     const txId = row.salesTransactionId;
     await sequelize.transaction(async (t) => {
       await row.destroy({ transaction: t });

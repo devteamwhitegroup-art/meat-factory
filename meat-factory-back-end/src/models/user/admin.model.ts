@@ -1,4 +1,4 @@
-import { DataTypes, Model } from 'sequelize';
+import { DataTypes, Model, Sequelize } from 'sequelize';
 import config from '../../config';
 import bcrypt from 'bcrypt';
 import { createHmac } from 'node:crypto';
@@ -7,7 +7,7 @@ import { ADMIN_ROLE, TAdmin } from '../../types/user/admin.type';
 const { PASSWORD_HASH_SALT } = config;
 const salt = bcrypt.genSaltSync(PASSWORD_HASH_SALT);
 
-const _hashPassword = async (password) => {
+const _hashPassword = async (password: string) => {
   const hashPassword = createHmac('sha256', password).digest('hex');
 
   const bcryptPassword = await bcrypt.hash(hashPassword, salt);
@@ -23,7 +23,7 @@ export class AdminModel extends Model implements TAdmin {
   static associate(): void {}
 }
 
-export const createAdminModel = async (sequelize) => {
+export const createAdminModel = async (sequelize: Sequelize) => {
   AdminModel.init(
     {
       id: {

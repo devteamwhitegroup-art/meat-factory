@@ -9,19 +9,15 @@ import {
   TUpdateHerder
 } from '../../types/livestock/herder.type';
 import { TPaginationGeneric } from '../../types/global/global.type';
-import { pagination } from '../../utils';
+import { findOrThrow, listPaginated } from '../../utils';
 
 const HERDER_INCLUDE = [
   { model: HerderAddressModel, as: 'addressEntry' }
 ];
 
 export class HerderController {
-  static async findIdCheck(id: string): Promise<HerderModel> {
-    const herder = await HerderModel.findByPk(id);
-    if (!herder) {
-      throw new Error('Herder not found');
-    }
-    return herder;
+  static findIdCheck(id: string): Promise<HerderModel> {
+    return findOrThrow(HerderModel, id, 'Herder not found');
   }
 
   // Resolve a catalogue addressId to a row; throws if it doesn't exist.
@@ -73,7 +69,6 @@ export class HerderController {
   static async list(
     doc: TListHerders
   ): Promise<TPaginationGeneric<THerder>> {
-    const { offset, limit } = pagination(doc);
     const where: WhereOptions = {};
 
     if (doc.search && doc.search.trim()) {
@@ -87,25 +82,21 @@ export class HerderController {
       });
     }
 
-    return await HerderModel.findAndCountAll({
+    return listPaginated(HerderModel, doc, {
       where,
       include: HERDER_INCLUDE,
-      offset,
-      limit,
       order: [['createdAt', 'DESC']],
       distinct: true
     });
   }
 
-  static async getById(id: string): Promise<HerderModel> {
-    const herder = await HerderModel.findByPk(id, {
+  static getById(id: string): Promise<HerderModel> {
+    return findOrThrow(HerderModel, id, 'Herder not found', {
       include: [
         { model: RegistrationModel, as: 'registrations' },
         { model: HerderAddressModel, as: 'addressEntry' }
       ]
     });
-    if (!herder) throw new Error('Herder not found');
-    return herder;
   }
 
   static async update(doc: TUpdateHerder): Promise<HerderModel> {

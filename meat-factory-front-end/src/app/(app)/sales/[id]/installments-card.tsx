@@ -24,7 +24,7 @@ import {
 } from '@/lib/queries/sales';
 import { unwrap } from '@/lib/unwrap';
 import { formatMNT } from '@/lib/format/money';
-import { fmtDate, fmtDateTime } from '@/lib/format/date';
+import { fmtDate } from '@/lib/format/date';
 
 export type InstallmentRow = {
   id: string;
@@ -213,6 +213,3 @@ export function InstallmentsCard({
     </Card>
   );
 }
-
-// Avoid unused-warning when fmtDateTime not needed here.
-void fmtDateTime;

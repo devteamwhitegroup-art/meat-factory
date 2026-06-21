@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { getClient } from '@/lib/apollo/server';
 import { ShipmentListDoc } from '@/lib/queries/shipment';
-import { compact } from '@/lib/compact';
+import { unwrapList } from '@/lib/unwrap';
 import { SHIPMENT_STATUS_MN } from '@/lib/format/enum';
 import { formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
@@ -43,8 +43,10 @@ export default async function ShipmentsPage({ searchParams }: Props) {
     query: ShipmentListDoc,
     variables: { status: status as never, limit: 20, page },
   });
-  const rows = compact(data?.shipments?.shipments);
-  const count = data?.shipments?.count ?? 0;
+  const { rows, count, error } = unwrapList(
+    data?.shipments,
+    data?.shipments?.shipments,
+  );
 
   return (
     <div className="space-y-4">
@@ -75,6 +77,12 @@ export default async function ShipmentsPage({ searchParams }: Props) {
           );
         })}
       </div>
+
+      {error ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">

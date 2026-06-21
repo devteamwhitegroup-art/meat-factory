@@ -1,3 +1,6 @@
+import type { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
+import type { ShipmentModel } from '../../models/shipment/shipment.model';
+
 export type TDateRange = {
   startDate?: Date | null;
   endDate?: Date | null;
@@ -35,8 +38,8 @@ export type TDashboard = {
   animalBreakdown: TAnimalBreakdownItem[];
   byproductBreakdown: TByproductBreakdownItem[]; // top byproducts by handoff kg
   pipeline: TPipelineCounts;
-  recentTransactions: unknown[];
-  recentShipments: unknown[];
+  recentTransactions: SalesTransactionModel[];
+  recentShipments: ShipmentModel[];
 };
 
 export type TGetDashboard = {

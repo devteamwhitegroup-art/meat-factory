@@ -1,4 +1,4 @@
-import { Request, Response, Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import Multer from 'multer';
 
 import { putObject, checkFile, buildFileKey } from '../function/fileHandler';
@@ -12,8 +12,8 @@ const upload = Multer();
 const router = Router();
 
 const asyncHandler =
-  (fn: Function) =>
-  (req: Request, res: Response, next: (err?: any) => void) => {
+  (fn: (req: Request, res: Response, next: NextFunction) => unknown) =>
+  (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 
@@ -34,7 +34,7 @@ const resolveUploaderId = async (
 router.post(
   '/upload',
   upload.single('file'),
-  asyncHandler(async (req: any, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const rawAuth = req.headers['authorization'] as string | undefined;
     const authorization = rawAuth?.startsWith('Bearer ')
       ? rawAuth.slice(7)
@@ -102,7 +102,7 @@ router.post(
   })
 );
 
-router.use((error: Error, _: Request, res: Response, __: Function) => {
+router.use((error: Error, _: Request, res: Response, __: NextFunction) => {
   console.error('Upload router error:', error);
   res.status(500).json({
     success: false,

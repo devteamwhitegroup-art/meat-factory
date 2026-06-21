@@ -9,7 +9,7 @@ import {
 import { getClient } from '@/lib/apollo/server';
 import { InventoryTabs } from '@/components/inventory/InventoryTabs';
 import { InventoryMovementsDoc } from '@/lib/queries/inventory';
-import { compact } from '@/lib/compact';
+import { unwrapList } from '@/lib/unwrap';
 import {
   MOVEMENT_SOURCE_MN,
   MOVEMENT_TYPE_MN,
@@ -32,7 +32,10 @@ export default async function InventoryMovementsPage() {
       page: 1,
     },
   });
-  const rows = compact(data?.inventoryMovements?.movements);
+  const { rows, error } = unwrapList(
+    data?.inventoryMovements,
+    data?.inventoryMovements?.movements,
+  );
 
   return (
     <div className="space-y-4">
@@ -42,6 +45,11 @@ export default async function InventoryMovementsPage() {
         Нөөц рүү орох / гарах бүх хөдөлгөөний түүх. Эх үүсвэр нь Тооцоо
         (орох IN), Ачилт (OUT) эсвэл Гар (Тохируулга).
       </div>
+      {error ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
           Хөдөлгөөн алга

@@ -11,6 +11,15 @@ import config from '../config';
 import { ALLOWED_FILE_EXT, FILE_FOLDER } from '../types/global/file.type';
 const { SPACE_BUCKET_NAME } = config;
 
+// `file-type` is ESM-only. With tsconfig `module: commonjs` a normal dynamic
+// `import()` is downleveled to `require()`, which throws ERR_REQUIRE_ESM at
+// runtime. `new Function` preserves a genuine ESM `import()` through TS
+// transpilation, without `eval`'s surrounding-scope capture.
+const importEsm = new Function(
+  'specifier',
+  'return import(specifier)'
+) as <T>(specifier: string) => Promise<T>;
+
 // Build a storage key foldered by upload purpose:
 //   <folder>/<yyyy>/<mm>/<timestamp>_<sanitized-name>
 export const buildFileKey = (
@@ -50,7 +59,7 @@ export const putObject = async ({
   contentType
 }: {
   key: string;
-  file: any;
+  file: PutObjectCommandInput['Body'];
   meta?: Record<string, string>;
   contentType?: string;
 }): Promise<PutObjectCommandOutput> => {
@@ -72,9 +81,9 @@ export const putObject = async ({
 };
 
 export const checkFile = async (buffer: Buffer): Promise<string> => {
-  const { fileTypeFromBuffer } = await (eval('import("file-type")') as Promise<
-    typeof import('file-type')
-  >);
+  const { fileTypeFromBuffer } = await importEsm<typeof import('file-type')>(
+    'file-type'
+  );
 
   const file_type = await fileTypeFromBuffer(buffer);
   if (!file_type) throw new Error('Unable to determine file type');

@@ -1,100 +1,47 @@
 import { SalesTransactionController } from '../../../controller/sales/sales-transaction.controller';
+import {
+  TCreateSalesTransaction,
+  TGetSalesTransactions
+} from '../../../types/sales/sales-transaction.type';
+import { wrapList, wrapOne, wrapVoid } from '../../../utils';
 
 export default {
   Query: {
-    salesTransactions: async (_, doc) => {
-      try {
-        const { rows, count } = await SalesTransactionController.list(doc);
-        return {
-          success: true,
-          message: 'Success',
-          salesTransactions: rows,
-          count
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          salesTransactions: [],
-          count: 0
-        };
-      }
-    },
-    salesTransaction: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Success',
-          salesTransaction: await SalesTransactionController.getById(id)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          salesTransaction: null
-        };
-      }
-    }
+    salesTransactions: wrapList(
+      'salesTransactions',
+      (doc: TGetSalesTransactions) => SalesTransactionController.list(doc)
+    ),
+    salesTransaction: wrapOne('salesTransaction', ({ id }: { id: string }) =>
+      SalesTransactionController.getById(id)
+    )
   },
   Mutation: {
-    createSalesTransaction: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Sales transaction created',
-          salesTransaction: await SalesTransactionController.create(
-            doc,
-            context
-          )
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          salesTransaction: null
-        };
-      }
-    },
-    markSalesTransactionPaid: async (_, { id }) => {
-      try {
-        return {
-          success: true,
-          message: 'Sales transaction marked paid',
-          salesTransaction: await SalesTransactionController.markPaid(id)
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          salesTransaction: null
-        };
-      }
-    },
-    addSalesInstallment: async (_, doc, context) => {
-      try {
-        return {
-          success: true,
-          message: 'Хэсэгчилсэн төлбөр бүртгэгдлээ',
-          installment: await SalesTransactionController.addInstallment(
-            doc,
-            context
-          )
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: error.message,
-          installment: null
-        };
-      }
-    },
-    removeSalesInstallment: async (_, { id }) => {
-      try {
-        await SalesTransactionController.removeInstallment(id);
-        return { success: true, message: 'Устгагдлаа' };
-      } catch (error) {
-        return { success: false, message: error.message };
-      }
-    }
+    createSalesTransaction: wrapOne(
+      'salesTransaction',
+      (doc: TCreateSalesTransaction, ctx) =>
+        SalesTransactionController.create(doc, ctx),
+      'Sales transaction created'
+    ),
+    markSalesTransactionPaid: wrapOne(
+      'salesTransaction',
+      ({ id }: { id: string }) => SalesTransactionController.markPaid(id),
+      'Sales transaction marked paid'
+    ),
+    addSalesInstallment: wrapOne(
+      'installment',
+      (
+        doc: {
+          salesTransactionId: string;
+          amountMnt: number;
+          paidAt?: Date | null;
+          notes?: string | null;
+        },
+        ctx
+      ) => SalesTransactionController.addInstallment(doc, ctx),
+      'Хэсэгчилсэн төлбөр бүртгэгдлээ'
+    ),
+    removeSalesInstallment: wrapVoid('Устгагдлаа', ({ id }: { id: string }) =>
+      SalesTransactionController.removeInstallment(id)
+    )
   }
 };

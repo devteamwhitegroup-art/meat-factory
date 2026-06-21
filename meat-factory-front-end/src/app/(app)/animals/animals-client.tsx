@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { toast } from 'sonner';
 
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ANIMAL_MN } from '@/lib/format/enum';
 import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
 import { UpsertAnimalDoc } from '@/lib/queries/animal';
-import { unwrap } from '@/lib/unwrap';
+import { runMutation } from '@/lib/runMutation';
 
 type Form = { price: string; cover: boolean };
 
@@ -24,27 +24,16 @@ export function AnimalsClient() {
 
   const existing = animals;
 
-  // Seed forms from server values once they arrive (and on refetch).
-  useEffect(() => {
-    if (existing.length === 0) return;
-    setForms((prev) => {
-      const next = { ...prev };
-      for (const a of existing) {
-        const t = a.animalType as string;
-        if (next[t] === undefined) {
-          next[t] = {
-            price: String(a.pricePerAnimal ?? 0),
-            cover: !!a.canCoverSlaughterCost,
-          };
-        }
-      }
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animals]);
-
+  // `forms` holds only user edits; un-edited types fall back to the current
+  // server values, so no seeding effect is needed.
   function getForm(t: string): Form {
-    return forms[t] ?? { price: '', cover: false };
+    const edited = forms[t];
+    if (edited) return edited;
+    const a = existing.find((x) => (x.animalType as string) === t);
+    return {
+      price: String(a?.pricePerAnimal ?? 0),
+      cover: !!a?.canCoverSlaughterCost,
+    };
   }
 
   async function save(animalType: string) {
@@ -55,22 +44,23 @@ export function AnimalsClient() {
       return;
     }
     setBusy(animalType);
-    try {
-      const r = await upsert({
-        variables: {
-          animalType: animalType as never,
-          pricePerAnimal: n,
-          canCoverSlaughterCost: !!f.cover,
-        },
-      });
-      unwrap(r.data?.upsertAnimal);
-      toast.success(`${ANIMAL_MN[animalType] ?? animalType}: хадгаллаа`);
-      await refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
+    await runMutation(
+      async () =>
+        (
+          await upsert({
+            variables: {
+              animalType: animalType as never,
+              pricePerAnimal: n,
+              canCoverSlaughterCost: !!f.cover,
+            },
+          })
+        ).data?.upsertAnimal,
+      {
+        success: `${ANIMAL_MN[animalType] ?? animalType}: хадгаллаа`,
+        onSuccess: refetch,
+      },
+    );
+    setBusy(null);
   }
 
   if (loading && existing.length === 0) {

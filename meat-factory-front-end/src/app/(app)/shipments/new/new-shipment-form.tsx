@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { toast } from 'sonner';
@@ -72,7 +72,11 @@ export function NewShipmentForm() {
   const [mode, setMode] = useState<Mode>('sale');
   const [customerId, setCustomerId] = useState<string>('');
   const [salesTransactionId, setSalesTransactionId] = useState<string>('');
-  const [weightKg, setWeightKg] = useState('');
+  // Honour the inventory page's `?prefillWeightKg=…` shortcut on first mount.
+  const [weightKg, setWeightKg] = useState(() => {
+    const n = Number(prefill);
+    return Number.isFinite(n) && n > 0 ? String(n) : '';
+  });
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -80,14 +84,6 @@ export function NewShipmentForm() {
   const [notes, setNotes] = useState('');
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  // Honour the inventory page's `?prefillWeightKg=…` shortcut on first mount.
-  useEffect(() => {
-    if (!prefill) return;
-    const n = Number(prefill);
-    if (Number.isFinite(n) && n > 0) setWeightKg(String(n));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Summary panel for the chosen sale.
   const selectedSale = useMemo(
