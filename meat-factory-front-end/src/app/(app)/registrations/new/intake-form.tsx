@@ -38,6 +38,7 @@ const schema = z.object({
   herderId: z.string().uuid("Малчин сонгоно уу"),
   vehicleNumber: z.string().min(1, "Машины дугаар шаардлагатай"),
   stamp: z.string().min(1, "Таних тэмдэг шаардлагатай"),
+  medicalNumber: z.string().optional(),
   intakeDate: z.string().optional(),
   signatureFileId: z.string().nullable().optional(),
   stampFileId: z.string().nullable().optional(),
@@ -80,6 +81,7 @@ export function IntakeForm() {
       herderId: "",
       vehicleNumber: "",
       stamp: "",
+      medicalNumber: "",
       intakeDate: new Date().toISOString().slice(0, 10),
       signatureFileId: null,
       stampFileId: null,
@@ -121,6 +123,7 @@ export function IntakeForm() {
           herderId: values.herderId,
           vehicleNumber: values.vehicleNumber.trim(),
           stamp: values.stamp.trim(),
+          medicalNumber: values.medicalNumber?.trim() || null,
           signatureFileId: values.signatureFileId || null,
           stampFileId: values.stampFileId || null,
           photoFileId: values.photoFileId || null,
@@ -169,6 +172,26 @@ export function IntakeForm() {
                       <Input
                         {...field}
                         placeholder="8901 ДОУ"
+                        className="h-12 text-lg"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="medicalNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base">
+                      Эмнэлгийн дугаар (заавал биш)
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ""}
+                        placeholder="Эмчтэй ярьсны дараа бөглөж болно"
                         className="h-12 text-lg"
                       />
                     </FormControl>

@@ -49,6 +49,7 @@ export type TRegistration = {
   herderId: string;
   vehicleNumber: string;
   stamp: string | null;
+  medicalNumber: string | null;
   photoFileId: string | null;
   signatureFileId: string | null;
   stampFileId: string | null;
@@ -64,6 +65,7 @@ export type TCreateRegistration = {
   herderId: string;
   vehicleNumber: string;
   stamp?: string | null;
+  medicalNumber?: string | null;
   photoFileId?: string | null;
   signatureFileId?: string | null;
   stampFileId?: string | null;
@@ -79,6 +81,8 @@ export type TGetRegistrations = {
   statuses?: REGISTRATION_STATUS[];
   herderId?: string;
   registrationNumber?: number;
+  // Filters on intakeDate (livestock arrival), inclusive both ends.
+  dateRange?: { startDate?: Date | null; endDate?: Date | null };
 } & TPagination;
 
 export type TRegistrationAnimalLine = {

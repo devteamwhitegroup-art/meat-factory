@@ -6,6 +6,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
     $statuses: [REGISTRATION_STATUS!]
     $herderId: ID
     $registrationNumber: Int
+    $dateRange: DateRangeInput
     $limit: Int
     $page: Int
   ) {
@@ -14,6 +15,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
       statuses: $statuses
       herderId: $herderId
       registrationNumber: $registrationNumber
+      dateRange: $dateRange
       limit: $limit
       page: $page
     ) {
@@ -52,6 +54,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
         intakeDate
         vehicleNumber
         stamp
+        medicalNumber
         photoFileId
         photo {
           id
@@ -176,6 +179,7 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
     $herderId: ID!
     $vehicleNumber: String!
     $stamp: String
+    $medicalNumber: String
     $photoFileId: ID
     $signatureFileId: ID
     $stampFileId: ID
@@ -187,6 +191,7 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
       herderId: $herderId
       vehicleNumber: $vehicleNumber
       stamp: $stamp
+      medicalNumber: $medicalNumber
       photoFileId: $photoFileId
       signatureFileId: $signatureFileId
       stampFileId: $stampFileId

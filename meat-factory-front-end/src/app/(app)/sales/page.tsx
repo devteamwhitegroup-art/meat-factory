@@ -15,6 +15,8 @@ import { compact } from '@/lib/compact';
 import { PAYMENT_STATUS_MN } from '@/lib/format/enum';
 import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
+import { parseRange, thisMonth } from '@/lib/date/range';
+import { DateRangeFilter } from '@/components/common/DateRangeFilter';
 
 const TABS = [
   { value: '', label: 'Бүгд' },
@@ -24,7 +26,14 @@ const TABS = [
 
 import { requireCap } from '@/lib/auth/server';
 
-type Props = { searchParams: Promise<{ status?: string; page?: string }> };
+type Props = {
+  searchParams: Promise<{
+    status?: string;
+    page?: string;
+    from?: string;
+    to?: string;
+  }>;
+};
 
 export default async function SalesPage({ searchParams }: Props) {
   await requireCap('sales');
@@ -32,9 +41,19 @@ export default async function SalesPage({ searchParams }: Props) {
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
   const page = Number(sp.page) || 1;
+  const def = thisMonth();
+  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+  const tabHref = (statusVal: string) => {
+    const params = new URLSearchParams();
+    if (statusVal) params.set('status', statusVal);
+    if (sp.from) params.set('from', sp.from);
+    if (sp.to) params.set('to', sp.to);
+    const qs = params.toString();
+    return qs ? `/sales?${qs}` : '/sales';
+  };
   const { data } = await getClient().query({
     query: SalesListDoc,
-    variables: { paymentStatus: status as never, limit: 20, page },
+    variables: { paymentStatus: status as never, dateRange, limit: 20, page },
   });
 
   const rows = compact(data?.salesTransactions?.salesTransactions);
@@ -48,15 +67,18 @@ export default async function SalesPage({ searchParams }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Гүйлгээнүүд</h1>
-        <Link href="/sales/new" className={buttonVariants()}>
-          Шинэ гүйлгээ
-        </Link>
+        <div className="flex items-center gap-2">
+          <DateRangeFilter />
+          <Link href="/sales/new" className={buttonVariants()}>
+            Шинэ гүйлгээ
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => {
           const active = (status ?? '') === t.value;
-          const href = t.value ? `/sales?status=${t.value}` : '/sales';
+          const href = tabHref(t.value);
           return (
             <Link
               key={t.value}

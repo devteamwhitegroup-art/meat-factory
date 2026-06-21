@@ -148,6 +148,8 @@ export default async function RegistrationDetailPage({ params }: Props) {
             <div>{r.vehicleNumber ?? "—"}</div>
             <div className="text-muted-foreground">Тамга</div>
             <div>{r.stamp ?? "—"}</div>
+            <div className="text-muted-foreground">Эмнэлгийн дугаар</div>
+            <div>{r.medicalNumber ?? "—"}</div>
             <div className="text-muted-foreground">Он сар</div>
             <div>{fmtDate(r.intakeDate)}</div>
             <div className="text-muted-foreground">Харуул</div>

@@ -14,14 +14,22 @@ import {
 } from '@/lib/format/enum';
 import { formatMNT, formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
+import { parseRange, thisMonth } from '@/lib/date/range';
+import { DateRangeFilter } from '@/components/common/DateRangeFilter';
 
 import { requireCap } from '@/lib/auth/server';
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
   await requireCap('dashboard');
+  const sp = await searchParams;
+  const def = thisMonth();
   const { data } = await getClient().query({
     query: DashboardDoc,
-    variables: { dateRange: null },
+    variables: { dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to) },
   });
   const wrap = data?.dashboard;
   if (!wrap?.success || !wrap.dashboard) {
@@ -46,7 +54,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Тайлан</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Тайлан</h1>
+        <DateRangeFilter />
+      </div>
 
       {/* Pipeline tile — clickable shortcuts into the matching /registrations
           stage chips. Adds at-a-glance pipeline visibility to the dashboard. */}

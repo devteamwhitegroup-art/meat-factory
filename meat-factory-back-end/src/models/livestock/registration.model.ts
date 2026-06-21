@@ -18,6 +18,7 @@ export class RegistrationModel extends Model implements TRegistration {
   public herderId!: string;
   public vehicleNumber!: string;
   public stamp!: string | null;
+  public medicalNumber!: string | null;
   public photoFileId!: string | null;
   public signatureFileId!: string | null;
   public stampFileId!: string | null;
@@ -105,6 +106,11 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         allowNull: false,
       },
       stamp: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
+      },
+      medicalNumber: {
         type: DataTypes.STRING,
         allowNull: true,
         defaultValue: null,

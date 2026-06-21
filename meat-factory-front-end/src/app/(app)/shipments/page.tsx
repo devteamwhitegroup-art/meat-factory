@@ -15,6 +15,8 @@ import { unwrapList } from '@/lib/unwrap';
 import { SHIPMENT_STATUS_MN } from '@/lib/format/enum';
 import { formatNumber } from '@/lib/format/money';
 import { fmtDate } from '@/lib/format/date';
+import { parseRange, thisMonth } from '@/lib/date/range';
+import { DateRangeFilter } from '@/components/common/DateRangeFilter';
 
 const TABS = [
   { value: '', label: 'Бүгд' },
@@ -31,7 +33,14 @@ const STATUS_COLOR: Record<string, string> = {
 
 import { requireCap } from '@/lib/auth/server';
 
-type Props = { searchParams: Promise<{ status?: string; page?: string }> };
+type Props = {
+  searchParams: Promise<{
+    status?: string;
+    page?: string;
+    from?: string;
+    to?: string;
+  }>;
+};
 
 export default async function ShipmentsPage({ searchParams }: Props) {
   await requireCap('shipments');
@@ -39,9 +48,19 @@ export default async function ShipmentsPage({ searchParams }: Props) {
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
   const page = Number(sp.page) || 1;
+  const def = thisMonth();
+  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+  const tabHref = (statusVal: string) => {
+    const params = new URLSearchParams();
+    if (statusVal) params.set('status', statusVal);
+    if (sp.from) params.set('from', sp.from);
+    if (sp.to) params.set('to', sp.to);
+    const qs = params.toString();
+    return qs ? `/shipments?${qs}` : '/shipments';
+  };
   const { data } = await getClient().query({
     query: ShipmentListDoc,
-    variables: { status: status as never, limit: 20, page },
+    variables: { status: status as never, dateRange, limit: 20, page },
   });
   const { rows, count, error } = unwrapList(
     data?.shipments,
@@ -52,15 +71,18 @@ export default async function ShipmentsPage({ searchParams }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Ачилт</h1>
-        <Link href="/shipments/new" className={buttonVariants()}>
-          Шинэ ачилт
-        </Link>
+        <div className="flex items-center gap-2">
+          <DateRangeFilter />
+          <Link href="/shipments/new" className={buttonVariants()}>
+            Шинэ ачилт
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => {
           const active = (status ?? '') === t.value;
-          const href = t.value ? `/shipments?status=${t.value}` : '/shipments';
+          const href = tabHref(t.value);
           return (
             <Link
               key={t.value}

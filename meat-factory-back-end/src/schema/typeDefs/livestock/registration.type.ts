@@ -166,6 +166,7 @@ export default `#graphql
         herder: Herder
         vehicleNumber: String
         stamp: String
+        medicalNumber: String
         photoFileId: ID
         photo: File
         signatureFileId: ID
@@ -243,6 +244,7 @@ export default `#graphql
             statuses: [REGISTRATION_STATUS!]
             herderId: ID
             registrationNumber: Int
+            dateRange: DateRangeInput
             ${PaginationSchema}
         ): RegistrationsResponse @authLogin
         registration(id: ID!): RegistrationResponse @authLogin
@@ -256,6 +258,7 @@ export default `#graphql
             herderId: ID!
             vehicleNumber: String!
             stamp: String
+            medicalNumber: String
             photoFileId: ID
             signatureFileId: ID
             stampFileId: ID

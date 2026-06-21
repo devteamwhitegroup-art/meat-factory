@@ -5,11 +5,15 @@ import { getClient } from '@/lib/apollo/server';
 import { RegistrationListDoc } from '@/lib/queries/registration';
 import { unwrapList } from '@/lib/unwrap';
 import { compact } from '@/lib/compact';
+import { parseRange, thisMonth } from '@/lib/date/range';
+import { DateRangeFilter } from '@/components/common/DateRangeFilter';
 
 type Props = {
   searchParams: Promise<{
     stage?: string;
     page?: string;
+    from?: string;
+    to?: string;
   }>;
 };
 
@@ -40,11 +44,25 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const stage = STAGES.find((s) => s.value === (sp.stage ?? '')) ?? STAGES[0];
   const page = Number(sp.page) || 1;
+  const def = thisMonth();
+  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+
+  // Stage chip hrefs preserve the active date range so switching stage doesn't
+  // drop the filter.
+  const stageHref = (stageVal: string) => {
+    const params = new URLSearchParams();
+    if (stageVal) params.set('stage', stageVal);
+    if (sp.from) params.set('from', sp.from);
+    if (sp.to) params.set('to', sp.to);
+    const qs = params.toString();
+    return qs ? `/registrations?${qs}` : '/registrations';
+  };
 
   const { data } = await getClient().query({
     query: RegistrationListDoc,
     variables: {
       statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
+      dateRange,
       limit: 24,
       page,
     },
@@ -60,17 +78,18 @@ export default async function RegistrationsPage({ searchParams }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Бүртгэлийн дугаарын хэсэг</h1>
-        <Link href="/registrations/new" className={buttonVariants()}>
-          Шинэ бүртгэл
-        </Link>
+        <div className="flex items-center gap-2">
+          <DateRangeFilter />
+          <Link href="/registrations/new" className={buttonVariants()}>
+            Шинэ бүртгэл
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {STAGES.map((s) => {
           const active = stage.value === s.value;
-          const href = s.value
-            ? `/registrations?stage=${s.value}`
-            : '/registrations';
+          const href = stageHref(s.value);
           return (
             <Link
               key={s.value}
