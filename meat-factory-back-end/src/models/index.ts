@@ -48,16 +48,10 @@ import {
   createByproductConstantModel,
   ByproductConstantModel,
 } from "./livestock/byproduct-constant.model";
-import {
-  createAnimalModel,
-  AnimalModel,
-} from "./livestock/animal.model";
+import { createAnimalModel, AnimalModel } from "./livestock/animal.model";
 
 //Customer
-import {
-  createCustomerModel,
-  CustomerModel,
-} from "./customer/customer.model";
+import { createCustomerModel, CustomerModel } from "./customer/customer.model";
 
 //Sales
 import {
@@ -74,10 +68,7 @@ import {
 } from "./sales/sales-installment.model";
 
 //Shipment
-import {
-  createShipmentModel,
-  ShipmentModel,
-} from "./shipment/shipment.model";
+import { createShipmentModel, ShipmentModel } from "./shipment/shipment.model";
 import {
   createShipmentCargoEntryModel,
   ShipmentCargoEntryModel,
@@ -98,10 +89,7 @@ import {
 } from "./inventory/inventory-movement.model";
 
 //Settings (singleton config row)
-import {
-  createSettingsModel,
-  SettingsModel,
-} from "./settings/settings.model";
+import { createSettingsModel, SettingsModel } from "./settings/settings.model";
 
 //Dashboard
 import {

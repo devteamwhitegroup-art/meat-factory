@@ -1,24 +1,24 @@
-import { MonthlyBudgetController } from '../../../controller/dashboard/monthly-budget.controller';
-import { TUpsertMonthlyBudget } from '../../../types/dashboard/monthly-budget.type';
-import { wrapItems, wrapOne, wrapVoid } from '../../../utils';
+import { MonthlyBudgetController } from "../../../controller/dashboard/monthly-budget.controller";
+import { TUpsertMonthlyBudget } from "../../../types/dashboard/monthly-budget.type";
+import { wrapItems, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   Query: {
-    monthlyBudgets: wrapItems('budgets', () => MonthlyBudgetController.list()),
+    monthlyBudgets: wrapItems("budgets", () => MonthlyBudgetController.list()),
     monthlyOverview: wrapItems(
-      'rows',
+      "rows",
       ({ monthsBack }: { monthsBack?: number }) =>
-        MonthlyBudgetController.overview(monthsBack ?? 12)
-    )
+        MonthlyBudgetController.overview(monthsBack ?? 12),
+    ),
   },
   Mutation: {
     upsertMonthlyBudget: wrapOne(
-      'budget',
+      "budget",
       (doc: TUpsertMonthlyBudget) => MonthlyBudgetController.upsert(doc),
-      'Хадгалагдлаа'
+      "Хадгалагдлаа",
     ),
-    deleteMonthlyBudget: wrapVoid('Устгагдлаа', ({ id }: { id: string }) =>
-      MonthlyBudgetController.remove(id)
-    )
-  }
+    deleteMonthlyBudget: wrapVoid("Устгагдлаа", ({ id }: { id: string }) =>
+      MonthlyBudgetController.remove(id),
+    ),
+  },
 };

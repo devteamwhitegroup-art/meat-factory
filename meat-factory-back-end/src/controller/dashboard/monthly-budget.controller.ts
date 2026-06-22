@@ -1,16 +1,14 @@
-import { fn, col, Op } from 'sequelize';
-import { MonthlyBudgetModel } from '../../models/dashboard/monthly-budget.model';
-import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
-import { SettlementModel } from '../../models/livestock/settlement.model';
+import { fn, col, Op } from "sequelize";
+import { MonthlyBudgetModel } from "../../models/dashboard/monthly-budget.model";
+import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
+import { SettlementModel } from "../../models/livestock/settlement.model";
 import {
   TMonthlyBudget,
   TMonthlyOverviewRow,
-  TUpsertMonthlyBudget
-} from '../../types/dashboard/monthly-budget.type';
-import {
-  PAYMENT_STATUS
-} from '../../types/sales/sales-transaction.type';
-import { findOrThrow } from '../../utils';
+  TUpsertMonthlyBudget,
+} from "../../types/dashboard/monthly-budget.type";
+import { PAYMENT_STATUS } from "../../types/sales/sales-transaction.type";
+import { findOrThrow } from "../../utils";
 
 const MAX_MONTHS_BACK = 36;
 
@@ -22,9 +20,9 @@ export class MonthlyBudgetController {
   static async list(): Promise<TMonthlyBudget[]> {
     return await MonthlyBudgetModel.findAll({
       order: [
-        ['year', 'DESC'],
-        ['month', 'DESC']
-      ]
+        ["year", "DESC"],
+        ["month", "DESC"],
+      ],
     });
   }
 
@@ -33,15 +31,15 @@ export class MonthlyBudgetController {
     const year = Number(doc.year);
     const month = Number(doc.month);
     if (!Number.isFinite(year) || year < 2000 || year > 2200)
-      throw new Error('Жил буруу байна');
+      throw new Error("Жил буруу байна");
     if (!Number.isFinite(month) || month < 1 || month > 12)
-      throw new Error('Сар 1-12 хооронд байх ёстой');
+      throw new Error("Сар 1-12 хооронд байх ёстой");
     const amount = Number(doc.amountMnt);
     if (!Number.isFinite(amount) || amount < 0)
-      throw new Error('Дүн сөрөг байж болохгүй');
+      throw new Error("Дүн сөрөг байж болохгүй");
 
     const existing = await MonthlyBudgetModel.findOne({
-      where: { year, month }
+      where: { year, month },
     });
     if (existing) {
       existing.amountMnt = amount;
@@ -53,12 +51,12 @@ export class MonthlyBudgetController {
       year,
       month,
       amountMnt: amount,
-      notes: doc.notes ?? null
+      notes: doc.notes ?? null,
     });
   }
 
   static async remove(id: string): Promise<void> {
-    const row = await findOrThrow(MonthlyBudgetModel, id, 'Төсөв олдсонгүй');
+    const row = await findOrThrow(MonthlyBudgetModel, id, "Төсөв олдсонгүй");
     await row.destroy();
   }
 
@@ -74,7 +72,7 @@ export class MonthlyBudgetController {
     const windowStart = new Date(
       now.getFullYear(),
       now.getMonth() - (n - 1),
-      1
+      1,
     );
 
     const budgets = await MonthlyBudgetModel.findAll({
@@ -83,11 +81,11 @@ export class MonthlyBudgetController {
           const d = new Date(
             windowStart.getFullYear(),
             windowStart.getMonth() + i,
-            1
+            1,
           );
           return { year: d.getFullYear(), month: d.getMonth() + 1 };
-        })
-      }
+        }),
+      },
     });
     const budgetMap = new Map<string, number>();
     for (const b of budgets)
@@ -96,22 +94,22 @@ export class MonthlyBudgetController {
     // Income — sum of PAID sales transactions by month.
     const incomeRows = (await SalesTransactionModel.findAll({
       attributes: [
-        [fn('date_trunc', 'month', col('transaction_date')), 'bucket'],
-        [fn('SUM', col('amount')), 'total']
+        [fn("date_trunc", "month", col("transaction_date")), "bucket"],
+        [fn("SUM", col("amount")), "total"],
       ],
       where: {
         paymentStatus: PAYMENT_STATUS.PAID,
-        transactionDate: { [Op.gte]: windowStart }
+        transactionDate: { [Op.gte]: windowStart },
       },
-      group: ['bucket'],
-      raw: true
+      group: ["bucket"],
+      raw: true,
     })) as unknown as { bucket: string | Date; total: string | null }[];
     const incomeMap = new Map<string, number>();
     for (const r of incomeRows) {
       const d = new Date(r.bucket);
       incomeMap.set(
         `${d.getFullYear()}-${d.getMonth() + 1}`,
-        Number(r.total ?? 0)
+        Number(r.total ?? 0),
       );
     }
 
@@ -119,21 +117,21 @@ export class MonthlyBudgetController {
     // bucketed by paidAt month.
     const settlementRows = (await SettlementModel.findAll({
       attributes: [
-        [fn('date_trunc', 'month', col('paid_at')), 'bucket'],
-        [fn('SUM', col('net_payable')), 'total']
+        [fn("date_trunc", "month", col("paid_at")), "bucket"],
+        [fn("SUM", col("net_payable")), "total"],
       ],
       where: {
-        paidAt: { [Op.gte]: windowStart }
+        paidAt: { [Op.gte]: windowStart },
       },
-      group: ['bucket'],
-      raw: true
+      group: ["bucket"],
+      raw: true,
     })) as unknown as { bucket: string | Date; total: string | null }[];
     const costMap = new Map<string, number>();
     for (const r of settlementRows) {
       const d = new Date(r.bucket);
       costMap.set(
         `${d.getFullYear()}-${d.getMonth() + 1}`,
-        Number(r.total ?? 0)
+        Number(r.total ?? 0),
       );
     }
 
@@ -142,7 +140,7 @@ export class MonthlyBudgetController {
       const d = new Date(
         windowStart.getFullYear(),
         windowStart.getMonth() + i,
-        1
+        1,
       );
       const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
       out.push({
@@ -150,7 +148,7 @@ export class MonthlyBudgetController {
         month: d.getMonth() + 1,
         budgetMnt: budgetMap.get(key) ?? 0,
         herderCostMnt: costMap.get(key) ?? 0,
-        incomeMnt: incomeMap.get(key) ?? 0
+        incomeMnt: incomeMap.get(key) ?? 0,
       });
     }
     return out;

@@ -1,17 +1,17 @@
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@as-integrations/express5';
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
-import express from 'express';
-import cors from 'cors';
-import { resolvers } from './schema/resolver';
-import { mergedGQLSchema } from './schema/typeDefs';
-import http from 'http';
-import config from './config/index';
-import { connectDatabase } from './config/db-connection';
-import { authDirectiveTransformer } from './schema/directives/auth.directive';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import router from './routes';
-import { errorMessage } from './utils';
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@as-integrations/express5";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import express from "express";
+import cors from "cors";
+import { resolvers } from "./schema/resolver";
+import { mergedGQLSchema } from "./schema/typeDefs";
+import http from "http";
+import config from "./config/index";
+import { connectDatabase } from "./config/db-connection";
+import { authDirectiveTransformer } from "./schema/directives/auth.directive";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import router from "./routes";
+import { errorMessage } from "./utils";
 const { PORT } = config;
 
 const app = express();
@@ -26,38 +26,38 @@ const httpServer = http.createServer(app);
     //Graphql Implementation
     let schema = makeExecutableSchema({
       typeDefs: mergedGQLSchema,
-      resolvers
+      resolvers,
     });
 
     schema = await authDirectiveTransformer(schema);
 
     const server = new ApolloServer<{ token: string }>({
       schema,
-      plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
+      plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
     });
     await server.start();
 
     app.use(
-      '/graphql',
+      "/graphql",
       cors<cors.CorsRequest>(),
       express.json(),
       expressMiddleware(server, {
         context: async ({ req }) => {
           // Accept `Bearer <token>` (preferred) or a bare token.
-          const raw = (req.headers['authorization'] as string) || '';
-          const token = raw.startsWith('Bearer ') ? raw.slice(7) : raw;
+          const raw = (req.headers["authorization"] as string) || "";
+          const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
           return { token };
-        }
-      })
+        },
+      }),
     );
 
     Promise.all([httpServer.listen({ port: PORT }), connectDatabase()]).then(
       () => {
         console.log(`🚀 Server ready at http://localhost:${PORT}`);
-      }
+      },
     );
   } catch (error) {
-    console.error('Failed to start server:', errorMessage(error));
+    console.error("Failed to start server:", errorMessage(error));
     process.exit(1);
   }
 })();

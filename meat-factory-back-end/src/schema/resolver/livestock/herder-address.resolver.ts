@@ -1,34 +1,33 @@
-import { HerderAddressController } from '../../../controller/livestock/herder-address.controller';
+import { HerderAddressController } from "../../../controller/livestock/herder-address.controller";
 import {
   TCreateHerderAddress,
   TGetHerderAddresses,
-  TUpdateHerderAddress
-} from '../../../types/livestock/herder-address.type';
-import { wrapList, wrapOne, wrapVoid } from '../../../utils';
+  TUpdateHerderAddress,
+} from "../../../types/livestock/herder-address.type";
+import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   Query: {
-    herderAddresses: wrapList('herderAddresses', (doc: TGetHerderAddresses) =>
-      HerderAddressController.list(doc)
+    herderAddresses: wrapList("herderAddresses", (doc: TGetHerderAddresses) =>
+      HerderAddressController.list(doc),
     ),
-    herderAddress: wrapOne('herderAddress', ({ id }: { id: string }) =>
-      HerderAddressController.getById(id)
-    )
+    herderAddress: wrapOne("herderAddress", ({ id }: { id: string }) =>
+      HerderAddressController.getById(id),
+    ),
   },
   Mutation: {
     createHerderAddress: wrapOne(
-      'herderAddress',
+      "herderAddress",
       (doc: TCreateHerderAddress) => HerderAddressController.create(doc),
-      'Хаяг нэмэгдлээ'
+      "Хаяг нэмэгдлээ",
     ),
     updateHerderAddress: wrapOne(
-      'herderAddress',
+      "herderAddress",
       (doc: TUpdateHerderAddress) => HerderAddressController.update(doc),
-      'Хаяг шинэчлэгдлээ'
+      "Хаяг шинэчлэгдлээ",
     ),
-    deleteHerderAddress: wrapVoid(
-      'Хаяг устгагдлаа',
-      ({ id }: { id: string }) => HerderAddressController.remove(id)
-    )
-  }
+    deleteHerderAddress: wrapVoid("Хаяг устгагдлаа", ({ id }: { id: string }) =>
+      HerderAddressController.remove(id),
+    ),
+  },
 };

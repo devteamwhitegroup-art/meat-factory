@@ -3,10 +3,7 @@ import { TByproductWrapper } from "../../types/livestock/byproduct-wrapper.type"
 import { ByproductConstantModel } from "./byproduct-constant.model";
 import { AnimalModel } from "./animal.model";
 
-export class ByproductWrapperModel
-  extends Model
-  implements TByproductWrapper
-{
+export class ByproductWrapperModel extends Model implements TByproductWrapper {
   public id!: string;
   public animalId!: string;
   public name!: string;

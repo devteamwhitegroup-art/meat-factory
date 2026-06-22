@@ -1,40 +1,38 @@
-import { Op, WhereOptions } from 'sequelize';
-import { CustomerModel } from '../../models/customer/customer.model';
-import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
-import { ShipmentModel } from '../../models/shipment/shipment.model';
+import { Op, WhereOptions } from "sequelize";
+import { CustomerModel } from "../../models/customer/customer.model";
+import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
+import { ShipmentModel } from "../../models/shipment/shipment.model";
 import {
   CUSTOMER_KIND,
   TCreateCustomer,
   TCustomer,
   TGetCustomers,
-  TUpdateCustomer
-} from '../../types/customer/customer.type';
-import { TPaginationGeneric } from '../../types/global/global.type';
-import { findOrThrow, listPaginated } from '../../utils';
+  TUpdateCustomer,
+} from "../../types/customer/customer.type";
+import { TPaginationGeneric } from "../../types/global/global.type";
+import { findOrThrow, listPaginated } from "../../utils";
 
 export class CustomerController {
   static findIdCheck(id: string): Promise<CustomerModel> {
-    return findOrThrow(CustomerModel, id, 'Customer not found');
+    return findOrThrow(CustomerModel, id, "Customer not found");
   }
 
   private static async _assertUniqueRegistrationNumber(
     registrationNumber: string,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<void> {
     const where: WhereOptions = { registrationNumber };
     if (excludeId) Object.assign(where, { id: { [Op.ne]: excludeId } });
     const existing = await CustomerModel.findOne({ where });
     if (existing)
-      throw new Error('Customer registration number already exists');
+      throw new Error("Customer registration number already exists");
   }
 
   static async create(doc: TCreateCustomer): Promise<TCustomer> {
     if (!doc.name || !doc.name.trim())
-      throw new Error('Customer name is required');
+      throw new Error("Customer name is required");
     if (doc.registrationNumber && doc.registrationNumber.trim())
-      await this._assertUniqueRegistrationNumber(
-        doc.registrationNumber.trim()
-      );
+      await this._assertUniqueRegistrationNumber(doc.registrationNumber.trim());
 
     return await CustomerModel.create({
       name: doc.name.trim(),
@@ -44,34 +42,34 @@ export class CustomerController {
       bankAccount: doc.bankAccount ?? null,
       registrationNumber: doc.registrationNumber ?? null,
       taxId: doc.taxId ?? null,
-      isActive: true
+      isActive: true,
     });
   }
 
   static async list(
-    doc: TGetCustomers
+    doc: TGetCustomers,
   ): Promise<TPaginationGeneric<TCustomer>> {
     const where: WhereOptions = {};
-    if (typeof doc.isActive === 'boolean')
+    if (typeof doc.isActive === "boolean")
       Object.assign(where, { isActive: doc.isActive });
     if (doc.kind) Object.assign(where, { kind: doc.kind });
     if (doc.search && doc.search.trim())
       Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` }
+        name: { [Op.iLike]: `%${doc.search.trim()}%` },
       });
 
     return listPaginated(CustomerModel, doc, {
       where,
-      order: [['createdAt', 'DESC']]
+      order: [["createdAt", "DESC"]],
     });
   }
 
   static getById(id: string): Promise<CustomerModel> {
-    return findOrThrow(CustomerModel, id, 'Customer not found', {
+    return findOrThrow(CustomerModel, id, "Customer not found", {
       include: [
-        { model: SalesTransactionModel, as: 'salesTransactions' },
-        { model: ShipmentModel, as: 'shipments' }
-      ]
+        { model: SalesTransactionModel, as: "salesTransactions" },
+        { model: ShipmentModel, as: "shipments" },
+      ],
     });
   }
 
@@ -86,7 +84,7 @@ export class CustomerController {
     ) {
       await this._assertUniqueRegistrationNumber(
         doc.registrationNumber.trim(),
-        customer.id
+        customer.id,
       );
     }
 
@@ -100,7 +98,7 @@ export class CustomerController {
     if (doc.registrationNumber !== undefined)
       customer.registrationNumber = doc.registrationNumber ?? null;
     if (doc.taxId !== undefined) customer.taxId = doc.taxId ?? null;
-    if (typeof doc.isActive === 'boolean') customer.isActive = doc.isActive;
+    if (typeof doc.isActive === "boolean") customer.isActive = doc.isActive;
 
     return await customer.save();
   }
@@ -108,14 +106,14 @@ export class CustomerController {
   static async remove(id: string): Promise<void> {
     const customer = await this.findIdCheck(id);
     const txCount = await SalesTransactionModel.count({
-      where: { customerId: id }
+      where: { customerId: id },
     });
     const shipCount = await ShipmentModel.count({
-      where: { customerId: id }
+      where: { customerId: id },
     });
     if (txCount > 0 || shipCount > 0)
       throw new Error(
-        'Customer has linked transactions/shipments; deactivate instead'
+        "Customer has linked transactions/shipments; deactivate instead",
       );
     await customer.destroy();
   }

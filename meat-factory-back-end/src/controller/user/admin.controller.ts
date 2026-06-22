@@ -1,25 +1,25 @@
-import config from '../../config';
+import config from "../../config";
 
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { createHmac } from 'node:crypto';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { createHmac } from "node:crypto";
 
 import {
   Attributes,
   IncludeOptions,
   Model,
   Order,
-  WhereOptions
-} from 'sequelize';
-import { TContext } from '../../types/global/global.type';
-import { AdminModel } from '../../models/user/admin.model';
+  WhereOptions,
+} from "sequelize";
+import { TContext } from "../../types/global/global.type";
+import { AdminModel } from "../../models/user/admin.model";
 import {
   ADMIN_ROLE,
   TAdmin,
   TAdminLoginInput,
-  TCreateAdmin
-} from '../../types/user/admin.type';
-import { findOrThrow } from '../../utils';
+  TCreateAdmin,
+} from "../../types/user/admin.type";
+import { findOrThrow } from "../../utils";
 
 const { ADMIN_JWT_TOKEN_SALT, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD } = config;
 
@@ -27,28 +27,28 @@ export class AdminController {
   static findIdCheck(
     id: string,
     include?: Array<IncludeOptions>,
-    order?: Order
+    order?: Order,
   ): Promise<TAdmin & Model> {
-    return findOrThrow(AdminModel, id, 'admin not found', { include, order });
+    return findOrThrow(AdminModel, id, "admin not found", { include, order });
   }
 
   static async getExistingAdmin<M extends Model>(
     where: WhereOptions<Attributes<M>>,
-    withPassword: boolean = false
+    withPassword: boolean = false,
   ): Promise<AdminModel> {
     let admin: AdminModel | null = null;
     if (withPassword) {
-      admin = await AdminModel.scope('withPassword').findOne({
-        where
+      admin = await AdminModel.scope("withPassword").findOne({
+        where,
       });
     } else {
       admin = await AdminModel.findOne({
-        where
+        where,
       });
     }
 
     if (!admin) {
-      throw new Error('Admin not found');
+      throw new Error("Admin not found");
     }
 
     return admin;
@@ -56,13 +56,13 @@ export class AdminController {
 
   static async _matchPassword(
     password: string,
-    adminPassword: string
+    adminPassword: string,
   ): Promise<void> {
     const match = await bcrypt.compare(
-      createHmac('sha256', password).digest('hex'),
-      adminPassword
+      createHmac("sha256", password).digest("hex"),
+      adminPassword,
     );
-    if (!match) throw new Error('Password do not match');
+    if (!match) throw new Error("Password do not match");
   }
 
   static async generateJwt(doc: TContext): Promise<string> {
@@ -74,13 +74,13 @@ export class AdminController {
   }
 
   static async login(
-    doc: TAdminLoginInput
+    doc: TAdminLoginInput,
   ): Promise<{ admin: TAdmin; token: string }> {
     const { param, password } = doc;
 
     const admin = await this.getExistingAdmin<AdminModel>(
       { param: param.toLowerCase() },
-      true
+      true,
     );
     const { id } = admin;
     await this._matchPassword(password, admin.password);
@@ -100,31 +100,31 @@ export class AdminController {
 
   static async createAdmin(doc: TCreateAdmin): Promise<AdminModel> {
     const { param, password, role } = doc;
-    if (!param || !param.trim()) throw new Error('param is required');
-    if (!password || !password.trim()) throw new Error('password is required');
+    if (!param || !param.trim()) throw new Error("param is required");
+    if (!password || !password.trim()) throw new Error("password is required");
     if (role && !Object.values(ADMIN_ROLE).includes(role)) {
       throw new Error(
-        `role must be one of: ${Object.values(ADMIN_ROLE).join(', ')}`
+        `role must be one of: ${Object.values(ADMIN_ROLE).join(", ")}`,
       );
     }
     // beforeCreate hook on the model hashes the password.
     return await AdminModel.create({
       param: param.trim().toLowerCase(),
       password,
-      role: role ?? ADMIN_ROLE.ADMIN
+      role: role ?? ADMIN_ROLE.ADMIN,
     });
   }
 
   static async seedAdmin(): Promise<void> {
     await AdminModel.findOrCreate({
       where: {
-        param: SEED_ADMIN_EMAIL.toLowerCase()
+        param: SEED_ADMIN_EMAIL.toLowerCase(),
       },
       defaults: {
         param: SEED_ADMIN_EMAIL.toLowerCase(),
         password: SEED_ADMIN_PASSWORD,
-        role: ADMIN_ROLE.SUPER_ADMIN
-      }
+        role: ADMIN_ROLE.SUPER_ADMIN,
+      },
     });
   }
 
@@ -132,10 +132,10 @@ export class AdminController {
   // the meat-factory workflow end to end.
   static async seedStaff(): Promise<void> {
     const staff: Array<{ param: string; role: ADMIN_ROLE }> = [
-      { param: 'manager@example.com', role: ADMIN_ROLE.MANAGER },
-      { param: 'guard@example.com', role: ADMIN_ROLE.GUARD },
-      { param: 'scale@example.com', role: ADMIN_ROLE.SCALE },
-      { param: 'store@example.com', role: ADMIN_ROLE.STOREKEEPER }
+      { param: "manager@example.com", role: ADMIN_ROLE.MANAGER },
+      { param: "guard@example.com", role: ADMIN_ROLE.GUARD },
+      { param: "scale@example.com", role: ADMIN_ROLE.SCALE },
+      { param: "store@example.com", role: ADMIN_ROLE.STOREKEEPER },
     ];
     for (const { param, role } of staff) {
       await AdminModel.findOrCreate({
@@ -143,8 +143,8 @@ export class AdminController {
         defaults: {
           param: param.toLowerCase(),
           password: SEED_ADMIN_PASSWORD,
-          role
-        }
+          role,
+        },
       });
     }
   }
@@ -155,7 +155,7 @@ export class AdminController {
   }
 
   static async updateAdmin(
-    doc: Partial<TAdmin> & { id: string }
+    doc: Partial<TAdmin> & { id: string },
   ): Promise<AdminModel> {
     const { id, param, password, role } = doc;
     const admin = await this.findIdCheck(id);

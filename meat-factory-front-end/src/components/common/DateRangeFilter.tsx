@@ -5,13 +5,14 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { CalendarIcon } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { SHORTCUTS, thisMonth, ymd } from '@/lib/date/range';
 
 function parseLocal(s: string): Date | undefined {
@@ -56,11 +57,14 @@ export function DateRangeFilter() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className="h-9 gap-2 font-normal">
-          <CalendarIcon className="h-4 w-4" />
-          <span className="tabular-nums">{label}</span>
-        </Button>
+      <PopoverTrigger
+        className={cn(
+          buttonVariants({ variant: 'outline' }),
+          'h-9 gap-2 font-normal',
+        )}
+      >
+        <CalendarIcon className="h-4 w-4" />
+        <span className="tabular-nums">{label}</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-2">
         <div className="mb-2 grid grid-cols-2 gap-1.5">

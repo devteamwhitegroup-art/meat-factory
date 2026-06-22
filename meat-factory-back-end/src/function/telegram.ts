@@ -1,4 +1,4 @@
-import config from '../config';
+import config from "../config";
 
 const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = config;
 
@@ -8,31 +8,31 @@ const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = config;
 export async function sendTelegramMessage(message: string): Promise<boolean> {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     console.warn(
-      '[telegram] skipped: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set'
+      "[telegram] skipped: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set",
     );
     return false;
   }
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
-        parse_mode: 'HTML'
-      })
+        parse_mode: "HTML",
+      }),
     });
     if (!res.ok) {
       const body = await res.text();
-      console.error('[telegram] non-OK response:', res.status, body);
+      console.error("[telegram] non-OK response:", res.status, body);
       return false;
     }
     return true;
   } catch (e) {
     console.error(
-      '[telegram] error:',
-      e instanceof Error ? e.message : 'unknown error'
+      "[telegram] error:",
+      e instanceof Error ? e.message : "unknown error",
     );
     return false;
   }

@@ -1,10 +1,10 @@
-import { VerificationModel } from '../../models/livestock/verification.model';
-import { FileController } from '../global/file.controller';
-import { RegistrationController } from './registration.controller';
-import { REGISTRATION_STATUS } from '../../types/livestock/registration.type';
-import { TVerifyInput } from '../../types/livestock/verification.type';
-import { TContext } from '../../types/global/global.type';
-import { ADMIN_ROLE } from '../../types/user/admin.type';
+import { VerificationModel } from "../../models/livestock/verification.model";
+import { FileController } from "../global/file.controller";
+import { RegistrationController } from "./registration.controller";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
+import { TVerifyInput } from "../../types/livestock/verification.type";
+import { TContext } from "../../types/global/global.type";
+import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Verification (Баталгаажуулалт — single signer). One authorised staff member
 // (нярав / нягтлан / админ) confirms and signs. Shared status/role guards and
@@ -12,13 +12,13 @@ import { ADMIN_ROLE } from '../../types/user/admin.type';
 export class VerificationController {
   static async verify(
     doc: TVerifyInput,
-    context: TContext
+    context: TContext,
   ): Promise<VerificationModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
     const reg = await RegistrationController.findIdCheck(doc.registrationId);
@@ -31,8 +31,8 @@ export class VerificationController {
       defaults: {
         registrationId: doc.registrationId,
         notes: doc.notes ?? null,
-        photoFileId: doc.photoFileId ?? null
-      }
+        photoFileId: doc.photoFileId ?? null,
+      },
     });
 
     if (doc.photoFileId && !verification.photoFileId) {
@@ -54,27 +54,27 @@ export class VerificationController {
   static async setSlaughterCovered(
     registrationId: string,
     covered: boolean,
-    context: TContext
+    context: TContext,
   ): Promise<VerificationModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
     const reg = await RegistrationController.findIdCheck(registrationId);
     // Cover toggling is allowed up until the settlement is created — at
     // PAYMENT_PENDING the amounts are locked.
     RegistrationController.assertStatus(reg, [
       REGISTRATION_STATUS.WEIGHED,
-      REGISTRATION_STATUS.VERIFIED
+      REGISTRATION_STATUS.VERIFIED,
     ]);
     const [v] = await VerificationModel.findOrCreate({
       where: { registrationId },
       defaults: {
         registrationId,
-        slaughterCoveredByByproduct: !!covered
-      }
+        slaughterCoveredByByproduct: !!covered,
+      },
     });
     v.slaughterCoveredByByproduct = !!covered;
     await v.save();

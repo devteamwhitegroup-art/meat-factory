@@ -1,6 +1,6 @@
-import { DataTypes, Model, Sequelize } from 'sequelize';
-import { TFile } from '../../types/global/file.type';
-import { removeObject } from '../../function/fileHandler';
+import { DataTypes, Model, Sequelize } from "sequelize";
+import { TFile } from "../../types/global/file.type";
+import { removeObject } from "../../function/fileHandler";
 
 export class FileModel extends Model implements TFile {
   public id!: string;
@@ -25,33 +25,33 @@ export const createFileModel = async (sequelize: Sequelize) => {
       id: {
         primaryKey: true,
         type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4
+        defaultValue: DataTypes.UUIDV4,
       },
       key: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: false,
       },
       size: {
         type: DataTypes.BIGINT,
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 0,
       },
       url: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: true,
       },
       mimetype: {
         type: DataTypes.STRING,
-        allowNull: false
-      }
+        allowNull: false,
+      },
     },
     {
-      modelName: 'FileModel',
-      tableName: 'Files',
+      modelName: "FileModel",
+      tableName: "Files",
       timestamps: true,
       underscored: true,
-      sequelize
-    }
+      sequelize,
+    },
   );
 
   // Best-effort cleanup of the backing storage object when a File row is
@@ -63,7 +63,7 @@ export const createFileModel = async (sequelize: Sequelize) => {
         await removeObject(file.key);
       }
     } catch (error) {
-      console.error('Error removing file from storage:', error);
+      console.error("Error removing file from storage:", error);
     }
   });
 };

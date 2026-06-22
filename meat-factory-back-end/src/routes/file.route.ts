@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response, Router } from 'express';
-import Multer from 'multer';
+import { NextFunction, Request, Response, Router } from "express";
+import Multer from "multer";
 
-import { putObject, checkFile, buildFileKey } from '../function/fileHandler';
-import { FileController } from '../controller/global/file.controller';
-import { AdminController } from '../controller/user/admin.controller';
-import { FILE_FOLDER } from '../types/global/file.type';
-import config from '../config';
+import { putObject, checkFile, buildFileKey } from "../function/fileHandler";
+import { FileController } from "../controller/global/file.controller";
+import { AdminController } from "../controller/user/admin.controller";
+import { FILE_FOLDER } from "../types/global/file.type";
+import config from "../config";
 
 const { SPACE_BUCKET_NAME } = config;
 const upload = Multer();
@@ -20,7 +20,7 @@ const asyncHandler =
 // Best-effort: decode the bare Authorization token to stamp who uploaded.
 // Does not block the upload if absent/invalid (auth hardening is separate).
 const resolveUploaderId = async (
-  authorization?: string
+  authorization?: string,
 ): Promise<string | undefined> => {
   if (!authorization) return undefined;
   try {
@@ -32,11 +32,11 @@ const resolveUploaderId = async (
 };
 
 router.post(
-  '/upload',
-  upload.single('file'),
+  "/upload",
+  upload.single("file"),
   asyncHandler(async (req: Request, res: Response) => {
-    const rawAuth = req.headers['authorization'] as string | undefined;
-    const authorization = rawAuth?.startsWith('Bearer ')
+    const rawAuth = req.headers["authorization"] as string | undefined;
+    const authorization = rawAuth?.startsWith("Bearer ")
       ? rawAuth.slice(7)
       : rawAuth;
     const file = req.file;
@@ -45,19 +45,19 @@ router.post(
     if (!file) {
       return res
         .status(400)
-        .json({ success: false, message: 'Файл оруулаагүй байна' });
+        .json({ success: false, message: "Файл оруулаагүй байна" });
     }
     if (!folder) {
       return res
         .status(400)
-        .json({ success: false, message: 'Файлын төрөл оруулаагүй байна' });
+        .json({ success: false, message: "Файлын төрөл оруулаагүй байна" });
     }
     if (!Object.values(FILE_FOLDER).includes(folder)) {
       return res.status(400).json({
         success: false,
         message: `Файлын төрөл буруу байна. Зөвшөөрөгдсөн: ${Object.values(
-          FILE_FOLDER
-        ).join(', ')}`
+          FILE_FOLDER,
+        ).join(", ")}`,
       });
     }
 
@@ -71,7 +71,7 @@ router.post(
       key,
       size: file.buffer.byteLength,
       url,
-      mimetype: ext
+      mimetype: ext,
     });
 
     // S3 / Spaces v4 signing requires user-metadata values to be US-ASCII —
@@ -79,7 +79,7 @@ router.post(
     // breaks the canonical request with "signature does not match". Sanitize
     // every metadata value to ASCII before signing.
     const asciiOnly = (v: string): string =>
-      (v || '').normalize('NFKD').replace(/[^\x20-\x7E]/g, '_');
+      (v || "").normalize("NFKD").replace(/[^\x20-\x7E]/g, "_");
 
     await putObject({
       key,
@@ -88,25 +88,25 @@ router.post(
       // Stamp the object for clarity / audit.
       meta: {
         folder,
-        originalName: asciiOnly(file.originalname ?? ''),
+        originalName: asciiOnly(file.originalname ?? ""),
         uploadedAt: new Date().toISOString(),
-        ...(uploadedBy ? { uploadedBy } : {})
-      }
+        ...(uploadedBy ? { uploadedBy } : {}),
+      },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Амжилттай',
-      id: fileDb.id
+      message: "Амжилттай",
+      id: fileDb.id,
     });
-  })
+  }),
 );
 
 router.use((error: Error, _: Request, res: Response, __: NextFunction) => {
-  console.error('Upload router error:', error);
+  console.error("Upload router error:", error);
   res.status(500).json({
     success: false,
-    message: error.message || 'Internal server error'
+    message: error.message || "Internal server error",
   });
 });
 

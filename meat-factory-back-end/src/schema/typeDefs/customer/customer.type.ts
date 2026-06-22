@@ -1,9 +1,9 @@
-import { PaginationSchema } from '../global/global.type';
-import { CUSTOMER_KIND } from '../../../types/customer/customer.type';
+import { PaginationSchema } from "../global/global.type";
+import { CUSTOMER_KIND } from "../../../types/customer/customer.type";
 
 export default `#graphql
     enum CUSTOMER_KIND {
-        ${Object.values(CUSTOMER_KIND).join('\n ')}
+        ${Object.values(CUSTOMER_KIND).join("\n ")}
     }
 
     type Customer {

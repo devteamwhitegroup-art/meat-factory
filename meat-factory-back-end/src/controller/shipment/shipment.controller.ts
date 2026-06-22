@@ -1,43 +1,39 @@
-import {
-  Op,
-  UniqueConstraintError,
-  WhereOptions
-} from 'sequelize';
-import sequelize from '../../config/db-connection';
-import { ShipmentModel } from '../../models/shipment/shipment.model';
-import { ShipmentCargoEntryModel } from '../../models/shipment/shipment-cargo-entry.model';
-import { ShipmentPhotoModel } from '../../models/shipment/shipment-photo.model';
-import { CustomerModel } from '../../models/customer/customer.model';
-import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
-import { SalesLineItemModel } from '../../models/sales/sales-line-item.model';
-import { FileModel } from '../../models/global/file.model';
-import { AdminModel } from '../../models/user/admin.model';
+import { Op, UniqueConstraintError, WhereOptions } from "sequelize";
+import sequelize from "../../config/db-connection";
+import { ShipmentModel } from "../../models/shipment/shipment.model";
+import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
+import { ShipmentPhotoModel } from "../../models/shipment/shipment-photo.model";
+import { CustomerModel } from "../../models/customer/customer.model";
+import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
+import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
+import { FileModel } from "../../models/global/file.model";
+import { AdminModel } from "../../models/user/admin.model";
 import {
   SHIPMENT_STATUS,
   TCreateShipment,
   TGetShipments,
-  TShipment
-} from '../../types/shipment/shipment.type';
-import { TStockLine } from '../../types/inventory/inventory.type';
-import { PRODUCT_TYPE } from '../../types/sales/sales-transaction.type';
-import { TContext, TPaginationGeneric } from '../../types/global/global.type';
-import { CustomerController } from '../customer/customer.controller';
-import { SalesTransactionController } from '../sales/sales-transaction.controller';
-import { InventoryController } from '../inventory/inventory.controller';
-import { FileController } from '../global/file.controller';
-import { findOrThrow, listPaginated } from '../../utils';
+  TShipment,
+} from "../../types/shipment/shipment.type";
+import { TStockLine } from "../../types/inventory/inventory.type";
+import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
+import { TContext, TPaginationGeneric } from "../../types/global/global.type";
+import { CustomerController } from "../customer/customer.controller";
+import { SalesTransactionController } from "../sales/sales-transaction.controller";
+import { InventoryController } from "../inventory/inventory.controller";
+import { FileController } from "../global/file.controller";
+import { findOrThrow, listPaginated } from "../../utils";
 
 const MAX_CODE_RETRIES = 5;
 
 const FORWARD: Record<SHIPMENT_STATUS, SHIPMENT_STATUS | null> = {
   [SHIPMENT_STATUS.PENDING]: SHIPMENT_STATUS.LOADED,
   [SHIPMENT_STATUS.LOADED]: SHIPMENT_STATUS.DELIVERED,
-  [SHIPMENT_STATUS.DELIVERED]: null
+  [SHIPMENT_STATUS.DELIVERED]: null,
 };
 
 export class ShipmentController {
   static findIdCheck(id: string): Promise<ShipmentModel> {
-    return findOrThrow(ShipmentModel, id, 'Shipment not found');
+    return findOrThrow(ShipmentModel, id, "Shipment not found");
   }
 
   private static _rand4(): number {
@@ -50,12 +46,12 @@ export class ShipmentController {
 
   static async create(
     doc: TCreateShipment,
-    context: TContext
+    context: TContext,
   ): Promise<ShipmentModel> {
     if (!doc.customerId && !doc.salesTransactionId)
-      throw new Error('Customer or sales transaction is required');
+      throw new Error("Customer or sales transaction is required");
     if (!doc.weightKg || doc.weightKg <= 0)
-      throw new Error('Weight must be a positive number');
+      throw new Error("Weight must be a positive number");
 
     if (doc.customerId) await CustomerController.findIdCheck(doc.customerId);
     if (doc.salesTransactionId)
@@ -76,7 +72,7 @@ export class ShipmentController {
           driverPhone: doc.driverPhone?.trim() || null,
           serialNumber: doc.serialNumber?.trim() || null,
           notes: doc.notes ?? null,
-          photoFileId: doc.photoFileId ?? null
+          photoFileId: doc.photoFileId ?? null,
         });
       } catch (err) {
         if (
@@ -87,22 +83,22 @@ export class ShipmentController {
         throw err;
       }
     }
-    throw new Error('Failed to generate a unique shipment code');
+    throw new Error("Failed to generate a unique shipment code");
   }
 
   private static async _buildOutLines(
-    shipment: ShipmentModel
+    shipment: ShipmentModel,
   ): Promise<TStockLine[]> {
     if (!shipment.salesTransactionId)
       throw new Error(
-        'Shipment must be linked to a sales transaction with line items before delivery'
+        "Shipment must be linked to a sales transaction with line items before delivery",
       );
     const lineItems = await SalesLineItemModel.findAll({
-      where: { salesTransactionId: shipment.salesTransactionId }
+      where: { salesTransactionId: shipment.salesTransactionId },
     });
     if (lineItems.length === 0)
       throw new Error(
-        'Linked sales transaction has no line items; cannot deduct inventory'
+        "Linked sales transaction has no line items; cannot deduct inventory",
       );
     return lineItems.map((li) => ({
       productType:
@@ -111,18 +107,18 @@ export class ShipmentController {
           : PRODUCT_TYPE.BYPRODUCT,
       animalType: li.animalType,
       byproductType: li.byproductType,
-      quantityKg: Number(li.quantityKg)
+      quantityKg: Number(li.quantityKg),
     }));
   }
 
   static async updateStatus(
     id: string,
-    status: SHIPMENT_STATUS
+    status: SHIPMENT_STATUS,
   ): Promise<ShipmentModel> {
     const shipment = await this.findIdCheck(id);
     if (FORWARD[shipment.status] !== status) {
       throw new Error(
-        `Invalid status transition from ${shipment.status} to ${status}`
+        `Invalid status transition from ${shipment.status} to ${status}`,
       );
     }
 
@@ -131,11 +127,11 @@ export class ShipmentController {
       await sequelize.transaction(async (t) => {
         await InventoryController.applyShipmentOut(
           { shipmentId: shipment.id, lines },
-          t
+          t,
         );
         await shipment.update(
           { status, shippedAt: new Date() },
-          { transaction: t }
+          { transaction: t },
         );
       });
       return shipment;
@@ -146,7 +142,7 @@ export class ShipmentController {
   }
 
   static async list(
-    doc: TGetShipments
+    doc: TGetShipments,
   ): Promise<TPaginationGeneric<TShipment>> {
     const where: WhereOptions = {};
     if (doc.status) Object.assign(where, { status: doc.status });
@@ -165,31 +161,31 @@ export class ShipmentController {
     return listPaginated(ShipmentModel, doc, {
       where,
       include: [
-        { model: CustomerModel, as: 'customer' },
-        { model: SalesTransactionModel, as: 'salesTransaction' }
+        { model: CustomerModel, as: "customer" },
+        { model: SalesTransactionModel, as: "salesTransaction" },
       ],
-      order: [['createdAt', 'DESC']],
-      distinct: true
+      order: [["createdAt", "DESC"]],
+      distinct: true,
     });
   }
 
   static getById(id: string): Promise<ShipmentModel> {
-    return findOrThrow(ShipmentModel, id, 'Shipment not found', {
+    return findOrThrow(ShipmentModel, id, "Shipment not found", {
       include: [
-        { model: CustomerModel, as: 'customer' },
-        { model: SalesTransactionModel, as: 'salesTransaction' },
-        { model: FileModel, as: 'photo' },
+        { model: CustomerModel, as: "customer" },
+        { model: SalesTransactionModel, as: "salesTransaction" },
+        { model: FileModel, as: "photo" },
         {
           model: ShipmentCargoEntryModel,
-          as: 'cargoEntries',
-          include: [{ model: AdminModel, as: 'createdBy' }]
+          as: "cargoEntries",
+          include: [{ model: AdminModel, as: "createdBy" }],
         },
         {
           model: ShipmentPhotoModel,
-          as: 'photos',
-          include: [{ model: FileModel, as: 'file' }]
-        }
-      ]
+          as: "photos",
+          include: [{ model: FileModel, as: "file" }],
+        },
+      ],
     });
   }
 
@@ -202,7 +198,7 @@ export class ShipmentController {
       driverName?: string | null;
       driverPhone?: string | null;
       serialNumber?: string | null;
-    }
+    },
   ): Promise<ShipmentModel> {
     const s = await this.findIdCheck(id);
     if (args.vehiclePlate !== undefined)
@@ -221,25 +217,25 @@ export class ShipmentController {
   // (created via the existing /file/upload route with type='shipment').
   static async addPhoto(
     shipmentId: string,
-    fileId: string
+    fileId: string,
   ): Promise<ShipmentPhotoModel> {
     await this.findIdCheck(shipmentId);
     await FileController.findIdCheck(fileId);
     return await sequelize.transaction(async (t) => {
       const maxSeq: number =
-        ((await ShipmentPhotoModel.max('sequenceNo', {
+        ((await ShipmentPhotoModel.max("sequenceNo", {
           where: { shipmentId },
-          transaction: t
+          transaction: t,
         })) as number | null) ?? 0;
       return await ShipmentPhotoModel.create(
         { shipmentId, fileId, sequenceNo: maxSeq + 1 },
-        { transaction: t }
+        { transaction: t },
       );
     });
   }
 
   static async removePhoto(id: string): Promise<void> {
-    const row = await findOrThrow(ShipmentPhotoModel, id, 'Зураг олдсонгүй');
+    const row = await findOrThrow(ShipmentPhotoModel, id, "Зураг олдсонгүй");
     await row.destroy();
   }
 
@@ -254,20 +250,18 @@ export class ShipmentController {
 
   private static _assertCargoEditable(shipment: ShipmentModel): void {
     if (shipment.status === SHIPMENT_STATUS.DELIVERED)
-      throw new Error('Ачилт хүргэгдсэн тул өөрчлөх боломжгүй');
+      throw new Error("Ачилт хүргэгдсэн тул өөрчлөх боломжгүй");
   }
 
-  private static async _resyncWeight(
-    shipmentId: string
-  ): Promise<number> {
+  private static async _resyncWeight(shipmentId: string): Promise<number> {
     const rows = await ShipmentCargoEntryModel.findAll({
-      where: { shipmentId }
+      where: { shipmentId },
     });
     const total = rows.reduce((s, r) => s + Number(r.weightKg), 0);
     const next = Number(total.toFixed(2));
     await ShipmentModel.update(
       { weightKg: next },
-      { where: { id: shipmentId } }
+      { where: { id: shipmentId } },
     );
     return next;
   }
@@ -284,12 +278,12 @@ export class ShipmentController {
       // Buyer-side price at loading. Nullable for "load now, price later".
       pricePerKg?: number | null;
     },
-    context: TContext
+    context: TContext,
   ): Promise<ShipmentCargoEntryModel> {
     const shipment = await this.findIdCheck(shipmentId);
     this._assertCargoEditable(shipment);
-    const label = (args.productLabel ?? '').trim();
-    if (!label) throw new Error('Барааны нэр шаардлагатай');
+    const label = (args.productLabel ?? "").trim();
+    if (!label) throw new Error("Барааны нэр шаардлагатай");
 
     // Net weight derivation: prefer gross-minus-tare (the storekeeper's
     // notebook math); fall back to the directly-supplied net.
@@ -303,18 +297,17 @@ export class ShipmentController {
         : null;
     let net: number | null;
     if (gross != null && tare != null) {
-      if (gross <= 0) throw new Error('Бохир жин эерэг тоо');
-      if (tare < 0) throw new Error('Тара жин сөрөг байж болохгүй');
+      if (gross <= 0) throw new Error("Бохир жин эерэг тоо");
+      if (tare < 0) throw new Error("Тара жин сөрөг байж болохгүй");
       if (tare >= gross)
-        throw new Error('Тара жин нь бохир жингээс бага байх ёстой');
+        throw new Error("Тара жин нь бохир жингээс бага байх ёстой");
       net = Number((gross - tare).toFixed(2));
     } else if (args.weightKg != null) {
       const w = Number(args.weightKg);
-      if (!Number.isFinite(w) || w <= 0)
-        throw new Error('Цэвэр жин эерэг тоо');
+      if (!Number.isFinite(w) || w <= 0) throw new Error("Цэвэр жин эерэг тоо");
       net = Number(w.toFixed(2));
     } else {
-      throw new Error('Жин оруулаагүй байна (бохир/тара эсвэл цэвэр)');
+      throw new Error("Жин оруулаагүй байна (бохир/тара эсвэл цэвэр)");
     }
 
     const pieces =
@@ -326,15 +319,15 @@ export class ShipmentController {
     if (args.pricePerKg != null) {
       const p = Number(args.pricePerKg);
       if (!Number.isFinite(p) || p < 0)
-        throw new Error('Үнэ сөрөг байж болохгүй');
+        throw new Error("Үнэ сөрөг байж болохгүй");
       price = Number(p.toFixed(2));
     }
 
     const entry = await sequelize.transaction(async (t) => {
       const maxSeq: number =
-        ((await ShipmentCargoEntryModel.max('sequenceNo', {
+        ((await ShipmentCargoEntryModel.max("sequenceNo", {
           where: { shipmentId },
-          transaction: t
+          transaction: t,
         })) as number | null) ?? 0;
       const row = await ShipmentCargoEntryModel.create(
         {
@@ -346,9 +339,9 @@ export class ShipmentController {
           weightKg: net,
           pricePerKg: price,
           sequenceNo: maxSeq + 1,
-          createdById: context.id
+          createdById: context.id,
         },
-        { transaction: t }
+        { transaction: t },
       );
       return row;
     });
@@ -362,12 +355,12 @@ export class ShipmentController {
   // shipment is still editable (PENDING / LOADED).
   static async updateCargoEntryPrice(
     id: string,
-    pricePerKg: number | null
+    pricePerKg: number | null,
   ): Promise<ShipmentCargoEntryModel> {
     const entry = await findOrThrow(
       ShipmentCargoEntryModel,
       id,
-      'Ачилтын мөр олдсонгүй'
+      "Ачилтын мөр олдсонгүй",
     );
     const shipment = await this.findIdCheck(entry.shipmentId);
     this._assertCargoEditable(shipment);
@@ -376,21 +369,18 @@ export class ShipmentController {
     } else {
       const p = Number(pricePerKg);
       if (!Number.isFinite(p) || p < 0)
-        throw new Error('Үнэ сөрөг байж болохгүй');
+        throw new Error("Үнэ сөрөг байж болохгүй");
       entry.pricePerKg = Number(p.toFixed(2));
     }
     await entry.save();
     return entry;
   }
 
-  static async deleteCargoEntry(
-    id: string,
-    _context: TContext
-  ): Promise<void> {
+  static async deleteCargoEntry(id: string, _context: TContext): Promise<void> {
     const entry = await findOrThrow(
       ShipmentCargoEntryModel,
       id,
-      'Ачилтын мөр олдсонгүй'
+      "Ачилтын мөр олдсонгүй",
     );
     const shipment = await this.findIdCheck(entry.shipmentId);
     this._assertCargoEditable(shipment);

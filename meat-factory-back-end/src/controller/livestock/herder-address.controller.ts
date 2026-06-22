@@ -1,60 +1,57 @@
-import { Op, WhereOptions } from 'sequelize';
-import { HerderAddressModel } from '../../models/livestock/herder-address.model';
+import { Op, WhereOptions } from "sequelize";
+import { HerderAddressModel } from "../../models/livestock/herder-address.model";
 import {
   THerderAddress,
   TCreateHerderAddress,
   TGetHerderAddresses,
-  TUpdateHerderAddress
-} from '../../types/livestock/herder-address.type';
-import { TPaginationGeneric } from '../../types/global/global.type';
-import { findOrThrow, listPaginated } from '../../utils';
+  TUpdateHerderAddress,
+} from "../../types/livestock/herder-address.type";
+import { TPaginationGeneric } from "../../types/global/global.type";
+import { findOrThrow, listPaginated } from "../../utils";
 
 export class HerderAddressController {
   static findIdCheck(id: string): Promise<HerderAddressModel> {
-    return findOrThrow(HerderAddressModel, id, 'Хаяг олдсонгүй');
+    return findOrThrow(HerderAddressModel, id, "Хаяг олдсонгүй");
   }
 
   // Case-insensitive uniqueness guard for the catalogue.
   private static async _assertUnique(
     name: string,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<void> {
     const where: WhereOptions = {
-      name: { [Op.iLike]: name }
+      name: { [Op.iLike]: name },
     };
     if (excludeId) Object.assign(where, { id: { [Op.ne]: excludeId } });
     const existing = await HerderAddressModel.findOne({ where });
-    if (existing)
-      throw new Error('Энэ нэртэй хаяг бүртгэгдсэн байна');
+    if (existing) throw new Error("Энэ нэртэй хаяг бүртгэгдсэн байна");
   }
 
-  static async create(
-    doc: TCreateHerderAddress
-  ): Promise<THerderAddress> {
+  static async create(doc: TCreateHerderAddress): Promise<THerderAddress> {
     if (!doc.name || !doc.name.trim())
-      throw new Error('Хаягийн нэр шаардлагатай');
+      throw new Error("Хаягийн нэр шаардлагатай");
     const name = doc.name.trim();
     await this._assertUnique(name);
     return await HerderAddressModel.create({
       name,
-      isActive: doc.isActive ?? true
+      isActive: doc.isActive ?? true,
     });
   }
 
   static async list(
-    doc: TGetHerderAddresses
+    doc: TGetHerderAddresses,
   ): Promise<TPaginationGeneric<THerderAddress>> {
     const where: WhereOptions = {};
-    if (typeof doc.isActive === 'boolean')
+    if (typeof doc.isActive === "boolean")
       Object.assign(where, { isActive: doc.isActive });
     if (doc.search && doc.search.trim())
       Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` }
+        name: { [Op.iLike]: `%${doc.search.trim()}%` },
       });
 
     return listPaginated(HerderAddressModel, doc, {
       where,
-      order: [['name', 'ASC']]
+      order: [["name", "ASC"]],
     });
   }
 
@@ -62,18 +59,16 @@ export class HerderAddressController {
     return await this.findIdCheck(id);
   }
 
-  static async update(
-    doc: TUpdateHerderAddress
-  ): Promise<HerderAddressModel> {
+  static async update(doc: TUpdateHerderAddress): Promise<HerderAddressModel> {
     const row = await this.findIdCheck(doc.id);
     if (doc.name !== undefined) {
       const next = doc.name.trim();
-      if (!next) throw new Error('Хаягийн нэр шаардлагатай');
+      if (!next) throw new Error("Хаягийн нэр шаардлагатай");
       if (next.toLowerCase() !== row.name.toLowerCase())
         await this._assertUnique(next, row.id);
       row.name = next;
     }
-    if (typeof doc.isActive === 'boolean') row.isActive = doc.isActive;
+    if (typeof doc.isActive === "boolean") row.isActive = doc.isActive;
     await row.save();
     return row;
   }

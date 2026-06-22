@@ -91,10 +91,7 @@ export const createByproductLogModel = (sequelize: Sequelize) => {
       timestamps: true,
       underscored: true,
       sequelize,
-      indexes: [
-        { fields: ["registration_id"] },
-        { fields: ["animal_id"] },
-      ],
+      indexes: [{ fields: ["registration_id"] }, { fields: ["animal_id"] }],
     },
   );
 };

@@ -1,25 +1,25 @@
-import sequelize from '../../config/db-connection';
-import { RegistrationAnimalLineModel } from '../../models/livestock/registration-animal-line.model';
-import { WeighingEntryModel } from '../../models/livestock/weighing-entry.model';
-import { SettlementModel } from '../../models/livestock/settlement.model';
-import { SettlementLineModel } from '../../models/livestock/settlement-line.model';
-import { ByproductLogModel } from '../../models/livestock/byproduct-log.model';
-import { VerificationModel } from '../../models/livestock/verification.model';
-import { AnimalModel } from '../../models/livestock/animal.model';
-import { AnimalController } from './animal.controller';
-import { FileController } from '../global/file.controller';
-import { InventoryController } from '../inventory/inventory.controller';
-import { RegistrationController } from './registration.controller';
+import sequelize from "../../config/db-connection";
+import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
+import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
+import { SettlementModel } from "../../models/livestock/settlement.model";
+import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
+import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
+import { VerificationModel } from "../../models/livestock/verification.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
+import { AnimalController } from "./animal.controller";
+import { FileController } from "../global/file.controller";
+import { InventoryController } from "../inventory/inventory.controller";
+import { RegistrationController } from "./registration.controller";
 import {
   ANIMAL_TYPE,
-  REGISTRATION_STATUS
-} from '../../types/livestock/registration.type';
+  REGISTRATION_STATUS,
+} from "../../types/livestock/registration.type";
 import {
   TCreateSettlement,
-  TRegistrationIngestDTO
-} from '../../types/livestock/settlement.type';
-import { TContext } from '../../types/global/global.type';
-import { ADMIN_ROLE } from '../../types/user/admin.type';
+  TRegistrationIngestDTO,
+} from "../../types/livestock/settlement.type";
+import { TContext } from "../../types/global/global.type";
+import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Settlement (Няравын тооцоо / Санхүү) — sub-domain of the registration
 // aggregate. Shared status/role guards and registration lookups live on
@@ -27,45 +27,45 @@ import { ADMIN_ROLE } from '../../types/user/admin.type';
 export class SettlementController {
   static async createSettlement(
     doc: TCreateSettlement,
-    context: TContext
+    context: TContext,
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
     const reg = await RegistrationController.findIdCheck(doc.registrationId);
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.VERIFIED]);
 
     const existing = await SettlementModel.findOne({
-      where: { registrationId: doc.registrationId }
+      where: { registrationId: doc.registrationId },
     });
-    if (existing) throw new Error('Settlement already exists');
+    if (existing) throw new Error("Settlement already exists");
 
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
     const animalLines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId: doc.registrationId },
-      include: [{ model: AnimalModel, as: 'animal' }]
+      include: [{ model: AnimalModel, as: "animal" }],
     });
     const regTypes = new Set(
-      animalLines.map((l) => l.animal?.animalType).filter(Boolean) as string[]
+      animalLines.map((l) => l.animal?.animalType).filter(Boolean) as string[],
     );
 
     if (!doc.lines || doc.lines.length === 0)
-      throw new Error('At least one settlement line is required');
+      throw new Error("At least one settlement line is required");
 
     const lineTypes = new Set<ANIMAL_TYPE>();
     for (const l of doc.lines) {
       if (!regTypes.has(l.animalType))
         throw new Error(
-          `Settlement line ${l.animalType} is not part of this registration`
+          `Settlement line ${l.animalType} is not part of this registration`,
         );
       if (lineTypes.has(l.animalType))
         throw new Error(`Duplicate settlement line: ${l.animalType}`);
       if (l.slaughterCost != null && l.slaughterCost < 0)
-        throw new Error('slaughterCost cannot be negative');
+        throw new Error("slaughterCost cannot be negative");
       lineTypes.add(l.animalType);
     }
     for (const t of regTypes) {
@@ -79,12 +79,12 @@ export class SettlementController {
     // by *type* (it's how the input is keyed).
     const weighing = await WeighingEntryModel.findAll({
       where: { registrationId: doc.registrationId },
-      include: [{ model: AnimalModel, as: 'animal' }]
+      include: [{ model: AnimalModel, as: "animal" }],
     });
     const receivedByType: Record<string, number> = {};
     const meatByType: Record<string, number> = {};
     for (const w of weighing) {
-      const t = w.animal?.animalType ?? '';
+      const t = w.animal?.animalType ?? "";
       const wt = Number(w.weightKg);
       const price = w.pricePerKg != null ? Number(w.pricePerKg) : 0;
       receivedByType[t] = (receivedByType[t] ?? 0) + wt;
@@ -93,7 +93,7 @@ export class SettlementController {
 
     // Map every line's animalType → animalId so we can persist the FK.
     const typeToId = await AnimalController.mapTypesToIds(
-      Array.from(lineTypes)
+      Array.from(lineTypes),
     );
 
     // Byproducts carry no price here (handed to the downstream factory), so
@@ -119,7 +119,7 @@ export class SettlementController {
         pricePerKg: Number(avgPrice.toFixed(2)),
         meatAmount: Number(meatAmount.toFixed(2)),
         byproductAmount: 0,
-        slaughterCost: Number(slaughterCost.toFixed(2))
+        slaughterCost: Number(slaughterCost.toFixed(2)),
       };
     });
 
@@ -137,25 +137,24 @@ export class SettlementController {
           netPayable: Number(netPayable.toFixed(2)),
           payoutBankAccount: doc.payoutBankAccount?.trim() || null,
           payoutBankName: doc.payoutBankName?.trim() || null,
-          payoutAccountHolderName:
-            doc.payoutAccountHolderName?.trim() || null,
+          payoutAccountHolderName: doc.payoutAccountHolderName?.trim() || null,
           isPaid: false,
           paidAt: null,
           notes: doc.notes ?? null,
-          photoFileId: doc.photoFileId ?? null
+          photoFileId: doc.photoFileId ?? null,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       await SettlementLineModel.bulkCreate(
         lineRows.map((r) => ({ ...r, settlementId: s.id })),
-        { transaction: t }
+        { transaction: t },
       );
 
       // VERIFIED → PAYMENT_PENDING: amounts locked in, waiting for the cash.
       await reg.update(
         { status: REGISTRATION_STATUS.PAYMENT_PENDING },
-        { transaction: t }
+        { transaction: t },
       );
 
       return s;
@@ -165,39 +164,39 @@ export class SettlementController {
       include: [
         {
           model: SettlementLineModel,
-          as: 'lines',
-          include: [{ model: AnimalModel, as: 'animal' }]
-        }
-      ]
+          as: "lines",
+          include: [{ model: AnimalModel, as: "animal" }],
+        },
+      ],
     })) as SettlementModel;
   }
 
   static async markSettlementPaid(
     registrationId: string,
-    context: TContext
+    context: TContext,
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
     const reg = await RegistrationController.findIdCheck(registrationId);
     // Settlement was created during createSettlement → PAYMENT_PENDING.
     RegistrationController.assertStatus(reg, [
-      REGISTRATION_STATUS.PAYMENT_PENDING
+      REGISTRATION_STATUS.PAYMENT_PENDING,
     ]);
 
     const settlement = await SettlementModel.findOne({
-      where: { registrationId }
+      where: { registrationId },
     });
-    if (!settlement) throw new Error('Settlement not found');
-    if (settlement.isPaid) throw new Error('Settlement already paid');
+    if (!settlement) throw new Error("Settlement not found");
+    if (settlement.isPaid) throw new Error("Settlement already paid");
 
     await settlement.update({
       isPaid: true,
       paidAt: new Date(),
-      settledById: context.id
+      settledById: context.id,
     });
     await reg.update({ status: REGISTRATION_STATUS.SETTLED });
 
@@ -209,24 +208,24 @@ export class SettlementController {
     //       verification.slaughterCoveredByByproduct = true (else herder).
     const lines = await SettlementLineModel.findAll({
       where: { settlementId: settlement.id },
-      include: [{ model: AnimalModel, as: 'animal' }]
+      include: [{ model: AnimalModel, as: "animal" }],
     });
     const byproducts = await ByproductLogModel.findAll({
-      where: { registrationId }
+      where: { registrationId },
     });
     const verification = await VerificationModel.findOne({
-      where: { registrationId }
+      where: { registrationId },
     });
     const slaughterCovered = !!verification?.slaughterCoveredByByproduct;
 
     const meatLines = lines
       .filter((l) => Number(l.receivedWeightKg) > 0)
       .map((l) => ({
-        productType: 'MEAT' as const,
+        productType: "MEAT" as const,
         animalType: (l.animal?.animalType ?? null) as ANIMAL_TYPE | null,
         byproductType: null,
         byproductName: null,
-        quantityKg: Number(l.receivedWeightKg)
+        quantityKg: Number(l.receivedWeightKg),
       }));
 
     const byproductLines = byproducts
@@ -238,17 +237,17 @@ export class SettlementController {
         return !b.canCoverSlaughterCost || slaughterCovered;
       })
       .map((b) => ({
-        productType: 'BYPRODUCT' as const,
+        productType: "BYPRODUCT" as const,
         animalType: null,
         byproductType: null,
         byproductName: b.name as string,
-        quantityKg: Number(b.totalWeightKg)
+        quantityKg: Number(b.totalWeightKg),
       }));
 
     const dto: TRegistrationIngestDTO = {
       registrationId,
       settledAt: new Date(),
-      lines: [...meatLines, ...byproductLines]
+      lines: [...meatLines, ...byproductLines],
     };
     await InventoryController.ingestFromSettledRegistration(dto);
 
@@ -256,10 +255,10 @@ export class SettlementController {
       include: [
         {
           model: SettlementLineModel,
-          as: 'lines',
-          include: [{ model: AnimalModel, as: 'animal' }]
-        }
-      ]
+          as: "lines",
+          include: [{ model: AnimalModel, as: "animal" }],
+        },
+      ],
     })) as SettlementModel;
   }
 }

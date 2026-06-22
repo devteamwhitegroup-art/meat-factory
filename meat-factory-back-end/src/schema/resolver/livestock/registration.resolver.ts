@@ -1,26 +1,26 @@
-import { RegistrationController } from '../../../controller/livestock/registration.controller';
-import { WeighingController } from '../../../controller/livestock/weighing.controller';
-import { ByproductLogController } from '../../../controller/livestock/byproduct-log.controller';
-import { VerificationController } from '../../../controller/livestock/verification.controller';
-import { SettlementController } from '../../../controller/livestock/settlement.controller';
-import { AnimalModel } from '../../../models/livestock/animal.model';
-import { RegistrationAnimalLineModel } from '../../../models/livestock/registration-animal-line.model';
-import { WeighingEntryModel } from '../../../models/livestock/weighing-entry.model';
-import { ByproductLogModel } from '../../../models/livestock/byproduct-log.model';
-import { SettlementLineModel } from '../../../models/livestock/settlement-line.model';
+import { RegistrationController } from "../../../controller/livestock/registration.controller";
+import { WeighingController } from "../../../controller/livestock/weighing.controller";
+import { ByproductLogController } from "../../../controller/livestock/byproduct-log.controller";
+import { VerificationController } from "../../../controller/livestock/verification.controller";
+import { SettlementController } from "../../../controller/livestock/settlement.controller";
+import { AnimalModel } from "../../../models/livestock/animal.model";
+import { RegistrationAnimalLineModel } from "../../../models/livestock/registration-animal-line.model";
+import { WeighingEntryModel } from "../../../models/livestock/weighing-entry.model";
+import { ByproductLogModel } from "../../../models/livestock/byproduct-log.model";
+import { SettlementLineModel } from "../../../models/livestock/settlement-line.model";
 import {
   TCreateRegistration,
-  TGetRegistrations
-} from '../../../types/livestock/registration.type';
+  TGetRegistrations,
+} from "../../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
-  TUpdateWeighingEntry
-} from '../../../types/livestock/weighing-entry.type';
-import { TByproductItemInput } from '../../../types/livestock/byproduct-log.type';
-import { TVerifyInput } from '../../../types/livestock/verification.type';
-import { TCreateSettlement } from '../../../types/livestock/settlement.type';
-import { TDateRange } from '../../../types/dashboard/dashboard.type';
-import { wrapItems, wrapList, wrapOne, wrapVoid } from '../../../utils';
+  TUpdateWeighingEntry,
+} from "../../../types/livestock/weighing-entry.type";
+import { TByproductItemInput } from "../../../types/livestock/byproduct-log.type";
+import { TVerifyInput } from "../../../types/livestock/verification.type";
+import { TCreateSettlement } from "../../../types/livestock/settlement.type";
+import { TDateRange } from "../../../types/dashboard/dashboard.type";
+import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 // animalType is no longer a column on these four tables — it's reached via
 // the FK to Animals. The field resolvers keep the existing GraphQL surface
@@ -38,119 +38,127 @@ async function resolveAnimalType(row: {
 export default {
   RegistrationAnimalLine: {
     animalType: (row: RegistrationAnimalLineModel) => resolveAnimalType(row),
-    animal: (row: RegistrationAnimalLineModel) => row.animal ?? null
+    animal: (row: RegistrationAnimalLineModel) => row.animal ?? null,
   },
   WeighingEntry: {
     animalType: (row: WeighingEntryModel) => resolveAnimalType(row),
-    animal: (row: WeighingEntryModel) => row.animal ?? null
+    animal: (row: WeighingEntryModel) => row.animal ?? null,
   },
   ByproductLog: {
     animalType: (row: ByproductLogModel) => resolveAnimalType(row),
-    animal: (row: ByproductLogModel) => row.animal ?? null
+    animal: (row: ByproductLogModel) => row.animal ?? null,
   },
   SettlementLine: {
     animalType: (row: SettlementLineModel) => resolveAnimalType(row),
-    animal: (row: SettlementLineModel) => row.animal ?? null
+    animal: (row: SettlementLineModel) => row.animal ?? null,
   },
   Query: {
-    registrations: wrapList('registrations', (doc: TGetRegistrations) =>
-      RegistrationController.list(doc)
+    registrations: wrapList("registrations", (doc: TGetRegistrations) =>
+      RegistrationController.list(doc),
     ),
-    registration: wrapOne('registration', ({ id }: { id: string }) =>
-      RegistrationController.getById(id)
+    registration: wrapOne("registration", ({ id }: { id: string }) =>
+      RegistrationController.getById(id),
     ),
-    nextRegistrationNumber: wrapOne('registrationNumber', () =>
-      RegistrationController.previewNextRegistrationNumber()
+    nextRegistrationNumber: wrapOne("registrationNumber", () =>
+      RegistrationController.previewNextRegistrationNumber(),
     ),
     derivedByproducts: wrapItems(
-      'items',
+      "items",
       ({ registrationId }: { registrationId: string }) =>
-        ByproductLogController.derivedByproducts(registrationId)
+        ByproductLogController.derivedByproducts(registrationId),
     ),
     byproductHandoff: wrapItems(
-      'items',
+      "items",
       ({ dateRange }: { dateRange?: TDateRange }) =>
-        ByproductLogController.byproductHandoff(dateRange)
-    )
+        ByproductLogController.byproductHandoff(dateRange),
+    ),
   },
   Mutation: {
     createRegistration: wrapOne(
-      'registration',
+      "registration",
       (doc: TCreateRegistration, ctx) =>
         RegistrationController.create(doc, ctx),
-      'Registration created successfully'
+      "Registration created successfully",
     ),
     addWeighingEntry: wrapOne(
-      'weighingEntry',
+      "weighingEntry",
       (doc: TCreateWeighingEntry, ctx) =>
         WeighingController.addWeighingEntry(doc, ctx),
-      'Weighing entry added'
+      "Weighing entry added",
     ),
     finishWeighing: wrapOne(
-      'registration',
+      "registration",
       ({ registrationId }: { registrationId: string }, ctx) =>
         WeighingController.finishWeighing(registrationId, ctx),
-      'Weighing finished'
+      "Weighing finished",
     ),
     updateWeighingEntry: wrapOne(
-      'weighingEntry',
+      "weighingEntry",
       (doc: TUpdateWeighingEntry, ctx) =>
         WeighingController.updateWeighingEntry(doc, ctx),
-      'Weighing entry updated'
+      "Weighing entry updated",
     ),
     deleteWeighingEntry: wrapVoid(
-      'Weighing entry deleted',
+      "Weighing entry deleted",
       ({ id }: { id: string }, ctx) =>
-        WeighingController.deleteWeighingEntry(id, ctx)
+        WeighingController.deleteWeighingEntry(id, ctx),
     ),
     setRegistrationByproducts: wrapOne(
-      'registration',
+      "registration",
       async (
         {
           registrationId,
-          items
+          items,
         }: { registrationId: string; items: TByproductItemInput[] },
-        ctx
+        ctx,
       ) => {
         await ByproductLogController.setRegistrationByproducts(
           registrationId,
           items,
-          ctx
+          ctx,
         );
         return RegistrationController.getById(registrationId);
       },
-      'Дайвар хадгалагдлаа'
+      "Дайвар хадгалагдлаа",
     ),
     setSlaughterCovered: wrapOne(
-      'verification',
+      "verification",
       (
-        { registrationId, covered }: { registrationId: string; covered: boolean },
-        ctx
-      ) => VerificationController.setSlaughterCovered(registrationId, covered, ctx),
-      'Хадгалагдлаа'
+        {
+          registrationId,
+          covered,
+        }: { registrationId: string; covered: boolean },
+        ctx,
+      ) =>
+        VerificationController.setSlaughterCovered(
+          registrationId,
+          covered,
+          ctx,
+        ),
+      "Хадгалагдлаа",
     ),
     verifyRegistration: wrapOne(
-      'verification',
+      "verification",
       (doc: TVerifyInput, ctx) => VerificationController.verify(doc, ctx),
-      'Verification recorded'
+      "Verification recorded",
     ),
     createSettlement: wrapOne(
-      'settlement',
+      "settlement",
       (doc: TCreateSettlement, ctx) =>
         SettlementController.createSettlement(doc, ctx),
-      'Settlement created'
+      "Settlement created",
     ),
     markSettlementPaid: wrapOne(
-      'settlement',
+      "settlement",
       ({ registrationId }: { registrationId: string }, ctx) =>
         SettlementController.markSettlementPaid(registrationId, ctx),
-      'Settlement marked paid'
+      "Settlement marked paid",
     ),
     cancelRegistration: wrapOne(
-      'registration',
+      "registration",
       ({ registrationId }: { registrationId: string }, ctx) =>
         RegistrationController.cancel(registrationId, ctx),
-      'Registration cancelled'
-    )
-  }
+      "Registration cancelled",
+    ),
+  },
 };

@@ -1,27 +1,27 @@
-import sequelize from '../../config/db-connection';
-import { RegistrationModel } from '../../models/livestock/registration.model';
-import { RegistrationAnimalLineModel } from '../../models/livestock/registration-animal-line.model';
-import { WeighingEntryModel } from '../../models/livestock/weighing-entry.model';
-import { AnimalController } from './animal.controller';
-import { FileController } from '../global/file.controller';
-import { RegistrationController } from './registration.controller';
+import sequelize from "../../config/db-connection";
+import { RegistrationModel } from "../../models/livestock/registration.model";
+import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
+import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
+import { AnimalController } from "./animal.controller";
+import { FileController } from "../global/file.controller";
+import { RegistrationController } from "./registration.controller";
 import {
   ANIMAL_TYPE,
-  REGISTRATION_STATUS
-} from '../../types/livestock/registration.type';
+  REGISTRATION_STATUS,
+} from "../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
-  TUpdateWeighingEntry
-} from '../../types/livestock/weighing-entry.type';
-import { TContext } from '../../types/global/global.type';
-import { ADMIN_ROLE } from '../../types/user/admin.type';
+  TUpdateWeighingEntry,
+} from "../../types/livestock/weighing-entry.type";
+import { TContext } from "../../types/global/global.type";
+import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Weighing (Хэмжүүр) — sub-domain of the registration aggregate. Shared
 // status/role guards and registration lookups live on RegistrationController.
 export class WeighingController {
   static async addWeighingEntry(
     doc: TCreateWeighingEntry,
-    context: TContext
+    context: TContext,
   ): Promise<WeighingEntryModel> {
     // Anyone on the floor except the gate guard may weigh — cover for SCALE
     // shifts where the named operator isn't around.
@@ -31,16 +31,16 @@ export class WeighingController {
       ADMIN_ROLE.MODERATOR,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
     const { registrationId, animalType, weightKg, pricePerKg } = doc;
     if (!Object.values(ANIMAL_TYPE).includes(animalType))
       throw new Error(`Invalid animal type: ${animalType}`);
     if (!weightKg || weightKg <= 0)
-      throw new Error('Weight must be a positive number');
+      throw new Error("Weight must be a positive number");
     if (pricePerKg != null && pricePerKg < 0)
-      throw new Error('Price per kg cannot be negative');
+      throw new Error("Price per kg cannot be negative");
 
     const reg = await RegistrationController.findIdCheck(registrationId);
     // Weighing happens in-place while the row is REGISTERED. No mid-state.
@@ -49,20 +49,20 @@ export class WeighingController {
     const animal = await AnimalController.resolveByType(animalType);
 
     const line = await RegistrationAnimalLineModel.findOne({
-      where: { registrationId, animalId: animal.id }
+      where: { registrationId, animalId: animal.id },
     });
     if (!line)
       throw new Error(
-        `Animal type ${animalType} is not part of this registration`
+        `Animal type ${animalType} is not part of this registration`,
       );
 
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
     return await sequelize.transaction(async (t) => {
       const maxSeq: number =
-        ((await WeighingEntryModel.max('sequenceNo', {
+        ((await WeighingEntryModel.max("sequenceNo", {
           where: { registrationId },
-          transaction: t
+          transaction: t,
         })) as number | null) ?? 0;
 
       const entry = await WeighingEntryModel.create(
@@ -73,9 +73,9 @@ export class WeighingController {
           pricePerKg: pricePerKg ?? null,
           sequenceNo: maxSeq + 1,
           scaleOperatorId: context.id,
-          photoFileId: doc.photoFileId ?? null
+          photoFileId: doc.photoFileId ?? null,
         },
-        { transaction: t }
+        { transaction: t },
       );
 
       return entry;
@@ -84,7 +84,7 @@ export class WeighingController {
 
   static async finishWeighing(
     registrationId: string,
-    context: TContext
+    context: TContext,
   ): Promise<RegistrationModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.SCALE,
@@ -92,7 +92,7 @@ export class WeighingController {
       ADMIN_ROLE.MODERATOR,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
     const reg = await RegistrationController.findIdCheck(registrationId);
@@ -101,7 +101,7 @@ export class WeighingController {
 
     const count = await WeighingEntryModel.count({ where: { registrationId } });
     if (count === 0)
-      throw new Error('Cannot finish weighing with no entries recorded');
+      throw new Error("Cannot finish weighing with no entries recorded");
 
     await reg.update({ status: REGISTRATION_STATUS.WEIGHED });
     return RegistrationController.getById(registrationId);
@@ -115,18 +115,18 @@ export class WeighingController {
   // everyone.
   private static _assertWeighingEditable(
     reg: RegistrationModel,
-    context: TContext
+    context: TContext,
   ): void {
     const privileged: ADMIN_ROLE[] = [
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN
+      ADMIN_ROLE.SUPER_ADMIN,
     ];
     if (
       reg.status === REGISTRATION_STATUS.SETTLED ||
       reg.status === REGISTRATION_STATUS.CANCELLED
     ) {
-      throw new Error('Бүртгэл хаагдсан тул жинг засах боломжгүй');
+      throw new Error("Бүртгэл хаагдсан тул жинг засах боломжгүй");
     }
     const fullyUploaded =
       reg.status === REGISTRATION_STATUS.WEIGHED ||
@@ -135,7 +135,7 @@ export class WeighingController {
     if (fullyUploaded) {
       if (!privileged.includes(context.role))
         throw new Error(
-          'Жин баталгаажсан тул зөвхөн менежер/админ засах боломжтой'
+          "Жин баталгаажсан тул зөвхөн менежер/админ засах боломжтой",
         );
       // Open-window weigh edits: anyone on the floor except the gate guard.
     } else if (
@@ -143,33 +143,33 @@ export class WeighingController {
         ADMIN_ROLE.SCALE,
         ADMIN_ROLE.STOREKEEPER,
         ADMIN_ROLE.MODERATOR,
-        ...privileged
+        ...privileged,
       ].includes(context.role)
     ) {
       throw new Error(
-        `Forbidden: role ${context.role} cannot edit weighing entries`
+        `Forbidden: role ${context.role} cannot edit weighing entries`,
       );
     }
   }
 
   static async updateWeighingEntry(
     doc: TUpdateWeighingEntry,
-    context: TContext
+    context: TContext,
   ): Promise<WeighingEntryModel> {
     const entry = await WeighingEntryModel.findByPk(doc.id);
-    if (!entry) throw new Error('Weighing entry not found');
+    if (!entry) throw new Error("Weighing entry not found");
 
     const reg = await RegistrationController.findIdCheck(entry.registrationId);
     this._assertWeighingEditable(reg, context);
 
     if (doc.weightKg !== undefined && doc.weightKg !== null) {
       if (doc.weightKg <= 0)
-        throw new Error('Weight must be a positive number');
+        throw new Error("Weight must be a positive number");
       entry.weightKg = doc.weightKg;
     }
     if (doc.pricePerKg !== undefined) {
       if (doc.pricePerKg != null && doc.pricePerKg < 0)
-        throw new Error('Price per kg cannot be negative');
+        throw new Error("Price per kg cannot be negative");
       entry.pricePerKg = doc.pricePerKg ?? null;
     }
     if (doc.animalType !== undefined && doc.animalType !== null) {
@@ -177,11 +177,11 @@ export class WeighingController {
         throw new Error(`Invalid animal type: ${doc.animalType}`);
       const animal = await AnimalController.resolveByType(doc.animalType);
       const line = await RegistrationAnimalLineModel.findOne({
-        where: { registrationId: entry.registrationId, animalId: animal.id }
+        where: { registrationId: entry.registrationId, animalId: animal.id },
       });
       if (!line)
         throw new Error(
-          `Animal type ${doc.animalType} is not part of this registration`
+          `Animal type ${doc.animalType} is not part of this registration`,
         );
       entry.animalId = animal.id;
     }
@@ -196,10 +196,10 @@ export class WeighingController {
 
   static async deleteWeighingEntry(
     id: string,
-    context: TContext
+    context: TContext,
   ): Promise<void> {
     const entry = await WeighingEntryModel.findByPk(id);
-    if (!entry) throw new Error('Weighing entry not found');
+    if (!entry) throw new Error("Weighing entry not found");
 
     const reg = await RegistrationController.findIdCheck(entry.registrationId);
     this._assertWeighingEditable(reg, context);

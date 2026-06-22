@@ -1,27 +1,27 @@
-import { fn, col, Op, WhereOptions } from 'sequelize';
-import { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
-import { SalesLineItemModel } from '../../models/sales/sales-line-item.model';
-import { ShipmentModel } from '../../models/shipment/shipment.model';
-import { SettlementModel } from '../../models/livestock/settlement.model';
-import { RegistrationModel } from '../../models/livestock/registration.model';
-import { ByproductLogModel } from '../../models/livestock/byproduct-log.model';
-import { CustomerModel } from '../../models/customer/customer.model';
+import { fn, col, Op, WhereOptions } from "sequelize";
+import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
+import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
+import { ShipmentModel } from "../../models/shipment/shipment.model";
+import { SettlementModel } from "../../models/livestock/settlement.model";
+import { RegistrationModel } from "../../models/livestock/registration.model";
+import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
+import { CustomerModel } from "../../models/customer/customer.model";
 import {
   PAYMENT_STATUS,
-  PRODUCT_TYPE
-} from '../../types/sales/sales-transaction.type';
-import { REGISTRATION_STATUS } from '../../types/livestock/registration.type';
+  PRODUCT_TYPE,
+} from "../../types/sales/sales-transaction.type";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TDashboard,
   TDateRange,
   TGetDashboard,
-  TPipelineCounts
-} from '../../types/dashboard/dashboard.type';
+  TPipelineCounts,
+} from "../../types/dashboard/dashboard.type";
 
 export class DashboardController {
   private static _dateWhere(
     range: TDateRange | undefined,
-    column: string
+    column: string,
   ): WhereOptions {
     if (!range || (!range.startDate && !range.endDate)) return {};
     const r: Record<symbol, Date> = {};
@@ -34,53 +34,53 @@ export class DashboardController {
 
   private static async _totalMeatIncome(dr?: TDateRange): Promise<number> {
     const row = (await SalesLineItemModel.findOne({
-      attributes: [[fn('SUM', col('line_amount')), 'total']],
+      attributes: [[fn("SUM", col("line_amount")), "total"]],
       where: { productType: PRODUCT_TYPE.MEAT },
       include: [
         {
           model: SalesTransactionModel,
-          as: 'salesTransaction',
+          as: "salesTransaction",
           attributes: [],
-          where: this._dateWhere(dr, 'transactionDate'),
-          required: true
-        }
+          where: this._dateWhere(dr, "transactionDate"),
+          required: true,
+        },
       ],
-      raw: true
+      raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
 
   private static async _transactionCount(dr?: TDateRange): Promise<number> {
     return await SalesTransactionModel.count({
-      where: this._dateWhere(dr, 'transactionDate')
+      where: this._dateWhere(dr, "transactionDate"),
     });
   }
 
   private static async _pendingServicesCount(): Promise<number> {
     return await SalesTransactionModel.count({
-      where: { paymentStatus: PAYMENT_STATUS.PENDING }
+      where: { paymentStatus: PAYMENT_STATUS.PENDING },
     });
   }
 
   private static async _animalBreakdown(dr?: TDateRange) {
     const rows = (await SalesLineItemModel.findAll({
       attributes: [
-        'animalType',
-        [fn('SUM', col('quantity_kg')), 'totalKg'],
-        [fn('SUM', col('line_amount')), 'totalAmount']
+        "animalType",
+        [fn("SUM", col("quantity_kg")), "totalKg"],
+        [fn("SUM", col("line_amount")), "totalAmount"],
       ],
       where: { productType: PRODUCT_TYPE.MEAT },
       include: [
         {
           model: SalesTransactionModel,
-          as: 'salesTransaction',
+          as: "salesTransaction",
           attributes: [],
-          where: this._dateWhere(dr, 'transactionDate'),
-          required: true
-        }
+          where: this._dateWhere(dr, "transactionDate"),
+          required: true,
+        },
       ],
-      group: ['animal_type'],
-      raw: true
+      group: ["animal_type"],
+      raw: true,
     })) as unknown as Array<{
       animalType: string;
       totalKg: string;
@@ -89,7 +89,7 @@ export class DashboardController {
     return rows.map((r) => ({
       animalType: r.animalType,
       totalKg: Number(r.totalKg ?? 0),
-      totalAmount: Number(r.totalAmount ?? 0)
+      totalAmount: Number(r.totalAmount ?? 0),
     }));
   }
 
@@ -98,9 +98,9 @@ export class DashboardController {
   // Sum of paid settlements (money actually given to herders).
   private static async _totalHerderIncome(dr?: TDateRange): Promise<number> {
     const row = (await SettlementModel.findOne({
-      attributes: [[fn('SUM', col('net_payable')), 'total']],
-      where: { isPaid: true, ...this._dateWhere(dr, 'paidAt') },
-      raw: true
+      attributes: [[fn("SUM", col("net_payable")), "total"]],
+      where: { isPaid: true, ...this._dateWhere(dr, "paidAt") },
+      raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
@@ -109,9 +109,9 @@ export class DashboardController {
   // Filtered by createdAt so it can be scoped to a period.
   private static async _pendingPayoutAmount(dr?: TDateRange): Promise<number> {
     const row = (await SettlementModel.findOne({
-      attributes: [[fn('SUM', col('net_payable')), 'total']],
-      where: { isPaid: false, ...this._dateWhere(dr, 'createdAt') },
-      raw: true
+      attributes: [[fn("SUM", col("net_payable")), "total"]],
+      where: { isPaid: false, ...this._dateWhere(dr, "createdAt") },
+      raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
@@ -120,9 +120,9 @@ export class DashboardController {
   // pre-refactor behaviour of counting cancelled rows.
   private static async _activeHerderCount(): Promise<number> {
     const ids = (await RegistrationModel.findAll({
-      attributes: [[fn('DISTINCT', col('herder_id')), 'herderId']],
+      attributes: [[fn("DISTINCT", col("herder_id")), "herderId"]],
       where: { status: { [Op.ne]: REGISTRATION_STATUS.CANCELLED } },
-      raw: true
+      raw: true,
     })) as unknown as Array<{ herderId: string }>;
     return ids.length;
   }
@@ -133,9 +133,9 @@ export class DashboardController {
   // The old "sales" source returned 0 since factory doesn't sell byproducts.
   private static async _totalByproductKg(dr?: TDateRange): Promise<number> {
     const row = (await ByproductLogModel.findOne({
-      attributes: [[fn('SUM', col('total_weight_kg')), 'total']],
-      where: { ...this._dateWhere(dr, 'createdAt') },
-      raw: true
+      attributes: [[fn("SUM", col("total_weight_kg")), "total"]],
+      where: { ...this._dateWhere(dr, "createdAt") },
+      raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
@@ -144,19 +144,16 @@ export class DashboardController {
   // top 12 — the long tail isn't useful in a pie.
   private static async _byproductBreakdown(dr?: TDateRange) {
     const rows = (await ByproductLogModel.findAll({
-      attributes: [
-        'name',
-        [fn('SUM', col('total_weight_kg')), 'totalKg']
-      ],
-      where: { ...this._dateWhere(dr, 'createdAt'), name: { [Op.ne]: null } },
-      group: ['name'],
-      order: [[fn('SUM', col('total_weight_kg')), 'DESC']],
+      attributes: ["name", [fn("SUM", col("total_weight_kg")), "totalKg"]],
+      where: { ...this._dateWhere(dr, "createdAt"), name: { [Op.ne]: null } },
+      group: ["name"],
+      order: [[fn("SUM", col("total_weight_kg")), "DESC"]],
       limit: 12,
-      raw: true
+      raw: true,
     })) as unknown as Array<{ name: string; totalKg: string }>;
     return rows.map((r) => ({
       name: r.name,
-      totalKg: Number(r.totalKg ?? 0)
+      totalKg: Number(r.totalKg ?? 0),
     }));
   }
 
@@ -164,15 +161,15 @@ export class DashboardController {
 
   private static async _pipelineCounts(): Promise<TPipelineCounts> {
     const groups = (await RegistrationModel.findAll({
-      attributes: ['status', [fn('COUNT', col('id')), 'n']],
-      group: ['status'],
-      raw: true
+      attributes: ["status", [fn("COUNT", col("id")), "n"]],
+      group: ["status"],
+      raw: true,
     })) as unknown as Array<{ status: string; n: string }>;
     const out: TPipelineCounts = {
       registered: 0,
       inProcess: 0,
       paymentPending: 0,
-      paid: 0
+      paid: 0,
     };
     for (const g of groups) {
       const n = Number(g.n ?? 0);
@@ -200,17 +197,17 @@ export class DashboardController {
 
   private static async _recentTransactions() {
     return await SalesTransactionModel.findAll({
-      include: [{ model: CustomerModel, as: 'customer' }],
-      order: [['createdAt', 'DESC']],
-      limit: 10
+      include: [{ model: CustomerModel, as: "customer" }],
+      order: [["createdAt", "DESC"]],
+      limit: 10,
     });
   }
 
   private static async _recentShipments() {
     return await ShipmentModel.findAll({
-      include: [{ model: CustomerModel, as: 'customer' }],
-      order: [['createdAt', 'DESC']],
-      limit: 10
+      include: [{ model: CustomerModel, as: "customer" }],
+      order: [["createdAt", "DESC"]],
+      limit: 10,
     });
   }
 
@@ -228,7 +225,7 @@ export class DashboardController {
       byproductBreakdown,
       pipeline,
       recentTransactions,
-      recentShipments
+      recentShipments,
     ] = await Promise.all([
       this._totalMeatIncome(dr),
       this._totalByproductKg(dr),
@@ -241,7 +238,7 @@ export class DashboardController {
       this._byproductBreakdown(dr),
       this._pipelineCounts(),
       this._recentTransactions(),
-      this._recentShipments()
+      this._recentShipments(),
     ]);
 
     return {
@@ -256,7 +253,7 @@ export class DashboardController {
       byproductBreakdown,
       pipeline,
       recentTransactions,
-      recentShipments
+      recentShipments,
     };
   }
 }

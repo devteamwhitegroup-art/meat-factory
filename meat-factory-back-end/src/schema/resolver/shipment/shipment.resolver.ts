@@ -1,34 +1,34 @@
-import { ShipmentController } from '../../../controller/shipment/shipment.controller';
+import { ShipmentController } from "../../../controller/shipment/shipment.controller";
 import {
   SHIPMENT_STATUS,
   TCreateShipment,
-  TGetShipments
-} from '../../../types/shipment/shipment.type';
-import { wrapList, wrapOne, wrapVoid } from '../../../utils';
+  TGetShipments,
+} from "../../../types/shipment/shipment.type";
+import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   Query: {
-    shipments: wrapList('shipments', (doc: TGetShipments) =>
-      ShipmentController.list(doc)
+    shipments: wrapList("shipments", (doc: TGetShipments) =>
+      ShipmentController.list(doc),
     ),
-    shipment: wrapOne('shipment', ({ id }: { id: string }) =>
-      ShipmentController.getById(id)
-    )
+    shipment: wrapOne("shipment", ({ id }: { id: string }) =>
+      ShipmentController.getById(id),
+    ),
   },
   Mutation: {
     createShipment: wrapOne(
-      'shipment',
+      "shipment",
       (doc: TCreateShipment, ctx) => ShipmentController.create(doc, ctx),
-      'Shipment created'
+      "Shipment created",
     ),
     updateShipmentStatus: wrapOne(
-      'shipment',
+      "shipment",
       ({ id, status }: { id: string; status: SHIPMENT_STATUS }) =>
         ShipmentController.updateStatus(id, status),
-      'Shipment status updated'
+      "Shipment status updated",
     ),
     addCargoEntry: wrapOne(
-      'cargoEntry',
+      "cargoEntry",
       (
         doc: {
           shipmentId: string;
@@ -39,7 +39,7 @@ export default {
           weightKg?: number | null;
           pricePerKg?: number | null;
         },
-        ctx
+        ctx,
       ) =>
         ShipmentController.addCargoEntry(
           doc.shipmentId,
@@ -49,31 +49,31 @@ export default {
             grossKg: doc.grossKg ?? null,
             tareKg: doc.tareKg ?? null,
             weightKg: doc.weightKg ?? null,
-            pricePerKg: doc.pricePerKg ?? null
+            pricePerKg: doc.pricePerKg ?? null,
           },
-          ctx
+          ctx,
         ),
-      'Ачилтын мөр нэмэгдлээ'
+      "Ачилтын мөр нэмэгдлээ",
     ),
     updateCargoEntryPrice: wrapOne(
-      'cargoEntry',
+      "cargoEntry",
       ({ id, pricePerKg }: { id: string; pricePerKg?: number | null }) =>
         ShipmentController.updateCargoEntryPrice(id, pricePerKg ?? null),
-      'Үнэ хадгалагдлаа'
+      "Үнэ хадгалагдлаа",
     ),
     deleteCargoEntry: wrapVoid(
-      'Ачилтын мөр устгагдлаа',
+      "Ачилтын мөр устгагдлаа",
       ({ id }: { id: string }, ctx) =>
-        ShipmentController.deleteCargoEntry(id, ctx)
+        ShipmentController.deleteCargoEntry(id, ctx),
     ),
     updateShipmentLoadingInfo: wrapOne(
-      'shipment',
+      "shipment",
       ({
         id,
         vehiclePlate,
         driverName,
         driverPhone,
-        serialNumber
+        serialNumber,
       }: {
         id: string;
         vehiclePlate?: string | null;
@@ -85,19 +85,19 @@ export default {
           vehiclePlate,
           driverName,
           driverPhone,
-          serialNumber
+          serialNumber,
         }),
-      'Ачилтын мэдээлэл хадгалагдлаа'
+      "Ачилтын мэдээлэл хадгалагдлаа",
     ),
     addShipmentPhoto: wrapOne(
-      'photo',
+      "photo",
       ({ shipmentId, fileId }: { shipmentId: string; fileId: string }) =>
         ShipmentController.addPhoto(shipmentId, fileId),
-      'Зураг нэмэгдлээ'
+      "Зураг нэмэгдлээ",
     ),
     removeShipmentPhoto: wrapVoid(
-      'Зураг устгагдлаа',
-      ({ id }: { id: string }) => ShipmentController.removePhoto(id)
-    )
-  }
+      "Зураг устгагдлаа",
+      ({ id }: { id: string }) => ShipmentController.removePhoto(id),
+    ),
+  },
 };

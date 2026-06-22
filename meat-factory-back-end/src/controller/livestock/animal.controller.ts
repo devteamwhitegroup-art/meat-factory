@@ -1,18 +1,15 @@
-import { Op } from 'sequelize';
-import { AnimalModel } from '../../models/livestock/animal.model';
-import {
-  TAnimal,
-  TUpsertAnimal
-} from '../../types/livestock/animal.type';
-import { ANIMAL_TYPE } from '../../types/livestock/registration.type';
+import { Op } from "sequelize";
+import { AnimalModel } from "../../models/livestock/animal.model";
+import { TAnimal, TUpsertAnimal } from "../../types/livestock/animal.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 
 export class AnimalController {
   static async list(): Promise<TAnimal[]> {
-    return await AnimalModel.findAll({ order: [['animalType', 'ASC']] });
+    return await AnimalModel.findAll({ order: [["animalType", "ASC"]] });
   }
 
   static async findByType(
-    animalType: ANIMAL_TYPE
+    animalType: ANIMAL_TYPE,
   ): Promise<AnimalModel | null> {
     return await AnimalModel.findOne({ where: { animalType } });
   }
@@ -32,8 +29,8 @@ export class AnimalController {
         pricePerAnimal: 0,
         canCoverSlaughterCost: false,
         yieldPercent: animalType === ANIMAL_TYPE.HORSE ? 70 : 100,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
     return row;
   }
@@ -41,7 +38,7 @@ export class AnimalController {
   // Bulk lookup. Returns Record<ANIMAL_TYPE, animalId>. Useful when a
   // controller writes many rows that each need an animalId.
   static async mapTypesToIds(
-    types: ANIMAL_TYPE[]
+    types: ANIMAL_TYPE[],
   ): Promise<Record<string, string>> {
     if (types.length === 0) return {};
     // Ensure rows exist for every requested type. Catalog is tiny so the
@@ -57,11 +54,11 @@ export class AnimalController {
   // Inverse of the above — id → animalType. Helpful when reading rows that
   // weren't loaded with the Animal include.
   static async mapIdsToTypes(
-    ids: string[]
+    ids: string[],
   ): Promise<Record<string, ANIMAL_TYPE>> {
     if (ids.length === 0) return {};
     const rows = await AnimalModel.findAll({
-      where: { id: { [Op.in]: ids } }
+      where: { id: { [Op.in]: ids } },
     });
     const out: Record<string, ANIMAL_TYPE> = {};
     for (const r of rows) out[r.id] = r.animalType;
@@ -75,26 +72,26 @@ export class AnimalController {
     if (doc.pricePerAnimal !== undefined) {
       const p = Number(doc.pricePerAnimal);
       if (!Number.isFinite(p) || p < 0)
-        throw new Error('Үнэ 0-ээс багагүй байх ёстой');
+        throw new Error("Үнэ 0-ээс багагүй байх ёстой");
     }
 
     if (doc.yieldPercent !== undefined) {
       const y = Number(doc.yieldPercent);
       if (!Number.isFinite(y) || y <= 0 || y > 100)
-        throw new Error('Гарц 0-100 хооронд байх ёстой');
+        throw new Error("Гарц 0-100 хооронд байх ёстой");
     }
 
     const existing = await AnimalModel.findOne({
-      where: { animalType: doc.animalType }
+      where: { animalType: doc.animalType },
     });
     if (existing) {
       if (doc.pricePerAnimal !== undefined)
         existing.pricePerAnimal = Number(doc.pricePerAnimal);
-      if (typeof doc.canCoverSlaughterCost === 'boolean')
+      if (typeof doc.canCoverSlaughterCost === "boolean")
         existing.canCoverSlaughterCost = doc.canCoverSlaughterCost;
       if (doc.yieldPercent !== undefined)
         existing.yieldPercent = Number(doc.yieldPercent);
-      if (typeof doc.isActive === 'boolean') existing.isActive = doc.isActive;
+      if (typeof doc.isActive === "boolean") existing.isActive = doc.isActive;
       await existing.save();
       return existing;
     }
@@ -109,13 +106,13 @@ export class AnimalController {
           : doc.animalType === ANIMAL_TYPE.HORSE
             ? 70
             : 100,
-      isActive: doc.isActive ?? true
+      isActive: doc.isActive ?? true,
     });
   }
 
   // Pre-fill defaults for a settlement: defaultCost[type] = price × count.
   static async defaultsForCounts(
-    counts: Record<string, number>
+    counts: Record<string, number>,
   ): Promise<Record<string, number>> {
     const all = await AnimalModel.findAll({ where: { isActive: true } });
     const map: Record<string, number> = {};
@@ -123,7 +120,7 @@ export class AnimalController {
       const cnt = counts[row.animalType] ?? 0;
       if (cnt > 0)
         map[row.animalType] = Number(
-          (Number(row.pricePerAnimal) * cnt).toFixed(2)
+          (Number(row.pricePerAnimal) * cnt).toFixed(2),
         );
     }
     return map;

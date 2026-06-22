@@ -1,51 +1,50 @@
-import { IncludeOptions, Op, WhereOptions } from 'sequelize';
-import { ByproductConstantModel } from '../../models/livestock/byproduct-constant.model';
-import { ByproductWrapperModel } from '../../models/livestock/byproduct-wrapper.model';
-import { AnimalModel } from '../../models/livestock/animal.model';
+import { IncludeOptions, Op, WhereOptions } from "sequelize";
+import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
+import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
 import {
   TByproductConstant,
   TCreateByproductConstant,
   TDerivedByproduct,
   TGetByproductConstants,
-  TUpdateByproductConstant
-} from '../../types/livestock/byproduct-constant.type';
-import { ANIMAL_TYPE } from '../../types/livestock/registration.type';
-import { TPaginationGeneric } from '../../types/global/global.type';
-import { findOrThrow, listPaginated } from '../../utils';
+  TUpdateByproductConstant,
+} from "../../types/livestock/byproduct-constant.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
+import { TPaginationGeneric } from "../../types/global/global.type";
+import { findOrThrow, listPaginated } from "../../utils";
 
 export class ByproductConstantController {
   static findIdCheck(id: string): Promise<ByproductConstantModel> {
     return findOrThrow(
       ByproductConstantModel,
       id,
-      'Byproduct constant not found'
+      "Byproduct constant not found",
     );
   }
 
   private static async _assertUnique(
     wrapperId: string,
     name: string,
-    excludeId?: string
+    excludeId?: string,
   ): Promise<void> {
     const where: WhereOptions = { wrapperId, name };
     if (excludeId) Object.assign(where, { id: { [Op.ne]: excludeId } });
     const existing = await ByproductConstantModel.findOne({ where });
     if (existing)
-      throw new Error('Энэ багцад ийм нэртэй дайвар бүртгэгдсэн байна');
+      throw new Error("Энэ багцад ийм нэртэй дайвар бүртгэгдсэн байна");
   }
 
   static async create(
-    doc: TCreateByproductConstant
+    doc: TCreateByproductConstant,
   ): Promise<TByproductConstant> {
     if (!doc.name || !doc.name.trim())
-      throw new Error('Дайварын нэр шаардлагатай');
-    if (!doc.wrapperId) throw new Error('Багц шаардлагатай');
+      throw new Error("Дайварын нэр шаардлагатай");
+    if (!doc.wrapperId) throw new Error("Багц шаардлагатай");
     const qty = Number(doc.quantityPerAnimal);
-    if (!qty || qty < 1)
-      throw new Error('Тоо хэмжээ 1-ээс багагүй байх ёстой');
+    if (!qty || qty < 1) throw new Error("Тоо хэмжээ 1-ээс багагүй байх ёстой");
 
     const wrapper = await ByproductWrapperModel.findByPk(doc.wrapperId);
-    if (!wrapper) throw new Error('Багц олдсонгүй');
+    if (!wrapper) throw new Error("Багц олдсонгүй");
 
     await this._assertUnique(doc.wrapperId, doc.name.trim());
 
@@ -54,26 +53,26 @@ export class ByproductConstantController {
       name: doc.name.trim(),
       quantityPerAnimal: Math.floor(qty),
       unitWeightKg: doc.unitWeightKg ?? null,
-      isActive: true
+      isActive: true,
     });
   }
 
   static async list(
-    doc: TGetByproductConstants
+    doc: TGetByproductConstants,
   ): Promise<TPaginationGeneric<TByproductConstant>> {
     const where: WhereOptions = {};
     if (doc.wrapperId) Object.assign(where, { wrapperId: doc.wrapperId });
-    if (typeof doc.isActive === 'boolean')
+    if (typeof doc.isActive === "boolean")
       Object.assign(where, { isActive: doc.isActive });
     if (doc.search && doc.search.trim())
       Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` }
+        name: { [Op.iLike]: `%${doc.search.trim()}%` },
       });
 
     // Filter by animalType joins through wrapper → animal.
     const wrapperInclude: IncludeOptions = {
       model: ByproductWrapperModel,
-      as: 'wrapper'
+      as: "wrapper",
     };
     if (doc.animalType) {
       if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
@@ -82,18 +81,18 @@ export class ByproductConstantController {
       wrapperInclude.include = [
         {
           model: AnimalModel,
-          as: 'animal',
+          as: "animal",
           required: true,
-          where: { animalType: doc.animalType }
-        }
+          where: { animalType: doc.animalType },
+        },
       ];
     }
 
     return listPaginated(ByproductConstantModel, doc, {
       where,
       include: [wrapperInclude],
-      order: [['name', 'ASC']],
-      distinct: true
+      order: [["name", "ASC"]],
+      distinct: true,
     });
   }
 
@@ -102,7 +101,7 @@ export class ByproductConstantController {
   }
 
   static async update(
-    doc: TUpdateByproductConstant
+    doc: TUpdateByproductConstant,
   ): Promise<ByproductConstantModel> {
     const row = await this.findIdCheck(doc.id);
 
@@ -117,21 +116,21 @@ export class ByproductConstantController {
     }
 
     if (doc.wrapperId !== undefined) {
-      if (!doc.wrapperId) throw new Error('Багц шаардлагатай');
+      if (!doc.wrapperId) throw new Error("Багц шаардлагатай");
       const wrapper = await ByproductWrapperModel.findByPk(doc.wrapperId);
-      if (!wrapper) throw new Error('Багц олдсонгүй');
+      if (!wrapper) throw new Error("Багц олдсонгүй");
       row.wrapperId = wrapper.id;
     }
     if (doc.name !== undefined) row.name = doc.name.trim();
     if (doc.quantityPerAnimal !== undefined) {
       const qty = Number(doc.quantityPerAnimal);
       if (!qty || qty < 1)
-        throw new Error('Тоо хэмжээ 1-ээс багагүй байх ёстой');
+        throw new Error("Тоо хэмжээ 1-ээс багагүй байх ёстой");
       row.quantityPerAnimal = Math.floor(qty);
     }
     if (doc.unitWeightKg !== undefined)
       row.unitWeightKg = doc.unitWeightKg ?? null;
-    if (typeof doc.isActive === 'boolean') row.isActive = doc.isActive;
+    if (typeof doc.isActive === "boolean") row.isActive = doc.isActive;
 
     return await row.save();
   }
@@ -146,7 +145,7 @@ export class ByproductConstantController {
   // and the cover flag both come off the joined Animal row, so all wrappers
   // of a horse share the same flag automatically.
   static async deriveForCounts(
-    counts: Record<string, number>
+    counts: Record<string, number>,
   ): Promise<TDerivedByproduct[]> {
     const types = Object.keys(counts).filter((t) => (counts[t] ?? 0) > 0);
     if (types.length === 0) return [];
@@ -156,20 +155,20 @@ export class ByproductConstantController {
       include: [
         {
           model: ByproductWrapperModel,
-          as: 'wrapper',
+          as: "wrapper",
           required: true,
           where: { isActive: true },
           include: [
             {
               model: AnimalModel,
-              as: 'animal',
+              as: "animal",
               required: true,
-              where: { animalType: { [Op.in]: types } }
-            }
-          ]
-        }
+              where: { animalType: { [Op.in]: types } },
+            },
+          ],
+        },
       ],
-      order: [['name', 'ASC']]
+      order: [["name", "ASC"]],
     });
 
     return items.map((item) => {
@@ -192,7 +191,7 @@ export class ByproductConstantController {
         quantity,
         unitWeightKg,
         weightKg,
-        canCoverSlaughterCost: !!animal.canCoverSlaughterCost
+        canCoverSlaughterCost: !!animal.canCoverSlaughterCost,
       };
     });
   }

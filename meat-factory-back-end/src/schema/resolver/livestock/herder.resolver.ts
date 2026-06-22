@@ -1,17 +1,17 @@
-import { HerderController } from '../../../controller/livestock/herder.controller';
-import { HerderModel } from '../../../models/livestock/herder.model';
-import { HerderAddressModel } from '../../../models/livestock/herder-address.model';
+import { HerderController } from "../../../controller/livestock/herder.controller";
+import { HerderModel } from "../../../models/livestock/herder.model";
+import { HerderAddressModel } from "../../../models/livestock/herder-address.model";
 import {
   TCreateHerder,
   TListHerders,
-  TUpdateHerder
-} from '../../../types/livestock/herder.type';
-import { wrapList, wrapOne, wrapVoid } from '../../../utils';
+  TUpdateHerder,
+} from "../../../types/livestock/herder.type";
+import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 // Lazy-load the catalogue row when the controller didn't eager-include it
 // (e.g. mutation responses that re-fetch without the include).
 async function loadAddressEntry(
-  row: HerderModel
+  row: HerderModel,
 ): Promise<HerderAddressModel | null> {
   if (row.addressEntry) return row.addressEntry;
   if (!row.addressId) return null;
@@ -29,29 +29,30 @@ export default {
     },
     addressEntry: async (row: HerderModel) => {
       return await loadAddressEntry(row);
-    }
+    },
   },
   Query: {
-    herders: wrapList('herders', (doc: TListHerders) =>
-      HerderController.list(doc)
+    herders: wrapList("herders", (doc: TListHerders) =>
+      HerderController.list(doc),
     ),
-    herder: wrapOne('herder', ({ id }: { id: string }) =>
-      HerderController.getById(id)
-    )
+    herder: wrapOne("herder", ({ id }: { id: string }) =>
+      HerderController.getById(id),
+    ),
   },
   Mutation: {
     createHerder: wrapOne(
-      'herder',
+      "herder",
       (doc: TCreateHerder) => HerderController.create(doc),
-      'Herder created successfully'
+      "Herder created successfully",
     ),
     updateHerder: wrapOne(
-      'herder',
+      "herder",
       (doc: TUpdateHerder) => HerderController.update(doc),
-      'Herder updated successfully'
+      "Herder updated successfully",
     ),
-    deleteHerder: wrapVoid('Herder deleted successfully', ({ id }: { id: string }) =>
-      HerderController.remove(id)
-    )
-  }
+    deleteHerder: wrapVoid(
+      "Herder deleted successfully",
+      ({ id }: { id: string }) => HerderController.remove(id),
+    ),
+  },
 };

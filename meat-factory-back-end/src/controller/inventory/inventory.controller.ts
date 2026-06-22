@@ -1,10 +1,10 @@
-import { Op, Transaction, WhereOptions, fn, col } from 'sequelize';
-import sequelize from '../../config/db-connection';
-import { InventoryItemModel } from '../../models/inventory/inventory-item.model';
-import { InventoryMovementModel } from '../../models/inventory/inventory-movement.model';
-import { AnimalModel } from '../../models/livestock/animal.model';
-import { SettingsController } from '../settings/settings.controller';
-import { sendTelegramMessage } from '../../function/telegram';
+import { Op, Transaction, WhereOptions, fn, col } from "sequelize";
+import sequelize from "../../config/db-connection";
+import { InventoryItemModel } from "../../models/inventory/inventory-item.model";
+import { InventoryMovementModel } from "../../models/inventory/inventory-movement.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
+import { SettingsController } from "../settings/settings.controller";
+import { sendTelegramMessage } from "../../function/telegram";
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
@@ -12,17 +12,17 @@ import {
   TGetStock,
   TManualAdjustInput,
   TShipmentOutDTO,
-  TStockLine
-} from '../../types/inventory/inventory.type';
-import { PRODUCT_TYPE } from '../../types/sales/sales-transaction.type';
+  TStockLine,
+} from "../../types/inventory/inventory.type";
+import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import {
   ANIMAL_TYPE,
-  BYPRODUCT_TYPE
-} from '../../types/livestock/registration.type';
+  BYPRODUCT_TYPE,
+} from "../../types/livestock/registration.type";
 // Type-only import (erased at runtime — no module cycle).
-import type { TRegistrationIngestDTO } from '../../types/livestock/settlement.type';
-import { TPaginationGeneric } from '../../types/global/global.type';
-import { findOrThrow, listPaginated } from '../../utils';
+import type { TRegistrationIngestDTO } from "../../types/livestock/settlement.type";
+import { TPaginationGeneric } from "../../types/global/global.type";
+import { findOrThrow, listPaginated } from "../../utils";
 
 type ApplyArgs = {
   movementType: MOVEMENT_TYPE;
@@ -36,19 +36,19 @@ type ApplyArgs = {
 
 export class InventoryController {
   static findIdCheck(id: string): Promise<InventoryItemModel> {
-    return findOrThrow(InventoryItemModel, id, 'Inventory item not found');
+    return findOrThrow(InventoryItemModel, id, "Inventory item not found");
   }
 
   private static _buildSku(line: TStockLine): string {
     if (line.productType === PRODUCT_TYPE.MEAT) {
       if (!line.animalType)
-        throw new Error('MEAT inventory line requires an animalType');
+        throw new Error("MEAT inventory line requires an animalType");
       if (line.byproductType || line.byproductName)
-        throw new Error('MEAT inventory line cannot have a byproductType/Name');
+        throw new Error("MEAT inventory line cannot have a byproductType/Name");
       return `MEAT:${line.animalType}`;
     }
     if (line.animalType)
-      throw new Error('BYPRODUCT inventory line cannot have an animalType');
+      throw new Error("BYPRODUCT inventory line cannot have an animalType");
     // Two byproduct flavours:
     //  • legacy ENUM (HEART/LIVER/…) — used by manual adjust + sales SKUs.
     //  • named (Адууны хэл / Хацар мах) — used by livestock auto-ingest
@@ -58,21 +58,21 @@ export class InventoryController {
     if (line.byproductType) {
       if (line.byproductName)
         throw new Error(
-          'BYPRODUCT line must use either byproductType OR byproductName'
+          "BYPRODUCT line must use either byproductType OR byproductName",
         );
       return `BYPRODUCT:${line.byproductType}`;
     }
     if (line.byproductName) {
       const name = line.byproductName.trim();
-      if (!name) throw new Error('byproductName cannot be empty');
+      if (!name) throw new Error("byproductName cannot be empty");
       return `BYPN:${name}`;
     }
-    throw new Error('BYPRODUCT line requires byproductType or byproductName');
+    throw new Error("BYPRODUCT line requires byproductType or byproductName");
   }
 
   private static async _getOrCreateItem(
     line: TStockLine,
-    t: Transaction
+    t: Transaction,
   ): Promise<InventoryItemModel> {
     const sku = this._buildSku(line);
     await InventoryItemModel.findOrCreate({
@@ -83,15 +83,15 @@ export class InventoryController {
         animalType: line.animalType ?? null,
         byproductType: line.byproductType ?? null,
         byproductName: line.byproductName?.trim() || null,
-        quantityKg: 0
+        quantityKg: 0,
       },
-      transaction: t
+      transaction: t,
     });
     // Re-read with a row lock to serialize concurrent movements.
     const locked = await InventoryItemModel.findOne({
       where: { sku },
       transaction: t,
-      lock: t.LOCK.UPDATE
+      lock: t.LOCK.UPDATE,
     });
     if (!locked) throw new Error(`Inventory item ${sku} disappeared`);
     return locked;
@@ -99,11 +99,11 @@ export class InventoryController {
 
   private static async _applyMovement(
     args: ApplyArgs,
-    t: Transaction
+    t: Transaction,
   ): Promise<InventoryMovementModel> {
     const { line } = args;
     if (!line.quantityKg || line.quantityKg <= 0)
-      throw new Error('Movement quantity must be a positive number');
+      throw new Error("Movement quantity must be a positive number");
 
     const item = await this._getOrCreateItem(line, t);
     const current = Number(item.quantityKg);
@@ -113,7 +113,7 @@ export class InventoryController {
 
     if (newBalance < 0) {
       throw new Error(
-        `Insufficient stock for ${item.sku}: have ${current}, need ${qty}`
+        `Insufficient stock for ${item.sku}: have ${current}, need ${qty}`,
       );
     }
 
@@ -129,21 +129,21 @@ export class InventoryController {
         sourceRegistrationId: args.sourceRegistrationId ?? null,
         sourceShipmentId: args.sourceShipmentId ?? null,
         createdById: args.createdById ?? null,
-        notes: args.notes ?? null
+        notes: args.notes ?? null,
       },
-      { transaction: t }
+      { transaction: t },
     );
   }
 
   // Called by livestock when a registration's settlement is paid.
   static async ingestFromSettledRegistration(
-    payload: TRegistrationIngestDTO
+    payload: TRegistrationIngestDTO,
   ): Promise<void> {
     const already = await InventoryMovementModel.findOne({
       where: {
         source: MOVEMENT_SOURCE.SETTLEMENT,
-        sourceRegistrationId: payload.registrationId
-      }
+        sourceRegistrationId: payload.registrationId,
+      },
     });
     if (already) return; // idempotent
 
@@ -153,23 +153,22 @@ export class InventoryController {
     const meatTypes = Array.from(
       new Set(
         payload.lines
-          .filter((l) => l.productType === 'MEAT' && l.animalType)
-          .map((l) => l.animalType as ANIMAL_TYPE)
-      )
+          .filter((l) => l.productType === "MEAT" && l.animalType)
+          .map((l) => l.animalType as ANIMAL_TYPE),
+      ),
     );
     const yieldByType: Record<string, number> = {};
     if (meatTypes.length > 0) {
       const rows = await AnimalModel.findAll({
-        where: { animalType: { [Op.in]: meatTypes } }
+        where: { animalType: { [Op.in]: meatTypes } },
       });
-      for (const r of rows)
-        yieldByType[r.animalType] = Number(r.yieldPercent);
+      for (const r of rows) yieldByType[r.animalType] = Number(r.yieldPercent);
     }
 
     await sequelize.transaction(async (t) => {
       for (const l of payload.lines) {
         if (!l.quantityKg || l.quantityKg <= 0) continue;
-        const isMeat = l.productType === 'MEAT';
+        const isMeat = l.productType === "MEAT";
         const yieldPct =
           isMeat && l.animalType ? (yieldByType[l.animalType] ?? 100) : 100;
         const adjustedQty =
@@ -181,21 +180,21 @@ export class InventoryController {
           animalType: (l.animalType as ANIMAL_TYPE | null) ?? null,
           byproductType: (l.byproductType as BYPRODUCT_TYPE | null) ?? null,
           byproductName: l.byproductName ?? null,
-          quantityKg: adjustedQty
+          quantityKg: adjustedQty,
         };
         const yieldNote =
           isMeat && yieldPct !== 100
             ? ` (yield ${yieldPct}% from ${l.quantityKg} carcass kg)`
-            : '';
+            : "";
         await this._applyMovement(
           {
             movementType: MOVEMENT_TYPE.IN,
             source: MOVEMENT_SOURCE.SETTLEMENT,
             line,
             sourceRegistrationId: payload.registrationId,
-            notes: `Settlement ingest for registration ${payload.registrationId}${yieldNote}`
+            notes: `Settlement ingest for registration ${payload.registrationId}${yieldNote}`,
           },
-          t
+          t,
         );
       }
     });
@@ -210,9 +209,9 @@ export class InventoryController {
   // tile + the alert hook.
   static async totalKg(productType: PRODUCT_TYPE): Promise<number> {
     const row = (await InventoryItemModel.findOne({
-      attributes: [[fn('SUM', col('quantity_kg')), 'total']],
+      attributes: [[fn("SUM", col("quantity_kg")), "total"]],
       where: { productType },
-      raw: true
+      raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
@@ -232,7 +231,7 @@ export class InventoryController {
     const [meat, byprod, settings] = await Promise.all([
       this.totalKg(PRODUCT_TYPE.MEAT),
       this.totalKg(PRODUCT_TYPE.BYPRODUCT),
-      SettingsController.get()
+      SettingsController.get(),
     ]);
     const cap = Number(settings.cargoCapacityKg);
     const thr = Number(settings.meatAlertThresholdKg);
@@ -245,7 +244,7 @@ export class InventoryController {
       alertActive: thr > 0 && meat >= thr,
       // ceil(meat / cargoCap). Returns 0 when cargoCap unset.
       cargosToClear: cap > 0 ? Math.ceil(meat / cap) : 0,
-      lastAlertedAt: settings.lastAlertedAt
+      lastAlertedAt: settings.lastAlertedAt,
     };
   }
 
@@ -275,19 +274,19 @@ export class InventoryController {
       const message =
         `<b>⚠️ Махны нөөц босго давсан</b>\n` +
         `Нөөц: <b>${meatKg.toFixed(2)} кг</b>` +
-        (cap > 0 ? ` / ${cap.toFixed(0)} кг багтаамж` : '') +
+        (cap > 0 ? ` / ${cap.toFixed(0)} кг багтаамж` : "") +
         `\n` +
         `Босго: ${threshold.toFixed(0)} кг\n` +
         (cargoCap > 0 && cargosToClear > 0
           ? `Санал болгох ачилт: <b>${cargosToClear}</b> ачаа (1 ачаа ≈ ${cargoCap.toFixed(0)} кг)\n`
-          : '') +
+          : "") +
         `Шинэ ачилт үүсгэнэ үү.`;
       const ok = await sendTelegramMessage(message);
       if (ok) await SettingsController.stampAlert(meatKg);
     } catch (e) {
       console.error(
-        '[inventory] storage alert hook error:',
-        e instanceof Error ? e.message : 'unknown'
+        "[inventory] storage alert hook error:",
+        e instanceof Error ? e.message : "unknown",
       );
     }
   }
@@ -296,14 +295,14 @@ export class InventoryController {
   // the caller's transaction so stock-out is atomic with the status change.
   static async applyShipmentOut(
     dto: TShipmentOutDTO,
-    t: Transaction
+    t: Transaction,
   ): Promise<void> {
     const already = await InventoryMovementModel.findOne({
       where: {
         source: MOVEMENT_SOURCE.SHIPMENT,
-        sourceShipmentId: dto.shipmentId
+        sourceShipmentId: dto.shipmentId,
       },
-      transaction: t
+      transaction: t,
     });
     if (already) return; // idempotent
 
@@ -315,22 +314,22 @@ export class InventoryController {
           source: MOVEMENT_SOURCE.SHIPMENT,
           line,
           sourceShipmentId: dto.shipmentId,
-          notes: `Shipment out ${dto.shipmentId}`
+          notes: `Shipment out ${dto.shipmentId}`,
         },
-        t
+        t,
       );
     }
   }
 
   static async manualAdjust(
     input: TManualAdjustInput,
-    createdById: string
+    createdById: string,
   ): Promise<InventoryItemModel> {
     const line: TStockLine = {
       productType: input.productType,
       animalType: input.animalType ?? null,
       byproductType: input.byproductType ?? null,
-      quantityKg: input.quantityKg
+      quantityKg: input.quantityKg,
     };
     const sku = this._buildSku(line);
 
@@ -344,14 +343,14 @@ export class InventoryController {
           source: MOVEMENT_SOURCE.MANUAL,
           line,
           createdById,
-          notes: input.notes ?? null
+          notes: input.notes ?? null,
         },
-        t
+        t,
       );
     });
 
     return (await InventoryItemModel.findOne({
-      where: { sku }
+      where: { sku },
     })) as InventoryItemModel;
   }
 
@@ -359,7 +358,7 @@ export class InventoryController {
   // intentionally returned in full rather than paginated — the inventory
   // dashboard consumes the whole list for its meat/byproduct split.
   static async getStock(
-    doc: TGetStock
+    doc: TGetStock,
   ): Promise<TPaginationGeneric<InventoryItemModel>> {
     const where: WhereOptions = {};
     if (doc.productType) Object.assign(where, { productType: doc.productType });
@@ -369,12 +368,12 @@ export class InventoryController {
 
     return await InventoryItemModel.findAndCountAll({
       where,
-      order: [['sku', 'ASC']]
+      order: [["sku", "ASC"]],
     });
   }
 
   static async listMovements(
-    doc: TGetMovements
+    doc: TGetMovements,
   ): Promise<TPaginationGeneric<InventoryMovementModel>> {
     const where: WhereOptions = {};
     if (doc.inventoryItemId)
@@ -393,8 +392,8 @@ export class InventoryController {
 
     return listPaginated(InventoryMovementModel, doc, {
       where,
-      include: [{ model: InventoryItemModel, as: 'item' }],
-      order: [['createdAt', 'DESC']]
+      include: [{ model: InventoryItemModel, as: "item" }],
+      order: [["createdAt", "DESC"]],
     });
   }
 }
