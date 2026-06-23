@@ -1,12 +1,12 @@
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
-import { RegistrationCard } from '@/components/registration/RegistrationCard';
-import { getClient } from '@/lib/apollo/server';
-import { RegistrationListDoc } from '@/lib/queries/registration';
-import { unwrapList } from '@/lib/unwrap';
-import { compact } from '@/lib/compact';
-import { parseRange, thisMonth } from '@/lib/date/range';
-import { DateRangeFilter } from '@/components/common/DateRangeFilter';
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { RegistrationCard } from "@/components/registration/RegistrationCard";
+import { getClient } from "@/lib/apollo/server";
+import { RegistrationListDoc } from "@/lib/queries/registration";
+import { unwrapList } from "@/lib/unwrap";
+import { compact } from "@/lib/compact";
+import { parseRange, thisMonth } from "@/lib/date/range";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 type Props = {
   searchParams: Promise<{
@@ -24,25 +24,27 @@ const STAGES: Array<{
   label: string;
   statuses: string[];
 }> = [
-  { value: '', label: 'Бүгд', statuses: [] },
-  { value: 'registered', label: 'Бүртгэгдсэн', statuses: ['REGISTERED'] },
+  { value: "", label: "Бүгд", statuses: [] },
+  { value: "registered", label: "Бүртгэгдсэн", statuses: ["REGISTERED"] },
   {
-    value: 'in_process',
+    value: "in_process",
     // Weighing → verification stage: amount being finalised.
-    label: 'Дүн тооцоолж буй',
-    statuses: ['WEIGHED', 'VERIFIED'],
+    label: "Дүн тооцоолж буй",
+    statuses: ["WEIGHED", "VERIFIED"],
   },
   {
-    value: 'payment_pending',
-    label: 'Төлбөр хүлээгдэж буй',
-    statuses: ['PAYMENT_PENDING'],
+    value: "payment_pending",
+    // PARTIALLY_SETTLED still needs action (the withheld amount must be
+    // released after medical approval), so it belongs in this queue.
+    label: "Төлбөр хүлээгдэж буй",
+    statuses: ["PAYMENT_PENDING", "PARTIALLY_SETTLED"],
   },
-  { value: 'paid', label: 'Төлбөр хийгдсэн', statuses: ['SETTLED'] },
+  { value: "paid", label: "Төлбөр хийгдсэн", statuses: ["SETTLED"] },
 ];
 
 export default async function RegistrationsPage({ searchParams }: Props) {
   const sp = await searchParams;
-  const stage = STAGES.find((s) => s.value === (sp.stage ?? '')) ?? STAGES[0];
+  const stage = STAGES.find((s) => s.value === (sp.stage ?? "")) ?? STAGES[0];
   const page = Number(sp.page) || 1;
   const def = thisMonth();
   const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
@@ -51,11 +53,11 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   // drop the filter.
   const stageHref = (stageVal: string) => {
     const params = new URLSearchParams();
-    if (stageVal) params.set('stage', stageVal);
-    if (sp.from) params.set('from', sp.from);
-    if (sp.to) params.set('to', sp.to);
+    if (stageVal) params.set("stage", stageVal);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
     const qs = params.toString();
-    return qs ? `/registrations?${qs}` : '/registrations';
+    return qs ? `/registrations?${qs}` : "/registrations";
   };
 
   const { data } = await getClient().query({
@@ -95,10 +97,10 @@ export default async function RegistrationsPage({ searchParams }: Props) {
               key={s.value}
               href={href}
               className={
-                'rounded-full border px-3 py-1 text-xs transition-colors ' +
+                "rounded-full border px-3 py-1 text-xs transition-colors " +
                 (active
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background hover:bg-muted')
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background hover:bg-muted")
               }
             >
               {s.label}
@@ -124,10 +126,11 @@ export default async function RegistrationsPage({ searchParams }: Props) {
               key={r.id}
               id={r.id!}
               registrationNumber={r.registrationNumber ?? 0}
-              status={r.status ?? 'REGISTERED'}
+              registrationCode={r.registrationCode ?? null}
+              status={r.status ?? "REGISTERED"}
               herderName={r.herder?.name ?? null}
               animalLines={compact(r.animalLines).map((l) => ({
-                animalType: l.animalType ?? '',
+                animalType: l.animalType ?? "",
                 count: l.count ?? 0,
               }))}
             />

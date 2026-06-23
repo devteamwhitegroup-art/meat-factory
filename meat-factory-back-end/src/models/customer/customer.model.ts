@@ -47,7 +47,7 @@ export const createCustomerModel = (sequelize: Sequelize) => {
       kind: {
         type: DataTypes.ENUM(...Object.values(CUSTOMER_KIND)),
         allowNull: false,
-        defaultValue: CUSTOMER_KIND.BROKER,
+        defaultValue: CUSTOMER_KIND.LOCAL_BROKER,
       },
       contactPhone: {
         type: DataTypes.STRING,

@@ -3,12 +3,16 @@ import sequelize from "../../config/db-connection";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
 import { ShipmentPhotoModel } from "../../models/shipment/shipment-photo.model";
+import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
 import { CustomerModel } from "../../models/customer/customer.model";
-import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
-import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
+import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
+import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
 import { FileModel } from "../../models/global/file.model";
 import { AdminModel } from "../../models/user/admin.model";
 import {
+  DOMESTIC_MARKET,
+  SHIPMENT_CATEGORY,
   SHIPMENT_STATUS,
   TCreateShipment,
   TGetShipments,
@@ -16,12 +20,17 @@ import {
 } from "../../types/shipment/shipment.type";
 import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { CustomerController } from "../customer/customer.controller";
-import { SalesTransactionController } from "../sales/sales-transaction.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { FileController } from "../global/file.controller";
-import { findOrThrow, listPaginated } from "../../utils";
+import {
+  dateStampUTC8,
+  findOrThrow,
+  listPaginated,
+  nextDailyCounter,
+} from "../../utils";
 
 const MAX_CODE_RETRIES = 5;
 
@@ -31,46 +40,77 @@ const FORWARD: Record<SHIPMENT_STATUS, SHIPMENT_STATUS | null> = {
   [SHIPMENT_STATUS.DELIVERED]: null,
 };
 
+// Mongolian display name per animal type — used to default a cargo line's
+// productLabel when the FE doesn't send an explicit sub-cut label.
+const ANIMAL_LABEL: Record<ANIMAL_TYPE, string> = {
+  [ANIMAL_TYPE.COW]: "Үхрийн мах",
+  [ANIMAL_TYPE.SHEEP]: "Хонины мах",
+  [ANIMAL_TYPE.HORSE]: "Адууны мах",
+  [ANIMAL_TYPE.GOAT]: "Ямааны мах",
+  [ANIMAL_TYPE.CAMEL]: "Тэмээний мах",
+};
+
 export class ShipmentController {
   static findIdCheck(id: string): Promise<ShipmentModel> {
     return findOrThrow(ShipmentModel, id, "Shipment not found");
   }
 
-  private static _rand4(): number {
-    return Math.floor(1000 + Math.random() * 9000);
+  // Today's shipment-code prefix: SHIP-YYYYMMDD- (Mongolia day).
+  private static _codePrefix(): string {
+    return `SHIP-${dateStampUTC8()}-`;
   }
 
-  private static _generateCode(): string {
-    return `${this._rand4()}-${this._rand4()}`;
+  // Preview today's next loading serial (the per-day counter) WITHOUT inserting.
+  // Informational only (racy); the real value is fixed at create time.
+  static previewNextSerial(): Promise<number> {
+    return nextDailyCounter(ShipmentModel, "shipmentCode", this._codePrefix());
   }
 
   static async create(
     doc: TCreateShipment,
     context: TContext,
   ): Promise<ShipmentModel> {
-    if (!doc.customerId && !doc.salesTransactionId)
-      throw new Error("Customer or sales transaction is required");
-    if (!doc.weightKg || doc.weightKg <= 0)
-      throw new Error("Weight must be a positive number");
+    if (!doc.category) throw new Error("Ачилтын төрөл шаардлагатай");
 
-    if (doc.customerId) await CustomerController.findIdCheck(doc.customerId);
-    if (doc.salesTransactionId)
-      await SalesTransactionController.findIdCheck(doc.salesTransactionId);
+    // DOMESTIC shipments carry a sub-market (LOCAL / ULAANBAATAR); EXPORT does
+    // not. Force the value to match the category.
+    let domesticMarket: DOMESTIC_MARKET | null = null;
+    if (doc.category === SHIPMENT_CATEGORY.DOMESTIC) {
+      const m = doc.domesticMarket;
+      if (!m || !Object.values(DOMESTIC_MARKET).includes(m))
+        throw new Error(
+          "Дотоодын зах зээл (орон нутаг/Улаанбаатар) сонгоно уу",
+        );
+      domesticMarket = m;
+    }
+
+    // Every shipment is tied to a customer (the FE creates one inline when new).
+    if (!doc.customerId) throw new Error("Харилцагч сонгоно уу");
+    await CustomerController.findIdCheck(doc.customerId);
+
+    // Weight is derived from the cargo manifest (resynced on each add/delete),
+    // so it starts at 0.
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
+
+    // Human-readable id: SHIP-YYYYMMDD-N, where N is the per-day counter (also
+    // stored as serialNumber). On a same-day collision bump N and retry.
+    const prefix = this._codePrefix();
+    let counter = await nextDailyCounter(ShipmentModel, "shipmentCode", prefix);
 
     for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt++) {
       try {
         return await ShipmentModel.create({
-          shipmentCode: this._generateCode(),
-          customerId: doc.customerId ?? null,
-          salesTransactionId: doc.salesTransactionId ?? null,
-          weightKg: doc.weightKg,
+          shipmentCode: `${prefix}${counter}`,
+          serialNumber: counter,
+          category: doc.category,
+          domesticMarket,
+          customerId: doc.customerId,
+          weightKg: 0,
           status: SHIPMENT_STATUS.PENDING,
           loadedById: context.id,
           vehiclePlate: doc.vehiclePlate?.trim() || null,
           driverName: doc.driverName?.trim() || null,
           driverPhone: doc.driverPhone?.trim() || null,
-          serialNumber: doc.serialNumber?.trim() || null,
           notes: doc.notes ?? null,
           photoFileId: doc.photoFileId ?? null,
         });
@@ -78,37 +118,97 @@ export class ShipmentController {
         if (
           err instanceof UniqueConstraintError &&
           attempt < MAX_CODE_RETRIES - 1
-        )
+        ) {
+          counter++;
           continue;
+        }
         throw err;
       }
     }
     throw new Error("Failed to generate a unique shipment code");
   }
 
+  // Dedup/grouping key for a load line: one key per inventory SKU.
+  //   MEAT      → "MEAT:<animalType>"
+  //   BYPRODUCT → "BYPN:<byproductName>"
+  private static _groupKey(
+    productType: PRODUCT_TYPE,
+    animalType: ANIMAL_TYPE | null,
+    byproductName: string | null,
+  ): string {
+    return productType === PRODUCT_TYPE.MEAT
+      ? `MEAT:${animalType}`
+      : `BYPN:${byproductName}`;
+  }
+
+  // Aggregate the cargo manifest into one row per product group (meat type or
+  // byproduct), summing net weight.
+  private static async _groupEntries(shipmentId: string): Promise<
+    {
+      productType: PRODUCT_TYPE;
+      animalType: ANIMAL_TYPE | null;
+      byproductName: string | null;
+      groupKey: string;
+      totalWeightKg: number;
+    }[]
+  > {
+    const rows = await ShipmentCargoEntryModel.findAll({
+      where: { shipmentId },
+    });
+    const groups = new Map<
+      string,
+      {
+        productType: PRODUCT_TYPE;
+        animalType: ANIMAL_TYPE | null;
+        byproductName: string | null;
+        groupKey: string;
+        totalWeightKg: number;
+      }
+    >();
+    for (const r of rows) {
+      const productType = r.productType;
+      const animalType =
+        productType === PRODUCT_TYPE.MEAT
+          ? (r.animalType as ANIMAL_TYPE | null)
+          : null;
+      const byproductName =
+        productType === PRODUCT_TYPE.BYPRODUCT ? r.byproductName : null;
+      const key = this._groupKey(productType, animalType, byproductName);
+      const g = groups.get(key) ?? {
+        productType,
+        animalType,
+        byproductName,
+        groupKey: key,
+        totalWeightKg: 0,
+      };
+      g.totalWeightKg += Number(r.weightKg);
+      groups.set(key, g);
+    }
+    for (const g of groups.values())
+      g.totalWeightKg = Number(g.totalWeightKg.toFixed(2));
+    return Array.from(groups.values());
+  }
+
+  // Inventory deduction is driven by what was actually loaded — the grouped
+  // cargo manifest. Meat deducts MEAT:<animalType>; byproducts deduct
+  // BYPN:<name>.
   private static async _buildOutLines(
     shipment: ShipmentModel,
   ): Promise<TStockLine[]> {
-    if (!shipment.salesTransactionId)
-      throw new Error(
-        "Shipment must be linked to a sales transaction with line items before delivery",
-      );
-    const lineItems = await SalesLineItemModel.findAll({
-      where: { salesTransactionId: shipment.salesTransactionId },
-    });
-    if (lineItems.length === 0)
-      throw new Error(
-        "Linked sales transaction has no line items; cannot deduct inventory",
-      );
-    return lineItems.map((li) => ({
-      productType:
-        li.productType === PRODUCT_TYPE.MEAT
-          ? PRODUCT_TYPE.MEAT
-          : PRODUCT_TYPE.BYPRODUCT,
-      animalType: li.animalType,
-      byproductType: li.byproductType,
-      quantityKg: Number(li.quantityKg),
-    }));
+    const groups = await this._groupEntries(shipment.id);
+    const lines = groups
+      .filter((g) => g.totalWeightKg > 0)
+      .map((g) => ({
+        productType: g.productType,
+        animalType: g.productType === PRODUCT_TYPE.MEAT ? g.animalType : null,
+        byproductType: null,
+        byproductName:
+          g.productType === PRODUCT_TYPE.BYPRODUCT ? g.byproductName : null,
+        quantityKg: g.totalWeightKg,
+      }));
+    if (lines.length === 0)
+      throw new Error("Ачилтад бараа алга байна; нөөцөөс хасах боломжгүй");
+    return lines;
   }
 
   static async updateStatus(
@@ -141,14 +241,66 @@ export class ShipmentController {
     return shipment;
   }
 
+  // Cached grand total = Σ(group weight × group price) over priced sale lines.
+  // Null when nothing is priced yet. Recomputed whenever a price or a weight
+  // changes.
+  private static async _recomputeTotal(shipmentId: string): Promise<void> {
+    const lines = await ShipmentSaleLineModel.findAll({
+      where: { shipmentId },
+    });
+    let total = 0;
+    let anyPriced = false;
+    for (const l of lines) {
+      if (l.pricePerKg != null) {
+        anyPriced = true;
+        total += Number(l.totalWeightKg) * Number(l.pricePerKg);
+      }
+    }
+    await ShipmentModel.update(
+      { totalPrice: anyPriced ? Number(total.toFixed(2)) : null },
+      { where: { id: shipmentId } },
+    );
+  }
+
+  // End-of-load pricing: insert a selling price per kg on one product group.
+  // Editable only while PENDING (like the rest of the shipment). Pass null
+  // to clear.
+  static async setSalePrice(
+    id: string,
+    pricePerKg: number | null,
+  ): Promise<ShipmentSaleLineModel> {
+    const line = await findOrThrow(
+      ShipmentSaleLineModel,
+      id,
+      "Үнийн мөр олдсонгүй",
+    );
+    this._assertEditable(await this.findIdCheck(line.shipmentId));
+    if (pricePerKg == null) {
+      line.pricePerKg = null;
+    } else {
+      const p = Number(pricePerKg);
+      if (!Number.isFinite(p) || p < 0)
+        throw new Error("Үнэ сөрөг байж болохгүй");
+      line.pricePerKg = Number(p.toFixed(2));
+    }
+    await line.save();
+    await this._recomputeTotal(line.shipmentId);
+    await ShipmentModel.update(
+      { pricedAt: new Date() },
+      { where: { id: line.shipmentId } },
+    );
+    return line;
+  }
+
   static async list(
     doc: TGetShipments,
   ): Promise<TPaginationGeneric<TShipment>> {
     const where: WhereOptions = {};
     if (doc.status) Object.assign(where, { status: doc.status });
+    if (doc.category) Object.assign(where, { category: doc.category });
+    if (doc.domesticMarket)
+      Object.assign(where, { domesticMarket: doc.domesticMarket });
     if (doc.customerId) Object.assign(where, { customerId: doc.customerId });
-    if (doc.salesTransactionId)
-      Object.assign(where, { salesTransactionId: doc.salesTransactionId });
     if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
       const range: Record<symbol, Date> = {};
       if (doc.dateRange.startDate)
@@ -160,10 +312,7 @@ export class ShipmentController {
 
     return listPaginated(ShipmentModel, doc, {
       where,
-      include: [
-        { model: CustomerModel, as: "customer" },
-        { model: SalesTransactionModel, as: "salesTransaction" },
-      ],
+      include: [{ model: CustomerModel, as: "customer" }],
       order: [["createdAt", "DESC"]],
       distinct: true,
     });
@@ -173,7 +322,6 @@ export class ShipmentController {
     return findOrThrow(ShipmentModel, id, "Shipment not found", {
       include: [
         { model: CustomerModel, as: "customer" },
-        { model: SalesTransactionModel, as: "salesTransaction" },
         { model: FileModel, as: "photo" },
         {
           model: ShipmentCargoEntryModel,
@@ -185,30 +333,30 @@ export class ShipmentController {
           as: "photos",
           include: [{ model: FileModel, as: "file" }],
         },
+        { model: ShipmentSaleLineModel, as: "saleLines" },
       ],
     });
   }
 
-  // Loading info: driver name/phone, serial number, vehicle plate. Allowed at
-  // any status — the storekeeper fills these in as the truck arrives.
+  // Loading info: driver name/phone, vehicle plate. Editable only while PENDING
+  // — fill these before marking the shipment LOADED. (serialNumber is
+  // auto-assigned, not editable here.)
   static async updateLoadingInfo(
     id: string,
     args: {
       vehiclePlate?: string | null;
       driverName?: string | null;
       driverPhone?: string | null;
-      serialNumber?: string | null;
     },
   ): Promise<ShipmentModel> {
     const s = await this.findIdCheck(id);
+    this._assertEditable(s);
     if (args.vehiclePlate !== undefined)
       s.vehiclePlate = args.vehiclePlate?.trim() || null;
     if (args.driverName !== undefined)
       s.driverName = args.driverName?.trim() || null;
     if (args.driverPhone !== undefined)
       s.driverPhone = args.driverPhone?.trim() || null;
-    if (args.serialNumber !== undefined)
-      s.serialNumber = args.serialNumber?.trim() || null;
     await s.save();
     return s;
   }
@@ -242,48 +390,135 @@ export class ShipmentController {
   // ─── Cargo manifest (per-load weights) ────────────────────────────
   //
   // A cargo entry is one boxed/weighed load on the shipment. The storekeeper
-  // appends one row per scale read while loading the truck; the FE groups
-  // by `productLabel` to compute per-product subtotals + overall total.
+  // appends one row per scale read while loading the truck. Entries are grouped
+  // by product (meat type / byproduct) into sale lines, which carry the
+  // per-kg selling price set at end of load (see _resyncManifest).
   //
-  // Locking rule mirrors weighing entries: PENDING / LOADED can be edited;
-  // once DELIVERED the manifest is frozen.
+  // Locking rule: a shipment is editable ONLY while PENDING — cargo, pricing
+  // and loading info all freeze the moment it's marked LOADED. The only thing
+  // allowed past PENDING is the forward status transition.
 
-  private static _assertCargoEditable(shipment: ShipmentModel): void {
-    if (shipment.status === SHIPMENT_STATUS.DELIVERED)
-      throw new Error("Ачилт хүргэгдсэн тул өөрчлөх боломжгүй");
+  private static _assertEditable(shipment: ShipmentModel): void {
+    if (shipment.status !== SHIPMENT_STATUS.PENDING)
+      throw new Error(
+        "Зөвхөн хүлээгдэж буй (PENDING) ачилтыг өөрчлөх боломжтой",
+      );
   }
 
-  private static async _resyncWeight(shipmentId: string): Promise<number> {
-    const rows = await ShipmentCargoEntryModel.findAll({
+  // Recompute everything derived from the cargo manifest after an add/delete:
+  //   1. Upsert one sale line per product group (preserving entered prices),
+  //      dropping groups that no longer have any cargo.
+  //   2. Resync the shipment's aggregate weightKg.
+  //   3. Recompute the cached grand total.
+  private static async _resyncManifest(shipmentId: string): Promise<void> {
+    const groups = await this._groupEntries(shipmentId);
+    const existing = await ShipmentSaleLineModel.findAll({
       where: { shipmentId },
     });
-    const total = rows.reduce((s, r) => s + Number(r.weightKg), 0);
-    const next = Number(total.toFixed(2));
+    const byKey = new Map(existing.map((e) => [e.groupKey, e]));
+
+    for (const g of groups) {
+      const ex = byKey.get(g.groupKey);
+      if (ex) {
+        ex.totalWeightKg = g.totalWeightKg;
+        await ex.save();
+        byKey.delete(g.groupKey);
+      } else {
+        await ShipmentSaleLineModel.create({
+          shipmentId,
+          productType: g.productType,
+          animalType: g.animalType,
+          byproductName: g.byproductName,
+          groupKey: g.groupKey,
+          totalWeightKg: g.totalWeightKg,
+          pricePerKg: null,
+        });
+      }
+    }
+    // Leftover sale lines no longer backed by any cargo entry.
+    for (const stale of byKey.values()) await stale.destroy();
+
+    const weight = Number(
+      groups.reduce((s, g) => s + g.totalWeightKg, 0).toFixed(2),
+    );
     await ShipmentModel.update(
-      { weightKg: next },
+      { weightKg: weight },
       { where: { id: shipmentId } },
     );
-    return next;
+    await this._recomputeTotal(shipmentId);
   }
 
   static async addCargoEntry(
     shipmentId: string,
     args: {
-      productLabel: string;
+      productType: PRODUCT_TYPE;
+      // Required for MEAT lines.
+      animalType?: ANIMAL_TYPE | null;
+      // BYPRODUCT lines: sourceConstantId (name derived) or free-form name.
+      byproductName?: string | null;
+      sourceConstantId?: string | null;
+      // Optional sub-cut label; defaults to the picked type's name.
+      productLabel?: string | null;
       pieceCount?: number | null;
       grossKg?: number | null;
       tareKg?: number | null;
       // Direct net weight; ignored when grossKg+tareKg both provided.
       weightKg?: number | null;
-      // Buyer-side price at loading. Nullable for "load now, price later".
-      pricePerKg?: number | null;
     },
     context: TContext,
   ): Promise<ShipmentCargoEntryModel> {
     const shipment = await this.findIdCheck(shipmentId);
-    this._assertCargoEditable(shipment);
-    const label = (args.productLabel ?? "").trim();
-    if (!label) throw new Error("Барааны нэр шаардлагатай");
+    this._assertEditable(shipment);
+
+    const productType = args.productType ?? PRODUCT_TYPE.MEAT;
+    let animalType: ANIMAL_TYPE | null = null;
+    let byproductName: string | null = null;
+    let sourceConstantId: string | null = null;
+    let defaultLabel: string;
+
+    if (productType === PRODUCT_TYPE.MEAT) {
+      const at = args.animalType;
+      if (!at || !Object.values(ANIMAL_TYPE).includes(at))
+        throw new Error("Махны төрөл буруу байна");
+      // Export trucks carry horse meat only (for now).
+      if (
+        shipment.category === SHIPMENT_CATEGORY.EXPORT &&
+        at !== ANIMAL_TYPE.HORSE
+      )
+        throw new Error("Экспортын ачилт зөвхөн адууны махтай байна");
+      animalType = at;
+      defaultLabel = ANIMAL_LABEL[at];
+    } else {
+      // Byproducts are domestic-only.
+      if (shipment.category === SHIPMENT_CATEGORY.EXPORT)
+        throw new Error("Экспортын ачилтад дайвар бүтээгдэхүүн ачих боломжгүй");
+      if (args.sourceConstantId) {
+        // Authoritative: derive the name from the catalogue entry the FE picked.
+        const constant = await findOrThrow(
+          ByproductConstantModel,
+          args.sourceConstantId,
+          "Дайвар бүтээгдэхүүн олдсонгүй",
+          {
+            include: [
+              {
+                model: ByproductWrapperModel,
+                as: "wrapper",
+                include: [{ model: AnimalModel, as: "animal" }],
+              },
+            ],
+          },
+        );
+        byproductName = constant.name;
+        sourceConstantId = constant.id;
+      } else {
+        const n = (args.byproductName ?? "").trim();
+        if (!n) throw new Error("Дайвар бүтээгдэхүүний нэр шаардлагатай");
+        byproductName = n;
+      }
+      defaultLabel = byproductName;
+    }
+
+    const label = (args.productLabel ?? "").trim() || defaultLabel;
 
     // Net weight derivation: prefer gross-minus-tare (the storekeeper's
     // notebook math); fall back to the directly-supplied net.
@@ -297,31 +532,23 @@ export class ShipmentController {
         : null;
     let net: number | null;
     if (gross != null && tare != null) {
-      if (gross <= 0) throw new Error("Бохир жин эерэг тоо");
-      if (tare < 0) throw new Error("Тара жин сөрөг байж болохгүй");
+      if (gross <= 0) throw new Error("Нийт махны жин эерэг тоо");
+      if (tare < 0) throw new Error("Савны жин сөрөг байж болохгүй");
       if (tare >= gross)
-        throw new Error("Тара жин нь бохир жингээс бага байх ёстой");
+        throw new Error("Савны жин нь нийт махныы жингээс бага байх ёстой");
       net = Number((gross - tare).toFixed(2));
     } else if (args.weightKg != null) {
       const w = Number(args.weightKg);
       if (!Number.isFinite(w) || w <= 0) throw new Error("Цэвэр жин эерэг тоо");
       net = Number(w.toFixed(2));
     } else {
-      throw new Error("Жин оруулаагүй байна (бохир/тара эсвэл цэвэр)");
+      throw new Error("Жин оруулаагүй байна (нийт махны/сав эсвэл цэвэр)");
     }
 
     const pieces =
       args.pieceCount != null && Number.isFinite(Number(args.pieceCount))
         ? Math.max(0, Math.floor(Number(args.pieceCount)))
         : null;
-
-    let price: number | null = null;
-    if (args.pricePerKg != null) {
-      const p = Number(args.pricePerKg);
-      if (!Number.isFinite(p) || p < 0)
-        throw new Error("Үнэ сөрөг байж болохгүй");
-      price = Number(p.toFixed(2));
-    }
 
     const entry = await sequelize.transaction(async (t) => {
       const maxSeq: number =
@@ -332,12 +559,15 @@ export class ShipmentController {
       const row = await ShipmentCargoEntryModel.create(
         {
           shipmentId,
+          productType,
+          animalType,
+          byproductName,
+          sourceConstantId,
           productLabel: label,
           pieceCount: pieces,
           grossKg: gross,
           tareKg: tare,
           weightKg: net,
-          pricePerKg: price,
           sequenceNo: maxSeq + 1,
           createdById: context.id,
         },
@@ -346,33 +576,7 @@ export class ShipmentController {
       return row;
     });
 
-    await this._resyncWeight(shipmentId);
-    return entry;
-  }
-
-  // Late price update — the "load now, price later" path used when the buyer
-  // hasn't agreed a price by the time the truck is loaded. Allowed while the
-  // shipment is still editable (PENDING / LOADED).
-  static async updateCargoEntryPrice(
-    id: string,
-    pricePerKg: number | null,
-  ): Promise<ShipmentCargoEntryModel> {
-    const entry = await findOrThrow(
-      ShipmentCargoEntryModel,
-      id,
-      "Ачилтын мөр олдсонгүй",
-    );
-    const shipment = await this.findIdCheck(entry.shipmentId);
-    this._assertCargoEditable(shipment);
-    if (pricePerKg == null) {
-      entry.pricePerKg = null;
-    } else {
-      const p = Number(pricePerKg);
-      if (!Number.isFinite(p) || p < 0)
-        throw new Error("Үнэ сөрөг байж болохгүй");
-      entry.pricePerKg = Number(p.toFixed(2));
-    }
-    await entry.save();
+    await this._resyncManifest(shipmentId);
     return entry;
   }
 
@@ -383,9 +587,9 @@ export class ShipmentController {
       "Ачилтын мөр олдсонгүй",
     );
     const shipment = await this.findIdCheck(entry.shipmentId);
-    this._assertCargoEditable(shipment);
+    this._assertEditable(shipment);
     const { shipmentId } = entry;
     await entry.destroy();
-    await this._resyncWeight(shipmentId);
+    await this._resyncManifest(shipmentId);
   }
 }

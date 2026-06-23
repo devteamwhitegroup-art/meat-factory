@@ -1,6 +1,6 @@
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -8,27 +8,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { getClient } from '@/lib/apollo/server';
-import { SalesDetailDoc } from '@/lib/queries/sales';
-import { compact } from '@/lib/compact';
+} from "@/components/ui/table";
+import { getClient } from "@/lib/apollo/server";
+import { SalesDetailDoc } from "@/lib/queries/sales";
+import { compact } from "@/lib/compact";
 import {
   ANIMAL_MN,
   BYPRODUCT_MN,
   PAYMENT_STATUS_MN,
   PRODUCT_TYPE_MN,
-  SHIPMENT_STATUS_MN,
-} from '@/lib/format/enum';
-import { formatMNT, formatNumber } from '@/lib/format/money';
-import { fmtDate, fmtDateTime } from '@/lib/format/date';
-import { MarkPaidButton } from './mark-paid-button';
-import { InstallmentsCard } from './installments-card';
-import { requireCap } from '@/lib/auth/server';
+} from "@/lib/format/enum";
+import { formatMNT, formatNumber } from "@/lib/format/money";
+import { fmtDate, fmtDateTime } from "@/lib/format/date";
+import { MarkPaidButton } from "./mark-paid-button";
+import { InstallmentsCard } from "./installments-card";
+import { BackButton } from "@/components/common/BackButton";
+import { requireCap } from "@/lib/auth/server";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function SalesDetailPage({ params }: Props) {
-  await requireCap('sales');
+  await requireCap("sales");
   const { id } = await params;
   const { data } = await getClient().query({
     query: SalesDetailDoc,
@@ -38,7 +38,7 @@ export default async function SalesDetailPage({ params }: Props) {
   if (!wrap?.success || !wrap.salesTransaction) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-        {wrap?.message ?? 'Олдсонгүй'}
+        {wrap?.message ?? "Олдсонгүй"}
       </div>
     );
   }
@@ -47,7 +47,7 @@ export default async function SalesDetailPage({ params }: Props) {
   const installments = compact(t.installments).map((i) => ({
     id: i.id!,
     amountMnt: Number(i.amountMnt ?? 0),
-    paidAt: String(i.paidAt ?? ''),
+    paidAt: String(i.paidAt ?? ""),
     notes: i.notes ?? null,
     createdBy: i.createdBy?.param ?? null,
   }));
@@ -55,20 +55,23 @@ export default async function SalesDetailPage({ params }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Гүйлгээний код</div>
-          <h1 className="font-mono text-2xl font-semibold">
-            {t.transactionCode}
-          </h1>
+        <div className="flex items-center gap-6">
+          <BackButton href="/sales" />
+          <div>
+            <div className="text-sm text-muted-foreground">Гүйлгээний код</div>
+            <h1 className="font-mono text-2xl font-semibold">
+              {t.transactionCode}
+            </h1>
+          </div>
         </div>
         <Badge
           className={
-            t.paymentStatus === 'PAID'
-              ? 'border-0 bg-emerald-100 text-emerald-800'
-              : 'border-0 bg-amber-100 text-amber-800'
+            t.paymentStatus === "PAID"
+              ? "border-0 bg-emerald-100 text-emerald-800"
+              : "border-0 bg-amber-100 text-amber-800"
           }
         >
-          {PAYMENT_STATUS_MN[t.paymentStatus ?? ''] ?? t.paymentStatus}
+          {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ?? t.paymentStatus}
         </Badge>
       </div>
 
@@ -81,9 +84,9 @@ export default async function SalesDetailPage({ params }: Props) {
             <div className="text-muted-foreground">Нэр</div>
             <div>{t.customer?.name}</div>
             <div className="text-muted-foreground">Утас</div>
-            <div>{t.customer?.contactPhone ?? '—'}</div>
+            <div>{t.customer?.contactPhone ?? "—"}</div>
             <div className="text-muted-foreground">Дансны дугаар</div>
-            <div>{t.customer?.bankAccount ?? '—'}</div>
+            <div>{t.customer?.bankAccount ?? "—"}</div>
           </CardContent>
         </Card>
         <Card>
@@ -131,13 +134,13 @@ export default async function SalesDetailPage({ params }: Props) {
             <TableBody>
               {lines.map((l) => {
                 const product =
-                  l.productType === 'MEAT'
-                    ? ANIMAL_MN[l.animalType ?? ''] ?? l.animalType
-                    : BYPRODUCT_MN[l.byproductType ?? ''] ?? l.byproductType;
+                  l.productType === "MEAT"
+                    ? (ANIMAL_MN[l.animalType ?? ""] ?? l.animalType)
+                    : (BYPRODUCT_MN[l.byproductType ?? ""] ?? l.byproductType);
                 return (
                   <TableRow key={l.id!}>
                     <TableCell>
-                      {PRODUCT_TYPE_MN[l.productType ?? ''] ?? l.productType}
+                      {PRODUCT_TYPE_MN[l.productType ?? ""] ?? l.productType}
                     </TableCell>
                     <TableCell>{product}</TableCell>
                     <TableCell>{formatNumber(l.quantityKg)} кг</TableCell>
@@ -159,30 +162,9 @@ export default async function SalesDetailPage({ params }: Props) {
         />
       ) : null}
 
-      {t.shipment ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Холбоотой ачилт</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <div>
-              Код:{' '}
-              <span className="font-mono">{t.shipment.shipmentCode}</span>
-            </div>
-            <div>
-              Төлөв:{' '}
-              {SHIPMENT_STATUS_MN[t.shipment.status ?? ''] ?? t.shipment.status}
-            </div>
-            <div>Жин: {formatNumber(t.shipment.weightKg)} кг</div>
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Separator />
 
-      {t.paymentStatus !== 'PAID' && t.id ? (
-        <MarkPaidButton id={t.id} />
-      ) : null}
+      {t.paymentStatus !== "PAID" && t.id ? <MarkPaidButton id={t.id} /> : null}
     </div>
   );
 }

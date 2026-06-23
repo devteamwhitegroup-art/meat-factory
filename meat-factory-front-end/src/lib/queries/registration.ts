@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const RegistrationListDoc = graphql(/* GraphQL */ `
   query Registrations(
@@ -25,6 +25,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
       registrations {
         id
         registrationNumber
+        registrationCode
         status
         intakeDate
         vehicleNumber
@@ -50,11 +51,18 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
       registration {
         id
         registrationNumber
+        registrationCode
         status
         intakeDate
         vehicleNumber
         stamp
         medicalNumber
+        medicalNumberApproved
+        agreementSignatureFileId
+        agreementSignature {
+          id
+          url
+        }
         photoFileId
         photo {
           id
@@ -88,6 +96,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           animalType
           count
+          slaughterCost
         }
         weighingEntries {
           id
@@ -145,6 +154,9 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           totalSlaughterCost
           grossAmount
           netPayable
+          heldAmount
+          paidAmount
+          heldReleasedAt
           payoutBankAccount
           payoutBankName
           payoutAccountHolderName
@@ -167,6 +179,20 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
             meatAmount
             byproductAmount
             slaughterCost
+          }
+          paymentProofs {
+            id
+            sequenceNo
+            note
+            createdAt
+            file {
+              id
+              url
+            }
+            createdBy {
+              id
+              param
+            }
           }
         }
       }
@@ -407,14 +433,55 @@ export const CreateSettlementDoc = graphql(/* GraphQL */ `
 `);
 
 export const MarkSettlementPaidDoc = graphql(/* GraphQL */ `
-  mutation MarkSettlementPaid($registrationId: ID!) {
-    markSettlementPaid(registrationId: $registrationId) {
+  mutation MarkSettlementPaid($registrationId: ID!, $heldAmount: Float) {
+    markSettlementPaid(
+      registrationId: $registrationId
+      heldAmount: $heldAmount
+    ) {
       success
       message
       settlement {
         id
         isPaid
         paidAt
+        heldAmount
+        paidAmount
+        heldReleasedAt
+      }
+    }
+  }
+`);
+
+export const ReleaseSettlementHoldDoc = graphql(/* GraphQL */ `
+  mutation ReleaseSettlementHold($registrationId: ID!) {
+    releaseSettlementHold(registrationId: $registrationId) {
+      success
+      message
+      settlement {
+        id
+        isPaid
+        paidAt
+        heldAmount
+        paidAmount
+        heldReleasedAt
+      }
+    }
+  }
+`);
+
+export const ApproveMedicalNumberDoc = graphql(/* GraphQL */ `
+  mutation ApproveMedicalNumber($registrationId: ID!, $medicalNumber: String) {
+    approveMedicalNumber(
+      registrationId: $registrationId
+      medicalNumber: $medicalNumber
+    ) {
+      success
+      message
+      registration {
+        id
+        medicalNumber
+        medicalNumberApproved
+        status
       }
     }
   }
@@ -428,6 +495,93 @@ export const CancelRegistrationDoc = graphql(/* GraphQL */ `
       registration {
         id
         status
+      }
+    }
+  }
+`);
+
+export const SetRegistrationSlaughterCostsDoc = graphql(/* GraphQL */ `
+  mutation SetRegistrationSlaughterCosts(
+    $registrationId: ID!
+    $lines: [SlaughterCostInput!]!
+  ) {
+    setRegistrationSlaughterCosts(
+      registrationId: $registrationId
+      lines: $lines
+    ) {
+      success
+      message
+      registration {
+        id
+        status
+        animalLines {
+          id
+          animalType
+          slaughterCost
+        }
+      }
+    }
+  }
+`);
+
+export const AddSettlementPaymentProofDoc = graphql(/* GraphQL */ `
+  mutation AddSettlementPaymentProof(
+    $registrationId: ID!
+    $fileId: ID!
+    $note: String
+  ) {
+    addSettlementPaymentProof(
+      registrationId: $registrationId
+      fileId: $fileId
+      note: $note
+    ) {
+      success
+      message
+      proof {
+        id
+        sequenceNo
+        note
+        createdAt
+        file {
+          id
+          url
+        }
+        createdBy {
+          id
+          param
+        }
+      }
+    }
+  }
+`);
+
+export const RemoveSettlementPaymentProofDoc = graphql(/* GraphQL */ `
+  mutation RemoveSettlementPaymentProof($id: ID!) {
+    removeSettlementPaymentProof(id: $id) {
+      success
+      message
+    }
+  }
+`);
+
+export const SetRegistrationAgreementSignatureDoc = graphql(/* GraphQL */ `
+  mutation SetRegistrationAgreementSignature(
+    $registrationId: ID!
+    $fileId: ID
+  ) {
+    setRegistrationAgreementSignature(
+      registrationId: $registrationId
+      fileId: $fileId
+    ) {
+      success
+      message
+      registration {
+        id
+        agreementSignatureFileId
+        agreementSignature {
+          id
+          url
+        }
       }
     }
   }

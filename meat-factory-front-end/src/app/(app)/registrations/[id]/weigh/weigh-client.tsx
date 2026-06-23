@@ -1,34 +1,36 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { NumericKeypad } from '@/components/forms/NumericKeypad';
-import { PhotoUpload } from '@/components/common/PhotoUpload';
-import { StatusBadge } from '@/components/registration/StatusBadge';
-import { ANIMAL_MN } from '@/lib/format/enum';
-import { formatNumber } from '@/lib/format/money';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { NumericKeypad } from "@/components/forms/NumericKeypad";
+import { PhotoUpload } from "@/components/common/PhotoUpload";
+import { StatusBadge } from "@/components/registration/StatusBadge";
+import { BackButton } from "@/components/common/BackButton";
+import { ANIMAL_MN } from "@/lib/format/enum";
+import { formatNumber } from "@/lib/format/money";
 import {
   AddWeighingEntryDoc,
   DeleteWeighingEntryDoc,
   FinishWeighingDoc,
   RegistrationDetailDoc,
   UpdateWeighingEntryDoc,
-} from '@/lib/queries/registration';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
-import { WeighEntryDialog } from './_components/WeighEntryDialog';
-import { WeighingHistoryList } from './_components/WeighingHistoryList';
+} from "@/lib/queries/registration";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
+import { WeighEntryDialog } from "./_components/WeighEntryDialog";
+import { WeighingHistoryList } from "./_components/WeighingHistoryList";
+import { SlaughterCostEditor } from "./_components/SlaughterCostEditor";
 
 function readRole(): string | null {
-  if (typeof document === 'undefined') return null;
+  if (typeof document === "undefined") return null;
   const m = document.cookie.match(/(?:^|;\s*)mf_role=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : null;
 }
@@ -37,29 +39,33 @@ function readRole(): string | null {
 // scale operator may edit; once "fully uploaded" (WEIGHED / VERIFIED /
 // PAYMENT_PENDING) only manager/admin may; after SETTLED/CANCELLED nobody may.
 function canEditEntries(status: string, role: string | null): boolean {
-  if (status === 'SETTLED' || status === 'CANCELLED') return false;
+  if (status === "SETTLED" || status === "CANCELLED") return false;
   const privileged =
-    role === 'MANAGER' || role === 'ADMIN' || role === 'SUPER_ADMIN';
+    role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
   if (
-    status === 'WEIGHED' ||
-    status === 'VERIFIED' ||
-    status === 'PAYMENT_PENDING'
+    status === "WEIGHED" ||
+    status === "VERIFIED" ||
+    status === "PAYMENT_PENDING"
   )
     return privileged;
   // Open-window weigh edits: anyone on the floor except the gate guard.
   return (
     privileged ||
-    role === 'SCALE' ||
-    role === 'STOREKEEPER' ||
-    role === 'MODERATOR'
+    role === "SCALE" ||
+    role === "STOREKEEPER" ||
+    role === "MODERATOR"
   );
 }
 
 export function WeighClient({ id }: { id: string }) {
   const router = useRouter();
-  const { data, loading: fetching, refetch } = useQuery(RegistrationDetailDoc, {
+  const {
+    data,
+    loading: fetching,
+    refetch,
+  } = useQuery(RegistrationDetailDoc, {
     variables: { id },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [addWeighing] = useMutation(AddWeighingEntryDoc);
   const [finishWeighing] = useMutation(FinishWeighingDoc);
@@ -75,8 +81,8 @@ export function WeighClient({ id }: { id: string }) {
   const [editing, setEditing] = useState<{ id: string; seq: number } | null>(
     null,
   );
-  const [editWeight, setEditWeight] = useState('');
-  const [editPrice, setEditPrice] = useState('');
+  const [editWeight, setEditWeight] = useState("");
+  const [editPrice, setEditPrice] = useState("");
 
   const reg = data?.registration?.registration;
   const types = useMemo(
@@ -85,11 +91,11 @@ export function WeighClient({ id }: { id: string }) {
   );
   const [tab, setTab] = useState<string | null>(null);
   const activeTab = tab ?? types[0] ?? null;
-  const [keypad, setKeypad] = useState('');
+  const [keypad, setKeypad] = useState("");
   // Last-entered price is remembered across entries of the same animal type
   // (operator doesn't re-type it for each animal). It's cleared when the active
   // tab changes (see the Tabs onValueChange) — each type is its own negotiation.
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -103,9 +109,7 @@ export function WeighClient({ id }: { id: string }) {
   }
 
   if (!reg) {
-    return (
-      <div className="text-muted-foreground">Бүртгэл олдсонгүй.</div>
-    );
+    return <div className="text-muted-foreground">Бүртгэл олдсонгүй.</div>;
   }
 
   async function submitWeight() {
@@ -114,7 +118,7 @@ export function WeighClient({ id }: { id: string }) {
     if (!w || w <= 0) return;
     const p = Number(price);
     if (!p || p <= 0) {
-      toast.error('Үнэ/кг оруулна уу');
+      toast.error("Үнэ/кг оруулна уу");
       return;
     }
     setBusy(true);
@@ -134,7 +138,7 @@ export function WeighClient({ id }: { id: string }) {
       {
         success: `${formatNumber(w)} кг · ${formatNumber(p)}₮/кг`,
         onSuccess: () => {
-          setKeypad('');
+          setKeypad("");
           // Keep `price` — same animal type usually shares the negotiated rate.
           setPhotoFileId(null);
           refetch();
@@ -151,7 +155,7 @@ export function WeighClient({ id }: { id: string }) {
         (await finishWeighing({ variables: { registrationId: id } })).data
           ?.finishWeighing,
       {
-        success: 'Жин бүртгэл дууссан',
+        success: "Жин бүртгэл дууссан",
         onSuccess: () => {
           router.push(`/registrations/${id}`);
           router.refresh();
@@ -166,12 +170,12 @@ export function WeighClient({ id }: { id: string }) {
     const entryId = editing.id;
     const w = Number(editWeight);
     if (!w || w <= 0) {
-      toast.error('Жин 0-ээс их байх ёстой');
+      toast.error("Жин 0-ээс их байх ёстой");
       return;
     }
     const p = editPrice.trim() ? Number(editPrice) : null;
     if (p != null && p <= 0) {
-      toast.error('Үнэ 0-ээс их байх ёстой');
+      toast.error("Үнэ 0-ээс их байх ёстой");
       return;
     }
     setBusy(true);
@@ -183,7 +187,7 @@ export function WeighClient({ id }: { id: string }) {
           })
         ).data?.updateWeighingEntry,
       {
-        success: 'Жин засагдлаа',
+        success: "Жин засагдлаа",
         onSuccess: () => {
           setEditing(null);
           refetch();
@@ -200,20 +204,22 @@ export function WeighClient({ id }: { id: string }) {
       async () =>
         (await deleteWeighing({ variables: { id: entryId } })).data
           ?.deleteWeighingEntry,
-      { success: 'Бичлэг устгагдлаа', onSuccess: refetch },
+      { success: "Бичлэг устгагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }
 
-  type W = ReturnType<typeof compact<NonNullable<NonNullable<typeof reg.weighingEntries>[number]>>>[number];
+  type W = ReturnType<
+    typeof compact<NonNullable<NonNullable<typeof reg.weighingEntries>[number]>>
+  >[number];
   const entriesByType: Record<string, W[]> = {};
   for (const w of compact(reg.weighingEntries)) {
-    const t = w.animalType ?? '';
+    const t = w.animalType ?? "";
     if (!entriesByType[t]) entriesByType[t] = [];
     entriesByType[t].push(w);
   }
 
-  const editable = canEditEntries(reg.status ?? '', role);
+  const editable = canEditEntries(reg.status ?? "", role);
 
   // Display numbering restarts at 1 per animal type (capture order), so it
   // stays contiguous even after a middle entry is removed.
@@ -229,11 +235,18 @@ export function WeighClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Бүртгэлийн дугаар</div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">#{reg.registrationNumber}</h1>
-            <StatusBadge status={reg.status} />
+        <div className="flex items-center gap-6">
+          <BackButton href={`/registrations/${id}`} />
+          <div>
+            <div className="text-sm text-muted-foreground">
+              Бүртгэлийн дугаар
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold">
+                #{reg.registrationNumber}
+              </h1>
+              <StatusBadge status={reg.status} />
+            </div>
           </div>
         </div>
         {/* Finish only makes sense while still in REGISTERED with at least
@@ -242,7 +255,7 @@ export function WeighClient({ id }: { id: string }) {
           onClick={finish}
           disabled={
             busy ||
-            reg.status !== 'REGISTERED' ||
+            reg.status !== "REGISTERED" ||
             compact(reg.weighingEntries).length === 0
           }
         >
@@ -251,10 +264,10 @@ export function WeighClient({ id }: { id: string }) {
       </div>
 
       <Tabs
-        value={activeTab ?? ''}
+        value={activeTab ?? ""}
         onValueChange={(v) => {
           setTab(v);
-          setPrice('');
+          setPrice("");
         }}
       >
         <TabsList>
@@ -276,9 +289,7 @@ export function WeighClient({ id }: { id: string }) {
                     value={keypad}
                     onChange={setKeypad}
                     onSubmit={submitWeight}
-                    disabled={
-                      busy || reg.status !== 'REGISTERED'
-                    }
+                    disabled={busy || reg.status !== "REGISTERED"}
                   />
                   <div className="mt-3 space-y-1.5">
                     <label className="text-sm font-medium">
@@ -291,7 +302,7 @@ export function WeighClient({ id }: { id: string }) {
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="ж: 30000"
                       className="h-12 text-lg"
-                      disabled={busy || reg.status !== 'REGISTERED'}
+                      disabled={busy || reg.status !== "REGISTERED"}
                     />
                   </div>
                   <div className="mt-4">
@@ -316,9 +327,9 @@ export function WeighClient({ id }: { id: string }) {
                     busy={busy}
                     onEdit={(w, seq) => {
                       setEditing({ id: w.id!, seq });
-                      setEditWeight(String(w.weightKg ?? ''));
+                      setEditWeight(String(w.weightKg ?? ""));
                       setEditPrice(
-                        w.pricePerKg != null ? String(w.pricePerKg) : '',
+                        w.pricePerKg != null ? String(w.pricePerKg) : "",
                       );
                     }}
                     onRemove={removeEntry}
@@ -329,6 +340,18 @@ export function WeighClient({ id }: { id: string }) {
           </TabsContent>
         ))}
       </Tabs>
+
+      <SlaughterCostEditor
+        registrationId={id}
+        editable={reg.status === "REGISTERED" || reg.status === "WEIGHED"}
+        lines={compact(reg.animalLines).map((l) => ({
+          animalType: l.animalType ?? "",
+          count: l.count ?? 0,
+          slaughterCost:
+            l.slaughterCost != null ? Number(l.slaughterCost) : null,
+        }))}
+        onChanged={refetch}
+      />
 
       <WeighEntryDialog
         open={editing !== null}

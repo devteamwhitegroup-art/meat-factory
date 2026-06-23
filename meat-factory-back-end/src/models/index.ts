@@ -41,6 +41,10 @@ import {
   SettlementLineModel,
 } from "./livestock/settlement-line.model";
 import {
+  createSettlementPaymentProofModel,
+  SettlementPaymentProofModel,
+} from "./livestock/settlement-payment-proof.model";
+import {
   createByproductWrapperModel,
   ByproductWrapperModel,
 } from "./livestock/byproduct-wrapper.model";
@@ -77,6 +81,10 @@ import {
   createShipmentPhotoModel,
   ShipmentPhotoModel,
 } from "./shipment/shipment-photo.model";
+import {
+  createShipmentSaleLineModel,
+  ShipmentSaleLineModel,
+} from "./shipment/shipment-sale-line.model";
 
 //Inventory
 import {
@@ -117,6 +125,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createVerificationModel(sequelize);
   createSettlementModel(sequelize);
   createSettlementLineModel(sequelize);
+  createSettlementPaymentProofModel(sequelize);
   createByproductWrapperModel(sequelize);
   createByproductConstantModel(sequelize);
   createAnimalModel(sequelize);
@@ -133,6 +142,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createShipmentModel(sequelize);
   createShipmentCargoEntryModel(sequelize);
   createShipmentPhotoModel(sequelize);
+  createShipmentSaleLineModel(sequelize);
 
   //Inventory
   createInventoryItemModel(sequelize);
@@ -161,6 +171,7 @@ export const setupModel = (sequelize: Sequelize) => {
   VerificationModel.associate();
   SettlementModel.associate();
   SettlementLineModel.associate();
+  SettlementPaymentProofModel.associate();
   ByproductWrapperModel.associate();
   ByproductConstantModel.associate();
   AnimalModel.associate();
@@ -177,6 +188,7 @@ export const setupModel = (sequelize: Sequelize) => {
   ShipmentModel.associate();
   ShipmentCargoEntryModel.associate();
   ShipmentPhotoModel.associate();
+  ShipmentSaleLineModel.associate();
 
   //Inventory
   InventoryItemModel.associate();

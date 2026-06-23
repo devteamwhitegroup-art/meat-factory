@@ -40,6 +40,7 @@ export const REGISTRATION_STATUS_MN: Record<string, string> = {
   WEIGHED: "Жинлэсэн",
   VERIFIED: "Баталгаажсан",
   PAYMENT_PENDING: "Төлбөр хүлээгдэж буй",
+  PARTIALLY_SETTLED: "Хэсэгчлэн төлсөн",
   SETTLED: "Төлбөр хийгдсэн",
   CANCELLED: "Цуцлагдсан",
 };
@@ -55,9 +56,27 @@ export const SHIPMENT_STATUS_MN: Record<string, string> = {
   DELIVERED: "Хүргэгдсэн",
 };
 
+export const SHIPMENT_CATEGORY_MN: Record<string, string> = {
+  EXPORT: "Экспорт",
+  DOMESTIC: "Дотоод",
+};
+
+export const DOMESTIC_MARKET_MN: Record<string, string> = {
+  ULAANBAATAR: "Улаанбаатар",
+  LOCAL: "Орон нутаг",
+};
+
 export const CUSTOMER_KIND_MN: Record<string, string> = {
-  BROKER: "Зуучлагч",
+  LOCAL_BROKER: "Орон нутгийн брокер",
+  ULAANBAATAR_BROKER: "Улаанбаатарын брокер",
   FACTORY: "Үйлдвэр",
+};
+
+// Distinct badge colors per kind — shared by the customer list + pickers.
+export const CUSTOMER_KIND_COLOR: Record<string, string> = {
+  LOCAL_BROKER: "border-0 bg-amber-100 text-amber-800",
+  ULAANBAATAR_BROKER: "border-0 bg-blue-100 text-blue-800",
+  FACTORY: "border-0 bg-slate-200 text-slate-800",
 };
 
 export const MOVEMENT_TYPE_MN: Record<string, string> = {

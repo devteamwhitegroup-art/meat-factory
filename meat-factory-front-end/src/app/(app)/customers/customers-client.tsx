@@ -51,11 +51,12 @@ import {
   UpdateCustomerDoc,
 } from '@/lib/queries/customer';
 import { Customer_Kind } from '@/lib/gql/graphql';
-import { CUSTOMER_KIND_MN } from '@/lib/format/enum';
+import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from '@/lib/format/enum';
 import { runMutation } from '@/lib/runMutation';
 import { compact } from '@/lib/compact';
 
-const KIND_VALUES = ['BROKER', 'FACTORY'] as const;
+const KIND_VALUES = ['LOCAL_BROKER', 'ULAANBAATAR_BROKER', 'FACTORY'] as const;
+type Kind = (typeof KIND_VALUES)[number];
 
 const schema = z.object({
   name: z.string().min(1, 'Нэр шаардлагатай'),
@@ -83,9 +84,7 @@ type EditTarget = {
 export function CustomersClient() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [kindFilter, setKindFilter] = useState<'ALL' | 'BROKER' | 'FACTORY'>(
-    'ALL',
-  );
+  const [kindFilter, setKindFilter] = useState<'ALL' | Kind>('ALL');
   const { data, loading: fetching, refetch } = useQuery(CustomerListDoc, {
     variables: {
       search: search || null,
@@ -106,7 +105,7 @@ export function CustomersClient() {
     resolver: zodResolver(schema),
     defaultValues: {
       name: '',
-      kind: 'BROKER',
+      kind: 'LOCAL_BROKER',
       contactPhone: '',
       address: '',
       bankAccount: '',
@@ -119,7 +118,7 @@ export function CustomersClient() {
     setEditing(null);
     form.reset({
       name: '',
-      kind: 'BROKER',
+      kind: 'LOCAL_BROKER',
       contactPhone: '',
       address: '',
       bankAccount: '',
@@ -131,7 +130,7 @@ export function CustomersClient() {
 
   function openEdit(c: NonNullable<EditTarget>) {
     setEditing(c);
-    const k = (c.kind as 'BROKER' | 'FACTORY' | null) ?? 'BROKER';
+    const k = (c.kind as Kind | null) ?? 'LOCAL_BROKER';
     form.reset({
       name: c.name ?? '',
       kind: k,
@@ -223,14 +222,17 @@ export function CustomersClient() {
           <Tabs
             value={kindFilter}
             onValueChange={(v) => {
-              setKindFilter(v as 'ALL' | 'BROKER' | 'FACTORY');
+              setKindFilter(v as 'ALL' | Kind);
               setPage(1);
             }}
           >
             <TabsList>
               <TabsTrigger value="ALL">Бүгд</TabsTrigger>
-              <TabsTrigger value="BROKER">{CUSTOMER_KIND_MN.BROKER}</TabsTrigger>
-              <TabsTrigger value="FACTORY">{CUSTOMER_KIND_MN.FACTORY}</TabsTrigger>
+              {KIND_VALUES.map((k) => (
+                <TabsTrigger key={k} value={k}>
+                  {CUSTOMER_KIND_MN[k]}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
         </div>
@@ -278,12 +280,11 @@ export function CustomersClient() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="BROKER">
-                            {CUSTOMER_KIND_MN.BROKER}
-                          </SelectItem>
-                          <SelectItem value="FACTORY">
-                            {CUSTOMER_KIND_MN.FACTORY}
-                          </SelectItem>
+                          {KIND_VALUES.map((k) => (
+                            <SelectItem key={k} value={k}>
+                              {CUSTOMER_KIND_MN[k]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -394,12 +395,10 @@ export function CustomersClient() {
                   <TableCell>
                     <Badge
                       className={
-                        c.kind === 'FACTORY'
-                          ? 'border-0 bg-sky-100 text-sky-800'
-                          : 'border-0 bg-amber-100 text-amber-800'
+                        CUSTOMER_KIND_COLOR[c.kind ?? ''] ?? 'border-0 bg-muted'
                       }
                     >
-                      {CUSTOMER_KIND_MN[c.kind ?? 'BROKER'] ?? '—'}
+                      {CUSTOMER_KIND_MN[c.kind ?? ''] ?? '—'}
                     </Badge>
                   </TableCell>
                   <TableCell>{c.contactPhone ?? '—'}</TableCell>

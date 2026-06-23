@@ -124,6 +124,32 @@
     color: var(--color-foreground);
     font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   }
+
+  /* Tailwind v4's preflight no longer sets `cursor: pointer` on buttons, so
+     interactive elements default to the arrow cursor. Restore the pointer for
+     every clickable control (native buttons, Base UI triggers that render as
+     buttons or role widgets, selects, labels bound to inputs), while keeping
+     the not-allowed cursor on anything disabled. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="menuitemcheckbox"]:not([aria-disabled="true"]),
+  [role="menuitemradio"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 /* Print: hide everything except the print region. The component opts in by
@@ -131,6 +157,14 @@
    and uses the `.print-hide` utility on action buttons that should not appear
    on paper. */
 @media print {
+  /* Narrow receipt roll. 80mm is the common thermal width (~72–74mm
+     printable); for a 58mm printer change `size` to `58mm auto` and the
+     `[data-print]` width to ~50mm. */
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+
   /* Hide app chrome (sidebar, nav, etc.) */
   html, body {
     background: white !important;
@@ -144,11 +178,56 @@
   [data-print] {
     position: absolute;
     inset: 0 0 auto 0;
+    width: 74mm;
     margin: 0;
-    padding: 16px;
+    padding: 0;
     background: white;
     color: black;
+    font-size: 10px;
+    line-height: 1.25;
   }
+
+  /* Strip card chrome (borders / ring / rounding / padding) — it only wastes
+     the little horizontal space a thin printer has. */
+  [data-print] [data-slot="card"] {
+    gap: 0.4rem !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  [data-print] [data-slot="card-header"],
+  [data-print] [data-slot="card-content"] {
+    padding: 0 !important;
+  }
+
+  /* Compact the tables so 4–5 columns fit the roll. */
+  [data-print] table {
+    width: 100%;
+    font-size: 8px;
+  }
+  [data-print] th,
+  [data-print] td {
+    padding: 1px 2px !important;
+    line-height: 1.2;
+  }
+
+  /* Tighten the receipt heading + the label/value summary grids. */
+  [data-print] .text-2xl {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+  [data-print] .text-base {
+    font-size: 11px !important;
+  }
+  [data-print] .gap-x-6,
+  [data-print] .gap-x-8 {
+    column-gap: 0.5rem !important;
+  }
+  [data-print] .gap-y-10 {
+    row-gap: 1.5rem !important;
+  }
+
   .print-hide {
     display: none !important;
   }

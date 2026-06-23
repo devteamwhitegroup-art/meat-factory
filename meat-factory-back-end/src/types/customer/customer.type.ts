@@ -1,12 +1,14 @@
 import { TPagination } from '../global/global.type';
 
-// BROKER  = individual middle-man / one-off buyer (no commercial paper trail)
-// FACTORY = downstream meat factory / big repeat client
+// LOCAL_BROKER       = орон нутгийн (countryside) middle-man, smaller scale
+// ULAANBAATAR_BROKER = Ulaanbaatar middle-man, main domestic buyer
+// FACTORY            = downstream meat factory / big repeat client
 //
 // No field-level differences — this is just a tag so the sales + shipment
 // dropdowns can filter and the customer list can show the right badge.
 export enum CUSTOMER_KIND {
-  BROKER = 'BROKER',
+  LOCAL_BROKER = 'LOCAL_BROKER',
+  ULAANBAATAR_BROKER = 'ULAANBAATAR_BROKER',
   FACTORY = 'FACTORY'
 }
 

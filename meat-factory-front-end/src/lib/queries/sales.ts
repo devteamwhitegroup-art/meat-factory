@@ -63,7 +63,6 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
           createdAt
           createdBy { id param }
         }
-        shipment { id shipmentCode status weightKg }
       }
     }
   }

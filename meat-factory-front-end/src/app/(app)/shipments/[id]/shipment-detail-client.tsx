@@ -1,41 +1,57 @@
-'use client';
+"use client";
 
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation, useQuery } from "@apollo/client/react";
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ShipmentDetailDoc,
   UpdateShipmentStatusDoc,
-} from '@/lib/queries/shipment';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
-import { SHIPMENT_STATUS_MN, PAYMENT_STATUS_MN } from '@/lib/format/enum';
-import { formatNumber, formatMNT } from '@/lib/format/money';
-import { fmtDate, fmtDateTime } from '@/lib/format/date';
-import { cn } from '@/lib/utils';
-import { LoadingInfoEditor } from './_components/LoadingInfoEditor';
-import { ShipmentPhotoGallery } from './_components/ShipmentPhotoGallery';
-import { CargoManifest } from './_components/CargoManifest';
+} from "@/lib/queries/shipment";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
+import {
+  SHIPMENT_STATUS_MN,
+  SHIPMENT_CATEGORY_MN,
+  DOMESTIC_MARKET_MN,
+} from "@/lib/format/enum";
+import { formatNumber } from "@/lib/format/money";
+import { fmtDate, fmtDateTime } from "@/lib/format/date";
+import { cn } from "@/lib/utils";
+import { BackButton } from "@/components/common/BackButton";
+import { LoadingInfoEditor } from "./_components/LoadingInfoEditor";
+import { ShipmentPhotoGallery } from "./_components/ShipmentPhotoGallery";
+import { CargoLineForm } from "./_components/CargoLineForm";
+import { CargoManifest } from "./_components/CargoManifest";
+import { SalePricingPanel } from "./_components/SalePricingPanel";
+
+const CATEGORY_COLOR: Record<string, string> = {
+  EXPORT: "border-0 bg-indigo-100 text-indigo-800",
+  DOMESTIC: "border-0 bg-teal-100 text-teal-800",
+};
 
 const STEPS: { value: string; label: string }[] = [
-  { value: 'PENDING', label: 'Хүлээгдэж буй' },
-  { value: 'LOADED', label: 'Ачигдсан' },
-  { value: 'DELIVERED', label: 'Хүргэгдсэн' },
+  { value: "PENDING", label: "Хүлээгдэж буй" },
+  { value: "LOADED", label: "Ачигдсан" },
+  { value: "DELIVERED", label: "Хүргэгдсэн" },
 ];
 
 const NEXT: Record<string, string | null> = {
-  PENDING: 'LOADED',
-  LOADED: 'DELIVERED',
+  PENDING: "LOADED",
+  LOADED: "DELIVERED",
   DELIVERED: null,
 };
 
 export function ShipmentDetailClient({ id }: { id: string }) {
-  const { data, loading: fetching, refetch } = useQuery(ShipmentDetailDoc, {
+  const {
+    data,
+    loading: fetching,
+    refetch,
+  } = useQuery(ShipmentDetailDoc, {
     variables: { id },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [updateStatus] = useMutation(UpdateShipmentStatusDoc);
 
@@ -44,10 +60,26 @@ export function ShipmentDetailClient({ id }: { id: string }) {
   if (!s) return <div className="text-muted-foreground">Олдсонгүй</div>;
 
   const stepIdx = STEPS.findIndex((x) => x.value === s.status);
-  const nextStatus = NEXT[s.status ?? ''] ?? null;
+  const nextStatus = NEXT[s.status ?? ""] ?? null;
+  // Master switch: a shipment is only editable while PENDING. Once LOADED the
+  // manifest, prices and driver info freeze (the back-end enforces this too —
+  // any edit mutation past PENDING returns success:false with a lock message,
+  // surfaced as a toast via runMutation).
+  const editable = s.status === "PENDING";
+  const category = s.category ?? "";
 
   async function advance() {
     if (!nextStatus) return;
+    // LOADED is the commit point — confirm so nobody locks themselves out
+    // before finishing the manifest/pricing.
+    if (
+      nextStatus === "LOADED" &&
+      !window.confirm(
+        "Ачилтыг баталгаажуулснаар бараа, үнэ, жолоочийн мэдээллийг өөрчлөх боломжгүй болно. Үргэлжлүүлэх үү?",
+      )
+    ) {
+      return;
+    }
     await runMutation(
       async () =>
         (
@@ -55,23 +87,52 @@ export function ShipmentDetailClient({ id }: { id: string }) {
             variables: { id, status: nextStatus as never },
           })
         ).data?.updateShipmentStatus,
-      { success: 'Төлөв шинэчлэгдлээ', onSuccess: refetch },
+      { success: "Төлөв шинэчлэгдлээ", onSuccess: refetch },
     );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Ачилтын код</div>
-          <h1 className="font-mono text-2xl font-semibold">
-            {s.shipmentCode}
-          </h1>
+        <div className="flex items-center gap-6">
+          <BackButton
+            href={category ? `/shipments/${category.toLowerCase()}` : undefined}
+          />
+          <div>
+            <div className="text-sm text-muted-foreground">Ачилтын код</div>
+            <h1 className="font-mono text-2xl font-semibold">
+              {s.shipmentCode}
+            </h1>
+          </div>
         </div>
-        <Badge className="border-0 bg-primary/10 text-primary">
-          {SHIPMENT_STATUS_MN[s.status ?? ''] ?? s.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {category ? (
+            <Badge className={CATEGORY_COLOR[category] ?? "border-0 bg-muted"}>
+              {SHIPMENT_CATEGORY_MN[category] ?? category}
+            </Badge>
+          ) : null}
+          {category === "DOMESTIC" && s.domesticMarket ? (
+            <Badge className="border-0 bg-sky-100 text-sky-800">
+              {DOMESTIC_MARKET_MN[s.domesticMarket] ?? s.domesticMarket}
+            </Badge>
+          ) : null}
+          <Badge className="border-0 bg-primary/10 text-primary">
+            {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status}
+          </Badge>
+        </div>
       </div>
+
+      {!editable ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Ачилт {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status} болсон тул
+          зөвхөн харах боломжтой.
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Дараалал: бараа нэмэх → үнэ тохирох → жолоочийн мэдээлэл бөглөх →
+          «LOADED болгох».
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-4">
@@ -80,10 +141,10 @@ export function ShipmentDetailClient({ id }: { id: string }) {
               <div key={step.value} className="flex flex-1 items-center gap-3">
                 <div
                   className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium',
+                    "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium",
                     i <= stepIdx
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-muted text-muted-foreground',
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
                   {i + 1}
@@ -92,8 +153,8 @@ export function ShipmentDetailClient({ id }: { id: string }) {
                 {i < STEPS.length - 1 ? (
                   <div
                     className={cn(
-                      'h-px flex-1',
-                      i < stepIdx ? 'bg-emerald-300' : 'bg-muted',
+                      "h-px flex-1",
+                      i < stepIdx ? "bg-emerald-300" : "bg-muted",
                     )}
                   />
                 ) : null}
@@ -121,9 +182,9 @@ export function ShipmentDetailClient({ id }: { id: string }) {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-2 text-sm">
             <div className="text-muted-foreground">Нэр</div>
-            <div>{s.customer?.name ?? '—'}</div>
+            <div>{s.customer?.name ?? "—"}</div>
             <div className="text-muted-foreground">Утас</div>
-            <div>{s.customer?.contactPhone ?? '—'}</div>
+            <div>{s.customer?.contactPhone ?? "—"}</div>
           </CardContent>
         </Card>
         <Card>
@@ -133,6 +194,12 @@ export function ShipmentDetailClient({ id }: { id: string }) {
           <CardContent className="grid grid-cols-2 gap-2 text-sm">
             <div className="text-muted-foreground">Жин</div>
             <div>{formatNumber(s.weightKg)} кг</div>
+            {s.serialNumber != null ? (
+              <>
+                <div className="text-muted-foreground">Серийн дугаар</div>
+                <div className="tabular-nums">{s.serialNumber}</div>
+              </>
+            ) : null}
             <div className="text-muted-foreground">Үүсгэсэн</div>
             <div>{fmtDate(s.createdAt)}</div>
             {s.shippedAt ? (
@@ -153,10 +220,10 @@ export function ShipmentDetailClient({ id }: { id: string }) {
 
       <LoadingInfoEditor
         shipmentId={id}
+        editable={editable}
         vehiclePlate={s.vehiclePlate ?? null}
         driverName={s.driverName ?? null}
         driverPhone={s.driverPhone ?? null}
-        serialNumber={s.serialNumber ?? null}
         onChanged={refetch}
       />
 
@@ -172,42 +239,43 @@ export function ShipmentDetailClient({ id }: { id: string }) {
         onChanged={refetch}
       />
 
+      {editable ? (
+        <CargoLineForm
+          shipmentId={id}
+          category={category}
+          onChanged={refetch}
+        />
+      ) : null}
+
       <CargoManifest
-        shipmentId={id}
-        status={s.status ?? ''}
+        editable={editable}
         entries={compact(s.cargoEntries).map((e) => ({
           id: e.id!,
-          productLabel: e.productLabel ?? '—',
-          pieceCount:
-            e.pieceCount != null ? Number(e.pieceCount) : null,
+          productLabel: e.productLabel ?? "—",
+          pieceCount: e.pieceCount != null ? Number(e.pieceCount) : null,
           grossKg: e.grossKg != null ? Number(e.grossKg) : null,
           tareKg: e.tareKg != null ? Number(e.tareKg) : null,
           weightKg: Number(e.weightKg ?? 0),
-          pricePerKg: e.pricePerKg != null ? Number(e.pricePerKg) : null,
           sequenceNo: Number(e.sequenceNo ?? 0),
           createdBy: e.createdBy?.param ?? null,
         }))}
         onChanged={refetch}
       />
 
-      {s.salesTransaction ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Холбоотой гүйлгээ</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Код</div>
-            <div className="font-mono">{s.salesTransaction.transactionCode}</div>
-            <div className="text-muted-foreground">Дүн</div>
-            <div>{formatMNT(s.salesTransaction.amount)}</div>
-            <div className="text-muted-foreground">Төлбөр</div>
-            <div>
-              {PAYMENT_STATUS_MN[s.salesTransaction.paymentStatus ?? ''] ??
-                s.salesTransaction.paymentStatus}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+      <SalePricingPanel
+        editable={editable}
+        totalPrice={s.totalPrice != null ? Number(s.totalPrice) : null}
+        saleLines={compact(s.saleLines).map((l) => ({
+          id: l.id!,
+          productType: l.productType ?? null,
+          animalType: l.animalType ?? null,
+          byproductName: l.byproductName ?? null,
+          totalWeightKg: Number(l.totalWeightKg ?? 0),
+          pricePerKg: l.pricePerKg != null ? Number(l.pricePerKg) : null,
+          amount: l.amount != null ? Number(l.amount) : null,
+        }))}
+        onChanged={refetch}
+      />
     </div>
   );
 }

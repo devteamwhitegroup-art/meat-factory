@@ -61,7 +61,6 @@ export default `#graphql
         notes: String
         lineItems: [SalesLineItem]
         installments: [SalesInstallment]
-        shipment: Shipment
         createdAt: Date
         updatedAt: Date
     }

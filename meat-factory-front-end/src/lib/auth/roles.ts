@@ -78,7 +78,8 @@ const OFFICE_NAV: NavItem[] = [
   { href: "/herder-addresses", label: "Малчны хаягууд" },
   { href: "/customers", label: "Харилцагч" },
   { href: "/sales", label: "Гүйлгээ" },
-  { href: "/shipments", label: "Ачилт" },
+  { href: "/shipments/export", label: "Экспортын ачилт" },
+  { href: "/shipments/domestic", label: "Дотоод ачилт" },
   { href: "/inventory", label: "Нөөц" },
   { href: "/byproduct-constants", label: "Дайвар норм" },
   { href: "/animals", label: "Малын тохиргоо" },
@@ -106,7 +107,8 @@ export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {
     { href: "/registrations?stage=in_process", label: "Тооцоо хүлээгдэж буй" },
     { href: "/registrations", label: "Бүртгэл" },
     { href: "/inventory", label: "Нөөц" },
-    { href: "/shipments", label: "Ачилт" },
+    { href: "/shipments/export", label: "Экспортын ачилт" },
+    { href: "/shipments/domestic", label: "Дотоод ачилт" },
   ],
 };
 

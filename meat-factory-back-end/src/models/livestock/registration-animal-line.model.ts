@@ -13,6 +13,9 @@ export class RegistrationAnimalLineModel
   public registrationId!: string;
   public animalId!: string;
   public count!: number;
+  // Бой зардал per animal type, captured at weighing (before VERIFIED) so it
+  // prints on the herder slip. Settlement defaults to this value.
+  public slaughterCost!: number;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -47,6 +50,11 @@ export const createRegistrationAnimalLineModel = (sequelize: Sequelize) => {
       count: {
         type: DataTypes.INTEGER,
         allowNull: false,
+      },
+      slaughterCost: {
+        type: DataTypes.DECIMAL(14, 2),
+        allowNull: false,
+        defaultValue: 0,
       },
     },
     {

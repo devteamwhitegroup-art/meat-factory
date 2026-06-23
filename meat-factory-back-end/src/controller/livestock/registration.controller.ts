@@ -1,4 +1,4 @@
-import { Op, Transaction, WhereOptions } from "sequelize";
+import { Op, Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
@@ -7,6 +7,7 @@ import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
+import { SettlementPaymentProofModel } from "../../models/livestock/settlement-payment-proof.model";
 import { HerderModel } from "../../models/livestock/herder.model";
 import { FileModel } from "../../models/global/file.model";
 import { AdminModel } from "../../models/user/admin.model";
@@ -18,12 +19,20 @@ import {
   REGISTRATION_STATUS,
   TCreateRegistration,
   TGetRegistrations,
+  TSlaughterCostInput,
 } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
 import { HerderController } from "./herder.controller";
 import { FileController } from "../global/file.controller";
-import { findOrThrow, listPaginated } from "../../utils";
+import {
+  dateStampUTC8,
+  findOrThrow,
+  listPaginated,
+  nextDailyCounter,
+} from "../../utils";
+
+const MAX_CODE_RETRIES = 5;
 
 // All livestock workflow rows (animal lines, weighing entries, byproduct logs,
 // settlement lines) now FK into Animals. We eager-include `animal` everywhere
@@ -33,6 +42,7 @@ const REGISTRATION_FULL_INCLUDE = [
   { model: FileModel, as: "photo" },
   { model: FileModel, as: "signature" },
   { model: FileModel, as: "stampImage" },
+  { model: FileModel, as: "agreementSignature" },
   { model: AdminModel, as: "guard" },
   {
     model: RegistrationAnimalLineModel,
@@ -73,6 +83,14 @@ const REGISTRATION_FULL_INCLUDE = [
         model: SettlementLineModel,
         as: "lines",
         include: [{ model: AnimalModel, as: "animal" }],
+      },
+      {
+        model: SettlementPaymentProofModel,
+        as: "paymentProofs",
+        include: [
+          { model: FileModel, as: "file" },
+          { model: AdminModel, as: "createdBy" },
+        ],
       },
       { model: AdminModel, as: "settledBy" },
       { model: FileModel, as: "photo" },
@@ -194,40 +212,76 @@ export class RegistrationController {
     // Resolve every requested animalType → animalId up front.
     const typeToId = await AnimalController.mapTypesToIds(Array.from(seen));
 
-    return await sequelize
-      .transaction(async (t) => {
-        const registrationNumber = await this._nextRegistrationNumber(t);
+    // Бой зардал is auto-precalculated per type = pricePerAnimal (settings) ×
+    // head count. The guard only enters counts; pre-butchered intake = 0.
+    const counts: Record<string, number> = {};
+    for (const l of doc.animalLines) counts[l.animalType] = l.count;
+    const slaughterByType = isPreButchered
+      ? {}
+      : await AnimalController.defaultsForCounts(counts);
 
-        const registration = await RegistrationModel.create(
-          {
-            registrationNumber,
-            herderId,
-            vehicleNumber: vehicleNumber.trim(),
-            stamp: stamp ?? null,
-            medicalNumber: medicalNumber?.trim() || null,
-            photoFileId: photoFileId ?? null,
-            signatureFileId: signatureFileId ?? null,
-            stampFileId: stampFileId ?? null,
-            intakeDate: intakeDate ?? new Date(),
-            guardId: context.id,
-            status: REGISTRATION_STATUS.REGISTERED,
-            isPreButchered: !!isPreButchered,
-          },
-          { transaction: t },
-        );
+    // Human-readable code REG-YYYYMMDD-N (N = per-day counter). The numeric
+    // registrationNumber (8821+) is kept separately. On a same-day code
+    // collision, bump N and retry the whole insert.
+    const codePrefix = `REG-${dateStampUTC8()}-`;
+    let counter = await nextDailyCounter(
+      RegistrationModel,
+      "registrationCode",
+      codePrefix,
+    );
 
-        await RegistrationAnimalLineModel.bulkCreate(
-          doc.animalLines.map((l) => ({
-            registrationId: registration.id,
-            animalId: typeToId[l.animalType],
-            count: l.count,
-          })),
-          { transaction: t },
-        );
+    for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt++) {
+      try {
+        const registration = await sequelize.transaction(async (t) => {
+          const registrationNumber = await this._nextRegistrationNumber(t);
 
-        return registration;
-      })
-      .then((r) => this.getById(r.id));
+          const reg = await RegistrationModel.create(
+            {
+              registrationNumber,
+              registrationCode: `${codePrefix}${counter}`,
+              herderId,
+              vehicleNumber: vehicleNumber.trim(),
+              stamp: stamp ?? null,
+              medicalNumber: medicalNumber?.trim() || null,
+              photoFileId: photoFileId ?? null,
+              signatureFileId: signatureFileId ?? null,
+              stampFileId: stampFileId ?? null,
+              intakeDate: intakeDate ?? new Date(),
+              guardId: context.id,
+              status: REGISTRATION_STATUS.REGISTERED,
+              isPreButchered: !!isPreButchered,
+            },
+            { transaction: t },
+          );
+
+          await RegistrationAnimalLineModel.bulkCreate(
+            doc.animalLines.map((l) => ({
+              registrationId: reg.id,
+              animalId: typeToId[l.animalType],
+              count: l.count,
+              slaughterCost: isPreButchered
+                ? 0
+                : (slaughterByType[l.animalType] ?? 0),
+            })),
+            { transaction: t },
+          );
+
+          return reg;
+        });
+
+        return await this.getById(registration.id);
+      } catch (err) {
+        if (
+          err instanceof UniqueConstraintError &&
+          attempt < MAX_CODE_RETRIES - 1
+        ) {
+          counter++;
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error("Failed to generate a unique registration code");
   }
 
   static async list(
@@ -283,6 +337,100 @@ export class RegistrationController {
     this.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
 
     await reg.update({ status: REGISTRATION_STATUS.CANCELLED });
+    return this.getById(registrationId);
+  }
+
+  // Factory confirms the herder's medical number. Optionally sets the number
+  // first (herder may supply it after intake). Once approved, a settlement's
+  // held portion can be released. Idempotent.
+  static async approveMedicalNumber(
+    registrationId: string,
+    medicalNumber: string | null | undefined,
+    context: TContext,
+  ): Promise<RegistrationModel> {
+    this.assertActorRole(context, [
+      ADMIN_ROLE.MANAGER,
+      ADMIN_ROLE.ADMIN,
+      ADMIN_ROLE.SUPER_ADMIN,
+    ]);
+
+    const reg = await this.findIdCheck(registrationId);
+    const number =
+      medicalNumber != null && medicalNumber.trim()
+        ? medicalNumber.trim()
+        : reg.medicalNumber;
+    if (!number)
+      throw new Error("Эмнэлгийн дугаар оруулаагүй тул батлах боломжгүй");
+
+    await reg.update({ medicalNumber: number, medicalNumberApproved: true });
+    return this.getById(registrationId);
+  }
+
+  // Capture бой зардал per animal type at weighing (before VERIFIED) so it
+  // prints on the herder slip. Settlement defaults to these values. Editable
+  // only while REGISTERED / WEIGHED. Pre-butchered intake forces cost to 0.
+  static async setSlaughterCosts(
+    registrationId: string,
+    lines: TSlaughterCostInput[],
+    context: TContext,
+  ): Promise<RegistrationModel> {
+    this.assertActorRole(context, [
+      ADMIN_ROLE.STOREKEEPER,
+      ADMIN_ROLE.MANAGER,
+      ADMIN_ROLE.SUPER_ADMIN,
+    ]);
+
+    const reg = await this.findIdCheck(registrationId);
+    this.assertStatus(reg, [
+      REGISTRATION_STATUS.REGISTERED,
+      REGISTRATION_STATUS.WEIGHED,
+    ]);
+
+    if (!lines || lines.length === 0)
+      throw new Error("At least one slaughter-cost line is required");
+
+    const animalLines = await RegistrationAnimalLineModel.findAll({
+      where: { registrationId },
+      include: [{ model: AnimalModel, as: "animal" }],
+    });
+    const lineByType = new Map<string, RegistrationAnimalLineModel>();
+    for (const al of animalLines)
+      if (al.animal?.animalType) lineByType.set(al.animal.animalType, al);
+
+    for (const l of lines) {
+      const al = lineByType.get(l.animalType);
+      if (!al)
+        throw new Error(`${l.animalType} is not part of this registration`);
+      const cost = reg.isPreButchered ? 0 : Number(l.slaughterCost ?? 0);
+      if (!Number.isFinite(cost) || cost < 0)
+        throw new Error("slaughterCost cannot be negative");
+      await al.update({ slaughterCost: Number(cost.toFixed(2)) });
+    }
+
+    return this.getById(registrationId);
+  }
+
+  // Attach the herder's drawn agreement signature (an already-uploaded File)
+  // to the weighed slip. Allowed before VERIFIED. Pass null to clear.
+  static async setAgreementSignature(
+    registrationId: string,
+    fileId: string | null,
+    context: TContext,
+  ): Promise<RegistrationModel> {
+    this.assertActorRole(context, [
+      ADMIN_ROLE.STOREKEEPER,
+      ADMIN_ROLE.MANAGER,
+      ADMIN_ROLE.SUPER_ADMIN,
+    ]);
+
+    const reg = await this.findIdCheck(registrationId);
+    this.assertStatus(reg, [
+      REGISTRATION_STATUS.REGISTERED,
+      REGISTRATION_STATUS.WEIGHED,
+    ]);
+
+    if (fileId) await FileController.findIdCheck(fileId);
+    await reg.update({ agreementSignatureFileId: fileId ?? null });
     return this.getById(registrationId);
   }
 }

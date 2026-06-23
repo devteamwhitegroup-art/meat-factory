@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import {
   type PickedHerder,
 } from "@/components/registration/HerderPicker";
 import { AnimalCountGrid } from "@/components/registration/AnimalCountGrid";
+import { SlaughterCostPreview } from "@/components/registration/SlaughterCostPreview";
 import { SignatureField } from "@/components/common/SignatureField";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
 import {
@@ -62,6 +63,23 @@ function ReadOnlyField({
         {value ? value : <span className="text-muted-foreground">—</span>}
       </div>
     </div>
+  );
+}
+
+// Isolated watcher so react-hook-form's `watch` stays out of the main render
+// (keeps the React Compiler happy and re-renders only the preview).
+function SlaughterCostPreviewWatched({
+  control,
+}: {
+  control: Control<Values>;
+}) {
+  const counts = useWatch({ control, name: "counts" });
+  const isPre = useWatch({ control, name: "isPreButchered" });
+  return (
+    <SlaughterCostPreview
+      counts={(counts as Record<string, number>) ?? {}}
+      isPreButchered={!!isPre}
+    />
   );
 }
 
@@ -340,6 +358,7 @@ export function IntakeForm() {
                 />
               )}
             />
+            <SlaughterCostPreviewWatched control={form.control} />
           </CardContent>
         </Card>
 

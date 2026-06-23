@@ -1,5 +1,7 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { TShipmentCargoEntry } from "../../types/shipment/shipment-cargo-entry.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
+import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { ShipmentModel } from "./shipment.model";
 import { AdminModel } from "../user/admin.model";
 
@@ -9,14 +11,18 @@ export class ShipmentCargoEntryModel
 {
   public id!: string;
   public shipmentId!: string;
+  public productType!: PRODUCT_TYPE;
+  // MEAT line: meat type (EXPORT ⇒ HORSE only). Null on byproduct/legacy rows.
+  public animalType!: ANIMAL_TYPE | null;
+  // BYPRODUCT line: free-form byproduct name (inventory key). Null on meat.
+  public byproductName!: string | null;
+  // Optional traceability link to the byproduct catalogue entry. Soft FK.
+  public sourceConstantId!: string | null;
   public productLabel!: string;
   public pieceCount!: number | null;
   public grossKg!: number | null;
   public tareKg!: number | null;
   public weightKg!: number;
-  // Buyer-side price set AT LOADING. Independent from the herder weighing
-  // price; lets "load now, price later" work — nullable until set.
-  public pricePerKg!: number | null;
   public sequenceNo!: number;
   public createdById!: string;
   public createdAt!: Date;
@@ -46,6 +52,23 @@ export const createShipmentCargoEntryModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
+      productType: {
+        type: DataTypes.ENUM(...Object.values(PRODUCT_TYPE)),
+        allowNull: false,
+        defaultValue: PRODUCT_TYPE.MEAT,
+      },
+      animalType: {
+        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
+        allowNull: true,
+      },
+      byproductName: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      sourceConstantId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+      },
       productLabel: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -65,10 +88,6 @@ export const createShipmentCargoEntryModel = (sequelize: Sequelize) => {
       weightKg: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
-      },
-      pricePerKg: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: true,
       },
       sequenceNo: {
         type: DataTypes.INTEGER,

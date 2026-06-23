@@ -9,8 +9,8 @@ export default `#graphql
     type Customer {
         id: ID
         name: String
-        # Tag-only — BROKER (individual middle-man) vs FACTORY (downstream
-        # meat factory / big repeat client). No field-level differences.
+        # Tag-only — LOCAL_BROKER / ULAANBAATAR_BROKER (individual middle-men)
+        # vs FACTORY (downstream meat factory). No field-level differences.
         kind: CUSTOMER_KIND
         contactPhone: String
         address: String

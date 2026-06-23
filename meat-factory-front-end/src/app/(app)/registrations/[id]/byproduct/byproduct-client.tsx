@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/registration/StatusBadge";
+import { BackButton } from "@/components/common/BackButton";
 import { ANIMAL_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
 import {
@@ -177,13 +178,18 @@ export function ByproductClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Бүртгэлийн дугаар</div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">
-              #{reg.registrationNumber}
-            </h1>
-            <StatusBadge status={reg.status} />
+        <div className="flex items-center gap-6">
+          <BackButton href={`/registrations/${id}`} />
+          <div>
+            <div className="text-sm text-muted-foreground">
+              Бүртгэлийн дугаар
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold">
+                #{reg.registrationNumber}
+              </h1>
+              <StatusBadge status={reg.status} />
+            </div>
           </div>
         </div>
         <Button

@@ -36,7 +36,7 @@ export class CustomerController {
 
     return await CustomerModel.create({
       name: doc.name.trim(),
-      kind: doc.kind ?? CUSTOMER_KIND.BROKER,
+      kind: doc.kind ?? CUSTOMER_KIND.LOCAL_BROKER,
       contactPhone: doc.contactPhone ?? null,
       address: doc.address ?? null,
       bankAccount: doc.bankAccount ?? null,

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/registration/StatusBadge";
+import { BackButton } from "@/components/common/BackButton";
 import {
   SettlementPreview,
   type LineInput,
@@ -18,6 +19,8 @@ import { PhotoUpload } from "@/components/common/PhotoUpload";
 import {
   CreateSettlementDoc,
   MarkSettlementPaidDoc,
+  ReleaseSettlementHoldDoc,
+  ApproveMedicalNumberDoc,
   RegistrationDetailDoc,
 } from "@/lib/queries/registration";
 import { AnimalListDoc } from "@/lib/queries/animal";
@@ -25,6 +28,13 @@ import { runMutation } from "@/lib/runMutation";
 import { formatMNT } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
+import { PaymentProofGallery } from "./_components/PaymentProofGallery";
+
+function readRoleCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|;\s*)mf_role=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
 export function SettlementClient({ id }: { id: string }) {
   const {
@@ -37,6 +47,16 @@ export function SettlementClient({ id }: { id: string }) {
   });
   const [createSettlement] = useMutation(CreateSettlementDoc);
   const [markPaid] = useMutation(MarkSettlementPaidDoc);
+  const [releaseHold] = useMutation(ReleaseSettlementHoldDoc);
+  const [approveMedical] = useMutation(ApproveMedicalNumberDoc);
+
+  // Client-readable role cookie gates the medical-approval action to office
+  // roles (MANAGER/ADMIN/SUPER_ADMIN). Read post-mount to avoid hydration skew.
+  const [role, setRole] = useState<string | null>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setRole(readRoleCookie()), []);
+  const canApproveMedical =
+    role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
   // Admin-configured per-head slaughter cost — pre-fills the line slaughter
   // cost = pricePerAnimal × count.
   const { data: bcData } = useQuery(AnimalListDoc, {
@@ -75,8 +95,7 @@ export function SettlementClient({ id }: { id: string }) {
   const [overrideBank, setOverrideBank] = useState(false);
   const [payoutBankAccount, setPayoutBankAccount] = useState("");
   const [payoutBankName, setPayoutBankName] = useState("");
-  const [payoutAccountHolderName, setPayoutAccountHolderName] =
-    useState("");
+  const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const butcherMap = useMemo(() => {
@@ -103,6 +122,18 @@ export function SettlementClient({ id }: { id: string }) {
     }
     return m;
   }, [reg]);
+  // Бой cost captured at weigh time (animalLines.slaughterCost). When present it
+  // pre-fills the settlement line directly — still overridable below.
+  const capturedByType = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of compact(reg?.animalLines)) {
+      const t = a.animalType ?? "";
+      if (t && a.slaughterCost != null) {
+        m[t] = (m[t] ?? 0) + Number(a.slaughterCost);
+      }
+    }
+    return m;
+  }, [reg]);
 
   // Seed the bank override fields from the herder defaults — once when
   // herder data lands, and only if the user hasn't typed anything yet.
@@ -115,9 +146,7 @@ export function SettlementClient({ id }: { id: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPayoutBankAccount((v) => v || h.bankAccount || "");
     setPayoutBankName((v) => v || h.bankName || "");
-    setPayoutAccountHolderName(
-      (v) => v || h.accountHolderName || h.name || "",
-    );
+    setPayoutAccountHolderName((v) => v || h.accountHolderName || h.name || "");
   }, [reg?.herder]);
 
   // Seed builder lines once: pre-fill slaughterCost = pricePerAnimal × count
@@ -136,10 +165,16 @@ export function SettlementClient({ id }: { id: string }) {
     setLines(
       types.map((t) => {
         const coverable = !!coverByType[t];
+        const captured = capturedByType[t];
+        // Cover wins: a coverable type's бой is offset to 0 when the verifier
+        // marked it covered — otherwise use the captured cost, falling back to
+        // the admin per-head config.
         const cost =
           covered && coverable
             ? 0
-            : (butcherMap[t] ?? 0) * (countsByType[t] ?? 0);
+            : captured != null
+              ? captured
+              : (butcherMap[t] ?? 0) * (countsByType[t] ?? 0);
         return {
           animalType: t,
           slaughterCost: cost > 0 ? String(cost) : "",
@@ -154,6 +189,7 @@ export function SettlementClient({ id }: { id: string }) {
     butcherMap,
     coverByType,
     countsByType,
+    capturedByType,
     covered,
   ]);
 
@@ -204,13 +240,46 @@ export function SettlementClient({ id }: { id: string }) {
     setBusy(false);
   }
 
-  async function onMarkPaid() {
+  // heldAmount null/0 → pay in full; >0 → partial settlement (the rest is
+  // withheld until the medical number is approved, then released).
+  async function onMarkPaid(heldAmount: number | null) {
     setBusy(true);
     await runMutation(
       async () =>
-        (await markPaid({ variables: { registrationId: id } })).data
+        (await markPaid({ variables: { registrationId: id, heldAmount } })).data
           ?.markSettlementPaid,
-      { success: "Төлбөр төлсөнд тэмдэглэгдлээ", onSuccess: refetch },
+      {
+        success:
+          heldAmount && heldAmount > 0
+            ? "Хэсэгчлэн төлөгдлөө"
+            : "Төлбөр төлсөнд тэмдэглэгдлээ",
+        onSuccess: refetch,
+      },
+    );
+    setBusy(false);
+  }
+
+  async function onReleaseHold() {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (await releaseHold({ variables: { registrationId: id } })).data
+          ?.releaseSettlementHold,
+      { success: "Суутгасан дүн олгогдлоо", onSuccess: refetch },
+    );
+    setBusy(false);
+  }
+
+  async function onApproveMedical(medicalNumber: string | null) {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (
+          await approveMedical({
+            variables: { registrationId: id, medicalNumber },
+          })
+        ).data?.approveMedicalNumber,
+      { success: "Эмнэлгийн дугаар батлагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }
@@ -218,13 +287,18 @@ export function SettlementClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-sm text-muted-foreground">Бүртгэлийн дугаар</div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">
-              #{reg.registrationNumber}
-            </h1>
-            <StatusBadge status={reg.status} />
+        <div className="flex items-center gap-6">
+          <BackButton href={`/registrations/${id}`} />
+          <div>
+            <div className="text-sm text-muted-foreground">
+              Бүртгэлийн дугаар
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold">
+                #{reg.registrationNumber}
+              </h1>
+              <StatusBadge status={reg.status} />
+            </div>
           </div>
         </div>
       </div>
@@ -260,12 +334,34 @@ export function SettlementClient({ id }: { id: string }) {
       </Card>
 
       {existing ? (
-        <SettlementReceipt
-          reg={reg}
-          existing={existing}
-          busy={busy}
-          onMarkPaid={onMarkPaid}
-        />
+        <>
+          <SettlementReceipt
+            reg={reg}
+            existing={existing}
+            busy={busy}
+            canApproveMedical={canApproveMedical}
+            onMarkPaid={onMarkPaid}
+            onReleaseHold={onReleaseHold}
+            onApproveMedical={onApproveMedical}
+          />
+
+          {/* Money-flow statements — appear once a payout has happened. */}
+          {Number(existing.paidAmount ?? 0) > 0 ? (
+            <PaymentProofGallery
+              registrationId={id}
+              canAdd={Number(existing.paidAmount ?? 0) > 0}
+              proofs={compact(existing.paymentProofs).map((p) => ({
+                id: p.id!,
+                sequenceNo: Number(p.sequenceNo ?? 0),
+                note: p.note ?? null,
+                createdAt: (p.createdAt as string | null) ?? null,
+                url: p.file?.url ?? null,
+                createdBy: p.createdBy?.param ?? null,
+              }))}
+              onChanged={refetch}
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <SettlementPreview
@@ -325,9 +421,7 @@ export function SettlementClient({ id }: { id: string }) {
                     </label>
                     <Input
                       value={payoutBankAccount}
-                      onChange={(e) =>
-                        setPayoutBankAccount(e.target.value)
-                      }
+                      onChange={(e) => setPayoutBankAccount(e.target.value)}
                     />
                   </div>
                 </div>

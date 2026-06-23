@@ -43,6 +43,12 @@ export type TSettlement = {
   payoutBankAccount: string | null;
   payoutBankName: string | null;
   payoutAccountHolderName: string | null;
+  // Divisible payout. heldAmount is withheld pending medical-number approval;
+  // paidAmount is what's been disbursed so far. netPayable = paidAmount +
+  // (remaining held). isPaid flips true only when the held part is released.
+  heldAmount: number;
+  paidAmount: number;
+  heldReleasedAt: Date | null;
   isPaid: boolean;
   paidAt: Date | null;
   settledById: string | null;

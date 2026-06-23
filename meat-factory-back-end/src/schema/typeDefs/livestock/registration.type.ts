@@ -27,6 +27,9 @@ export default `#graphql
         animal: Animal
         animalType: ANIMAL_TYPE
         count: Int
+        # Бой зардал per type, captured at weighing (pre-VERIFIED) for the
+        # herder slip. Settlement defaults to this.
+        slaughterCost: Float
         createdAt: Date
         updatedAt: Date
     }
@@ -147,6 +150,12 @@ export default `#graphql
         payoutBankAccount: String
         payoutBankName: String
         payoutAccountHolderName: String
+        # Divisible payout. heldAmount is withheld pending medical-number
+        # approval; paidAmount is disbursed so far; isPaid flips true only when
+        # the held part is released.
+        heldAmount: Float
+        paidAmount: Float
+        heldReleasedAt: Date
         isPaid: Boolean
         paidAt: Date
         settledById: ID
@@ -155,24 +164,55 @@ export default `#graphql
         photoFileId: ID
         photo: File
         lines: [SettlementLine]
+        # Money-flow statement images (bank receipts) attached after payout.
+        paymentProofs: [SettlementPaymentProof]
         createdAt: Date
         updatedAt: Date
+    }
+
+    # One money-flow statement image on a settlement (bank transfer screenshot
+    # / receipt), added after a payout. Multiple per settlement.
+    type SettlementPaymentProof {
+        id: ID
+        settlementId: ID
+        fileId: ID
+        file: File
+        sequenceNo: Int
+        note: String
+        createdById: ID
+        createdBy: Admin
+        createdAt: Date
+        updatedAt: Date
+    }
+
+    type SettlementPaymentProofResponse {
+        success: Boolean
+        message: String
+        proof: SettlementPaymentProof
     }
 
     type Registration {
         id: ID
         registrationNumber: Int
+        # Human-readable code REG-YYYYMMDD-N (N = per-day counter).
+        registrationCode: String
         herderId: ID
         herder: Herder
         vehicleNumber: String
         stamp: String
         medicalNumber: String
+        # Factory confirmation of the medical number — gates release of the
+        # held settlement portion.
+        medicalNumberApproved: Boolean
         photoFileId: ID
         photo: File
         signatureFileId: ID
         signature: File
         stampFileId: ID
         stampImage: File
+        # Herder's drawn agreement signature on the weighed slip (pre-VERIFIED).
+        agreementSignatureFileId: ID
+        agreementSignature: File
         intakeDate: Date
         guardId: ID
         guard: Admin
@@ -229,6 +269,11 @@ export default `#graphql
     input RegistrationAnimalLineInput {
         animalType: ANIMAL_TYPE!
         count: Int!
+    }
+
+    input SlaughterCostInput {
+        animalType: ANIMAL_TYPE!
+        slaughterCost: Float!
     }
 
     input SettlementLineInput {
@@ -321,9 +366,51 @@ export default `#graphql
             payoutAccountHolderName: String
         ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
 
+        # First payout. Pass heldAmount to withhold a portion when the medical
+        # number isn't approved yet (required while unapproved; ignored/forced
+        # to 0 once approved → full payment).
         markSettlementPaid(
             registrationId: ID!
+            heldAmount: Float
         ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+
+        # Release the withheld portion after the medical number is approved.
+        releaseSettlementHold(
+            registrationId: ID!
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+
+        # Attach a money-flow statement image (uploaded File id) to the
+        # settlement after a payout has been made.
+        addSettlementPaymentProof(
+            registrationId: ID!
+            fileId: ID!
+            note: String
+        ): SettlementPaymentProofResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+
+        removeSettlementPaymentProof(
+            id: ID!
+        ): Response @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+
+        # Factory confirms the medical number (optionally setting it first).
+        # Unlocks releaseSettlementHold.
+        approveMedicalNumber(
+            registrationId: ID!
+            medicalNumber: String
+        ): RegistrationResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+
+        # Capture бой зардал per animal type before VERIFIED (prints on the
+        # herder slip; settlement defaults to these).
+        setRegistrationSlaughterCosts(
+            registrationId: ID!
+            lines: [SlaughterCostInput!]!
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+
+        # Attach the herder's drawn agreement signature (uploaded File id) to
+        # the weighed slip. Pass null to clear. Allowed before VERIFIED.
+        setRegistrationAgreementSignature(
+            registrationId: ID!
+            fileId: ID
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
 
         cancelRegistration(
             registrationId: ID!

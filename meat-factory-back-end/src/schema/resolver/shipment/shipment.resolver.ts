@@ -4,15 +4,30 @@ import {
   TCreateShipment,
   TGetShipments,
 } from "../../../types/shipment/shipment.type";
+import { ANIMAL_TYPE } from "../../../types/livestock/registration.type";
+import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
+import { TShipmentSaleLine } from "../../../types/shipment/shipment-sale-line.type";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
+  // Derived amount on a sale line — kept off the table, computed on read.
+  ShipmentSaleLine: {
+    amount: (line: TShipmentSaleLine): number | null =>
+      line.pricePerKg == null
+        ? null
+        : Number(
+            (Number(line.totalWeightKg) * Number(line.pricePerKg)).toFixed(2),
+          ),
+  },
   Query: {
     shipments: wrapList("shipments", (doc: TGetShipments) =>
       ShipmentController.list(doc),
     ),
     shipment: wrapOne("shipment", ({ id }: { id: string }) =>
       ShipmentController.getById(id),
+    ),
+    nextShipmentSerial: wrapOne("serialNumber", () =>
+      ShipmentController.previewNextSerial(),
     ),
   },
   Mutation: {
@@ -27,39 +42,45 @@ export default {
         ShipmentController.updateStatus(id, status),
       "Shipment status updated",
     ),
+    setShipmentSalePrice: wrapOne(
+      "saleLine",
+      ({ id, pricePerKg }: { id: string; pricePerKg?: number | null }) =>
+        ShipmentController.setSalePrice(id, pricePerKg ?? null),
+      "Үнэ хадгалагдлаа",
+    ),
     addCargoEntry: wrapOne(
       "cargoEntry",
       (
         doc: {
           shipmentId: string;
-          productLabel: string;
+          productType: PRODUCT_TYPE;
+          animalType?: ANIMAL_TYPE | null;
+          byproductName?: string | null;
+          sourceConstantId?: string | null;
+          productLabel?: string | null;
           pieceCount?: number | null;
           grossKg?: number | null;
           tareKg?: number | null;
           weightKg?: number | null;
-          pricePerKg?: number | null;
         },
         ctx,
       ) =>
         ShipmentController.addCargoEntry(
           doc.shipmentId,
           {
-            productLabel: doc.productLabel,
+            productType: doc.productType,
+            animalType: doc.animalType ?? null,
+            byproductName: doc.byproductName ?? null,
+            sourceConstantId: doc.sourceConstantId ?? null,
+            productLabel: doc.productLabel ?? null,
             pieceCount: doc.pieceCount ?? null,
             grossKg: doc.grossKg ?? null,
             tareKg: doc.tareKg ?? null,
             weightKg: doc.weightKg ?? null,
-            pricePerKg: doc.pricePerKg ?? null,
           },
           ctx,
         ),
       "Ачилтын мөр нэмэгдлээ",
-    ),
-    updateCargoEntryPrice: wrapOne(
-      "cargoEntry",
-      ({ id, pricePerKg }: { id: string; pricePerKg?: number | null }) =>
-        ShipmentController.updateCargoEntryPrice(id, pricePerKg ?? null),
-      "Үнэ хадгалагдлаа",
     ),
     deleteCargoEntry: wrapVoid(
       "Ачилтын мөр устгагдлаа",
@@ -73,19 +94,16 @@ export default {
         vehiclePlate,
         driverName,
         driverPhone,
-        serialNumber,
       }: {
         id: string;
         vehiclePlate?: string | null;
         driverName?: string | null;
         driverPhone?: string | null;
-        serialNumber?: string | null;
       }) =>
         ShipmentController.updateLoadingInfo(id, {
           vehiclePlate,
           driverName,
           driverPhone,
-          serialNumber,
         }),
       "Ачилтын мэдээлэл хадгалагдлаа",
     ),

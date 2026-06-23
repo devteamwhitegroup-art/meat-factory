@@ -1,9 +1,21 @@
-import { SHIPMENT_STATUS } from '../../../types/shipment/shipment.type';
+import {
+  DOMESTIC_MARKET,
+  SHIPMENT_CATEGORY,
+  SHIPMENT_STATUS,
+} from '../../../types/shipment/shipment.type';
 import { PaginationSchema } from '../global/global.type';
 
 export default `#graphql
     enum SHIPMENT_STATUS {
         ${Object.values(SHIPMENT_STATUS).join('\n ')}
+    }
+
+    enum SHIPMENT_CATEGORY {
+        ${Object.values(SHIPMENT_CATEGORY).join('\n ')}
+    }
+
+    enum DOMESTIC_MARKET {
+        ${Object.values(DOMESTIC_MARKET).join('\n ')}
     }
 
     # One boxed/weighed load on a shipment. Mirrors the storekeeper's
@@ -13,14 +25,20 @@ export default `#graphql
     type ShipmentCargoEntry {
         id: ID
         shipmentId: ID
+        # MEAT (animalType) or BYPRODUCT (byproductName).
+        productType: PRODUCT_TYPE
+        # MEAT line: meat type (EXPORT ⇒ HORSE only). Null on byproduct lines.
+        animalType: ANIMAL_TYPE
+        # BYPRODUCT line: free-form byproduct name. Null on meat lines.
+        byproductName: String
+        # Traceability link to the byproduct catalogue entry (animal → wrapper
+        # → constant), when picked from the catalogue.
+        sourceConstantId: ID
         productLabel: String
         pieceCount: Int
         grossKg: Float
         tareKg: Float
         weightKg: Float
-        # Buyer-side price agreed at loading. Independent from the herder's
-        # weighing-entry price. Nullable for "load now, price later".
-        pricePerKg: Float
         sequenceNo: Int
         createdById: ID
         createdBy: Admin
@@ -32,6 +50,31 @@ export default `#graphql
         success: Boolean
         message: String
         cargoEntry: ShipmentCargoEntry
+    }
+
+    # One priced product group on a shipment. Auto-derived from the cargo
+    # manifest — every distinct meat type / byproduct becomes a sale line whose
+    # totalWeightKg tracks its cargo entries. The end-of-load pricing screen
+    # shows each group's weight and lets the user insert a per-kg selling price.
+    type ShipmentSaleLine {
+        id: ID
+        shipmentId: ID
+        productType: PRODUCT_TYPE
+        animalType: ANIMAL_TYPE
+        byproductName: String
+        groupKey: String
+        totalWeightKg: Float
+        pricePerKg: Float
+        # Derived: totalWeightKg × pricePerKg (null until priced).
+        amount: Float
+        createdAt: Date
+        updatedAt: Date
+    }
+
+    type ShipmentSaleLineResponse {
+        success: Boolean
+        message: String
+        saleLine: ShipmentSaleLine
     }
 
     # One photo from the loading session (truck side / serial sticker /
@@ -56,14 +99,19 @@ export default `#graphql
     type Shipment {
         id: ID
         shipmentCode: String
+        category: SHIPMENT_CATEGORY
+        # Sub-market for DOMESTIC shipments (LOCAL / ULAANBAATAR); null for EXPORT.
+        domesticMarket: DOMESTIC_MARKET
         customerId: ID
         customer: Customer
-        salesTransactionId: ID
-        salesTransaction: SalesTransaction
         # Aggregate weight — kept in sync with the sum of cargoEntries when
         # the manifest is used. For shipments without a manifest it's whatever
         # was passed to createShipment.
         weightKg: Float
+        # Cached grand total = Σ(group weight × group price). Null until any
+        # sale line is priced.
+        totalPrice: Float
+        pricedAt: Date
         status: SHIPMENT_STATUS
         shippedAt: Date
         loadedById: ID
@@ -71,11 +119,14 @@ export default `#graphql
         vehiclePlate: String
         driverName: String
         driverPhone: String
-        serialNumber: String
+        # Auto-incremented loading serial (assigned at create, like the
+        # registration number).
+        serialNumber: Int
         notes: String
         photoFileId: ID
         photo: File
         cargoEntries: [ShipmentCargoEntry]
+        saleLines: [ShipmentSaleLine]
         photos: [ShipmentPhoto]
         createdAt: Date
         updatedAt: Date
@@ -94,26 +145,38 @@ export default `#graphql
         count: Int
     }
 
+    type NextShipmentSerialResponse {
+        success: Boolean
+        message: String
+        serialNumber: Int
+    }
+
     extend type Query {
         shipments(
             status: SHIPMENT_STATUS
+            category: SHIPMENT_CATEGORY
+            domesticMarket: DOMESTIC_MARKET
             customerId: ID
-            salesTransactionId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): ShipmentsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
         shipment(id: ID!): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        # Preview the next loading serial (does not consume the sequence).
+        nextShipmentSerial: NextShipmentSerialResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
     }
 
     extend type Mutation {
         createShipment(
-            customerId: ID
-            salesTransactionId: ID
-            weightKg: Float!
+            category: SHIPMENT_CATEGORY!
+            # Required when category = DOMESTIC; ignored for EXPORT.
+            domesticMarket: DOMESTIC_MARKET
+            # Required — create a customer inline first if none exists.
+            customerId: ID!
+            # Optional — weight is derived from the cargo manifest.
+            weightKg: Float
             vehiclePlate: String
             driverName: String
             driverPhone: String
-            serialNumber: String
             notes: String
             photoFileId: ID
         ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
@@ -123,22 +186,30 @@ export default `#graphql
             status: SHIPMENT_STATUS!
         ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
+        # End-of-load pricing: insert a per-kg selling price on one product
+        # group (sale line). Nullable — agreed on the spot or set later.
+        setShipmentSalePrice(
+            id: ID!
+            pricePerKg: Float
+        ): ShipmentSaleLineResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+
         addCargoEntry(
             shipmentId: ID!
-            productLabel: String!
+            # MEAT or BYPRODUCT. EXPORT shipments accept MEAT/HORSE only.
+            productType: PRODUCT_TYPE!
+            # Required for MEAT lines (EXPORT ⇒ HORSE).
+            animalType: ANIMAL_TYPE
+            # BYPRODUCT lines: pass sourceConstantId (name derived) or a
+            # free-form byproductName.
+            byproductName: String
+            sourceConstantId: ID
+            # Optional sub-cut label; defaults to the picked type's name.
+            productLabel: String
             pieceCount: Int
             grossKg: Float
             tareKg: Float
             # Direct net — required only when grossKg+tareKg both omitted.
             weightKg: Float
-            # Optional at create-time — set later via updateCargoEntryPrice.
-            pricePerKg: Float
-        ): ShipmentCargoEntryResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
-
-        # Late price update for the "load now, price later" flow.
-        updateCargoEntryPrice(
-            id: ID!
-            pricePerKg: Float
         ): ShipmentCargoEntryResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         deleteCargoEntry(id: ID!): Response @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
@@ -150,7 +221,6 @@ export default `#graphql
             vehiclePlate: String
             driverName: String
             driverPhone: String
-            serialNumber: String
         ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         addShipmentPhoto(

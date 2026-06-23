@@ -2,6 +2,7 @@ import { DataTypes, Model, Sequelize } from "sequelize";
 import { TSettlement } from "../../types/livestock/settlement.type";
 import { RegistrationModel } from "./registration.model";
 import { SettlementLineModel } from "./settlement-line.model";
+import { SettlementPaymentProofModel } from "./settlement-payment-proof.model";
 import { AdminModel } from "../user/admin.model";
 import { FileModel } from "../global/file.model";
 
@@ -20,6 +21,11 @@ export class SettlementModel extends Model implements TSettlement {
   public payoutBankAccount!: string | null;
   public payoutBankName!: string | null;
   public payoutAccountHolderName!: string | null;
+  // Divisible payout: held pending medical-number approval; paid so far; when
+  // the held part is released.
+  public heldAmount!: number;
+  public paidAmount!: number;
+  public heldReleasedAt!: Date | null;
   public isPaid!: boolean;
   public paidAt!: Date | null;
   public settledById!: string | null;
@@ -30,6 +36,7 @@ export class SettlementModel extends Model implements TSettlement {
 
   public registration?: RegistrationModel;
   public lines?: SettlementLineModel[];
+  public paymentProofs?: SettlementPaymentProofModel[];
   public settledBy?: AdminModel;
   public photo?: FileModel;
 
@@ -48,6 +55,10 @@ export class SettlementModel extends Model implements TSettlement {
     });
     this.hasMany(SettlementLineModel, {
       as: "lines",
+      foreignKey: { name: "settlementId", allowNull: false },
+    });
+    this.hasMany(SettlementPaymentProofModel, {
+      as: "paymentProofs",
       foreignKey: { name: "settlementId", allowNull: false },
     });
   }
@@ -95,6 +106,21 @@ export const createSettlementModel = (sequelize: Sequelize) => {
       payoutAccountHolderName: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      heldAmount: {
+        type: DataTypes.DECIMAL(14, 2),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      paidAmount: {
+        type: DataTypes.DECIMAL(14, 2),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      heldReleasedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
       },
       isPaid: {
         type: DataTypes.BOOLEAN,

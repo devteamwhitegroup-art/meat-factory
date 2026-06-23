@@ -7,6 +7,7 @@ type Line = { animalType: string; count: number };
 type Props = {
   id: string;
   registrationNumber: number;
+  registrationCode?: string | null;
   status: string;
   herderName?: string | null;
   animalLines?: Line[] | null;
@@ -15,6 +16,7 @@ type Props = {
 export function RegistrationCard({
   id,
   registrationNumber,
+  registrationCode,
   status,
   herderName,
   animalLines,
@@ -25,6 +27,11 @@ export function RegistrationCard({
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">
             <p>Дугаар: {registrationNumber}</p>
+            {registrationCode ? (
+              <p className="font-mono text-xs font-normal text-muted-foreground">
+                {registrationCode}
+              </p>
+            ) : null}
             <StatusBadge status={status} />
           </CardTitle>
         </CardHeader>

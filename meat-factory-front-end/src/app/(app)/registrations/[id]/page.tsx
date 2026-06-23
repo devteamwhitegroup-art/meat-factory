@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -63,17 +64,22 @@ export default async function RegistrationDetailPage({ params }: Props) {
               </h1>
               <StatusBadge status={status} />
             </div>
+            {r.registrationCode ? (
+              <div className="font-mono text-xs text-muted-foreground">
+                {r.registrationCode}
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {status === "REGISTERED" && can(role, "weigh") && (
-              <Link
-                href={`/registrations/${r.id}/weigh`}
-                className={buttonVariants()}
-              >
-                Хэмжүүр
-              </Link>
-            )}
+            <Link
+              href={`/registrations/${r.id}/weigh`}
+              className={buttonVariants()}
+            >
+              Хэмжүүр
+            </Link>
+          )}
           {status === "WEIGHED" && (
             <>
               {can(role, "byproduct") && (
@@ -149,7 +155,18 @@ export default async function RegistrationDetailPage({ params }: Props) {
             <div className="text-muted-foreground">Тамга</div>
             <div>{r.stamp ?? "—"}</div>
             <div className="text-muted-foreground">Эмнэлгийн дугаар</div>
-            <div>{r.medicalNumber ?? "—"}</div>
+            <div className="flex items-center gap-2">
+              <span>{r.medicalNumber ?? "—"}</span>
+              <Badge
+                className={
+                  r.medicalNumberApproved
+                    ? "border-0 bg-emerald-100 text-emerald-800"
+                    : "border-0 bg-amber-100 text-amber-800"
+                }
+              >
+                {r.medicalNumberApproved ? "Батлагдсан" : "Батлагдаагүй"}
+              </Badge>
+            </div>
             <div className="text-muted-foreground">Он сар</div>
             <div>{fmtDate(r.intakeDate)}</div>
             <div className="text-muted-foreground">Харуул</div>

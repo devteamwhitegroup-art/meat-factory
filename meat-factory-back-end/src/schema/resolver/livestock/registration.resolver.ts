@@ -11,6 +11,7 @@ import { SettlementLineModel } from "../../../models/livestock/settlement-line.m
 import {
   TCreateRegistration,
   TGetRegistrations,
+  TSlaughterCostInput,
 } from "../../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
@@ -150,9 +151,92 @@ export default {
     ),
     markSettlementPaid: wrapOne(
       "settlement",
-      ({ registrationId }: { registrationId: string }, ctx) =>
-        SettlementController.markSettlementPaid(registrationId, ctx),
+      (
+        {
+          registrationId,
+          heldAmount,
+        }: { registrationId: string; heldAmount?: number | null },
+        ctx,
+      ) =>
+        SettlementController.markSettlementPaid(
+          registrationId,
+          heldAmount ?? null,
+          ctx,
+        ),
       "Settlement marked paid",
+    ),
+    releaseSettlementHold: wrapOne(
+      "settlement",
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        SettlementController.releaseSettlementHold(registrationId, ctx),
+      "Held amount released",
+    ),
+    addSettlementPaymentProof: wrapOne(
+      "proof",
+      (
+        {
+          registrationId,
+          fileId,
+          note,
+        }: { registrationId: string; fileId: string; note?: string | null },
+        ctx,
+      ) =>
+        SettlementController.addPaymentProof(
+          registrationId,
+          fileId,
+          note ?? null,
+          ctx,
+        ),
+      "Баримт хавсаргалаа",
+    ),
+    removeSettlementPaymentProof: wrapVoid(
+      "Баримт устгагдлаа",
+      ({ id }: { id: string }, ctx) =>
+        SettlementController.removePaymentProof(id, ctx),
+    ),
+    approveMedicalNumber: wrapOne(
+      "registration",
+      (
+        {
+          registrationId,
+          medicalNumber,
+        }: { registrationId: string; medicalNumber?: string | null },
+        ctx,
+      ) =>
+        RegistrationController.approveMedicalNumber(
+          registrationId,
+          medicalNumber ?? null,
+          ctx,
+        ),
+      "Medical number approved",
+    ),
+    setRegistrationSlaughterCosts: wrapOne(
+      "registration",
+      (
+        {
+          registrationId,
+          lines,
+        }: { registrationId: string; lines: TSlaughterCostInput[] },
+        ctx,
+      ) =>
+        RegistrationController.setSlaughterCosts(registrationId, lines, ctx),
+      "Slaughter costs saved",
+    ),
+    setRegistrationAgreementSignature: wrapOne(
+      "registration",
+      (
+        {
+          registrationId,
+          fileId,
+        }: { registrationId: string; fileId?: string | null },
+        ctx,
+      ) =>
+        RegistrationController.setAgreementSignature(
+          registrationId,
+          fileId ?? null,
+          ctx,
+        ),
+      "Signature saved",
     ),
     cancelRegistration: wrapOne(
       "registration",

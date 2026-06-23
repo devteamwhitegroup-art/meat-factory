@@ -34,7 +34,8 @@ export enum REGISTRATION_STATUS {
   WEIGHED = 'WEIGHED', // scale operator finished weighing
   VERIFIED = 'VERIFIED', // single signer (нярав / нягтлан / админ) confirmed
   PAYMENT_PENDING = 'PAYMENT_PENDING', // settlement created, awaiting payment
-  SETTLED = 'SETTLED', // settlement paid
+  PARTIALLY_SETTLED = 'PARTIALLY_SETTLED', // part paid, rest held pending medical-number approval
+  SETTLED = 'SETTLED', // settlement fully paid (held released)
   CANCELLED = 'CANCELLED' // voided before weighing finished
 }
 
@@ -46,13 +47,20 @@ export type TRegistrationAnimalLineInput = {
 export type TRegistration = {
   id: string;
   registrationNumber: number;
+  // Human-readable code REG-YYYYMMDD-N; null for legacy rows.
+  registrationCode: string | null;
   herderId: string;
   vehicleNumber: string;
   stamp: string | null;
   medicalNumber: string | null;
+  // Factory confirmation of the medical number. While false, the settlement's
+  // held portion can't be released (paid out).
+  medicalNumberApproved: boolean;
   photoFileId: string | null;
   signatureFileId: string | null;
   stampFileId: string | null;
+  // Herder's drawn agreement signature on the weighed slip (pre-VERIFIED).
+  agreementSignatureFileId: string | null;
   intakeDate: Date;
   guardId: string;
   status: REGISTRATION_STATUS;
@@ -91,6 +99,13 @@ export type TRegistrationAnimalLine = {
   // FK to Animals; animalType is reached via the joined Animal row.
   animalId: string;
   count: number;
+  // Бой зардал per type, captured at weighing (pre-VERIFIED). Default 0.
+  slaughterCost: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type TSlaughterCostInput = {
+  animalType: ANIMAL_TYPE;
+  slaughterCost: number;
 };

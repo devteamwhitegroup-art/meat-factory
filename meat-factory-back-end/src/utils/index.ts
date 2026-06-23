@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { Op } from 'sequelize';
 import type {
   FindAndCountOptions,
   FindOptions,
   Model,
-  ModelStatic
+  ModelStatic,
+  WhereOptions
 } from 'sequelize';
 import type { TContext, TPaginationGeneric } from '../types/global/global.type';
 
@@ -57,6 +59,40 @@ export async function listPaginated<M extends Model>(
 // human-readable message. Use in every resolver/controller catch block.
 export const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unknown error';
+
+// ---- Human-readable daily codes (REG-YYYYMMDD-N, SHIP-YYYYMMDD-N) ----------
+// Date stamp (YYYYMMDD) in Mongolia time (UTC+8), independent of server tz so
+// the "day" boundary for the per-day counter is always local midnight.
+export const dateStampUTC8 = (d: Date = new Date()): string => {
+  const utc8 = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+  const y = utc8.getUTCFullYear();
+  const m = String(utc8.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(utc8.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${day}`;
+};
+
+// Next per-day counter for a coded column: max numeric suffix among existing
+// rows whose code starts with `prefix`, + 1. The date lives in the prefix so
+// the count is implicitly scoped to that day (no tz boundary math). Racy under
+// concurrency — callers retry on the column's UNIQUE collision.
+export async function nextDailyCounter<M extends Model>(
+  model: ModelStatic<M>,
+  column: string,
+  prefix: string
+): Promise<number> {
+  const where = { [column]: { [Op.like]: `${prefix}%` } } as WhereOptions;
+  const rows = (await model.findAll({
+    where,
+    attributes: [column],
+    raw: true
+  })) as unknown as Array<Record<string, unknown>>;
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(String(r[column] ?? '').slice(prefix.length));
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max + 1;
+}
 
 // ---- Resolver envelope helpers -------------------------------------------
 // Every resolver field returns a `{ success, message, <data> }` envelope and

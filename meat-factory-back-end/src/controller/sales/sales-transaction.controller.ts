@@ -4,7 +4,6 @@ import { SalesTransactionModel } from "../../models/sales/sales-transaction.mode
 import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
 import { SalesInstallmentModel } from "../../models/sales/sales-installment.model";
 import { CustomerModel } from "../../models/customer/customer.model";
-import { ShipmentModel } from "../../models/shipment/shipment.model";
 import {
   PAYMENT_STATUS,
   PRODUCT_TYPE,
@@ -174,7 +173,6 @@ export class SalesTransactionController {
         include: [
           { model: CustomerModel, as: "customer" },
           { model: SalesLineItemModel, as: "lineItems" },
-          { model: ShipmentModel, as: "shipment" },
           {
             model: SalesInstallmentModel,
             as: "installments",

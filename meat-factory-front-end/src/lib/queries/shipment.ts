@@ -2,17 +2,19 @@ import { graphql } from '@/lib/gql/gql';
 
 export const ShipmentListDoc = graphql(/* GraphQL */ `
   query Shipments(
+    $category: SHIPMENT_CATEGORY
+    $domesticMarket: DOMESTIC_MARKET
     $status: SHIPMENT_STATUS
     $customerId: ID
-    $salesTransactionId: ID
     $dateRange: DateRangeInput
     $limit: Int
     $page: Int
   ) {
     shipments(
+      category: $category
+      domesticMarket: $domesticMarket
       status: $status
       customerId: $customerId
-      salesTransactionId: $salesTransactionId
       dateRange: $dateRange
       limit: $limit
       page: $page
@@ -23,12 +25,14 @@ export const ShipmentListDoc = graphql(/* GraphQL */ `
       shipments {
         id
         shipmentCode
+        category
+        domesticMarket
         status
         weightKg
+        totalPrice
         shippedAt
         createdAt
         customer { id name }
-        salesTransaction { id transactionCode }
       }
     }
   }
@@ -42,8 +46,12 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
       shipment {
         id
         shipmentCode
+        category
+        domesticMarket
         status
         weightKg
+        totalPrice
+        pricedAt
         shippedAt
         createdAt
         notes
@@ -59,23 +67,29 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
           file { id url }
         }
         customer { id name contactPhone }
-        salesTransaction {
-          id
-          transactionCode
-          amount
-          paymentStatus
-        }
         cargoEntries {
           id
+          productType
+          animalType
+          byproductName
+          sourceConstantId
           productLabel
           pieceCount
           grossKg
           tareKg
           weightKg
-          pricePerKg
           sequenceNo
           createdAt
           createdBy { id param }
+        }
+        saleLines {
+          id
+          productType
+          animalType
+          byproductName
+          totalWeightKg
+          pricePerKg
+          amount
         }
       }
     }
@@ -85,44 +99,57 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
 export const AddCargoEntryDoc = graphql(/* GraphQL */ `
   mutation AddCargoEntry(
     $shipmentId: ID!
-    $productLabel: String!
+    $productType: PRODUCT_TYPE!
+    $animalType: ANIMAL_TYPE
+    $byproductName: String
+    $sourceConstantId: ID
+    $productLabel: String
     $pieceCount: Int
     $grossKg: Float
     $tareKg: Float
     $weightKg: Float
-    $pricePerKg: Float
   ) {
     addCargoEntry(
       shipmentId: $shipmentId
+      productType: $productType
+      animalType: $animalType
+      byproductName: $byproductName
+      sourceConstantId: $sourceConstantId
       productLabel: $productLabel
       pieceCount: $pieceCount
       grossKg: $grossKg
       tareKg: $tareKg
       weightKg: $weightKg
-      pricePerKg: $pricePerKg
     ) {
       success
       message
       cargoEntry {
         id
+        productType
+        animalType
+        byproductName
+        sourceConstantId
         productLabel
         pieceCount
         grossKg
         tareKg
         weightKg
-        pricePerKg
         sequenceNo
       }
     }
   }
 `);
 
-export const UpdateCargoEntryPriceDoc = graphql(/* GraphQL */ `
-  mutation UpdateCargoEntryPrice($id: ID!, $pricePerKg: Float) {
-    updateCargoEntryPrice(id: $id, pricePerKg: $pricePerKg) {
+export const SetShipmentSalePriceDoc = graphql(/* GraphQL */ `
+  mutation SetShipmentSalePrice($id: ID!, $pricePerKg: Float) {
+    setShipmentSalePrice(id: $id, pricePerKg: $pricePerKg) {
       success
       message
-      cargoEntry { id pricePerKg }
+      saleLine {
+        id
+        pricePerKg
+        amount
+      }
     }
   }
 `);
@@ -142,14 +169,12 @@ export const UpdateShipmentLoadingInfoDoc = graphql(/* GraphQL */ `
     $vehiclePlate: String
     $driverName: String
     $driverPhone: String
-    $serialNumber: String
   ) {
     updateShipmentLoadingInfo(
       id: $id
       vehiclePlate: $vehiclePlate
       driverName: $driverName
       driverPhone: $driverPhone
-      serialNumber: $serialNumber
     ) {
       success
       message
@@ -158,7 +183,6 @@ export const UpdateShipmentLoadingInfoDoc = graphql(/* GraphQL */ `
         vehiclePlate
         driverName
         driverPhone
-        serialNumber
       }
     }
   }
@@ -190,30 +214,38 @@ export const RemoveShipmentPhotoDoc = graphql(/* GraphQL */ `
 
 export const CreateShipmentDoc = graphql(/* GraphQL */ `
   mutation CreateShipment(
-    $customerId: ID
-    $salesTransactionId: ID
-    $weightKg: Float!
+    $category: SHIPMENT_CATEGORY!
+    $domesticMarket: DOMESTIC_MARKET
+    $customerId: ID!
     $vehiclePlate: String
     $driverName: String
     $driverPhone: String
-    $serialNumber: String
     $notes: String
     $photoFileId: ID
   ) {
     createShipment(
+      category: $category
+      domesticMarket: $domesticMarket
       customerId: $customerId
-      salesTransactionId: $salesTransactionId
-      weightKg: $weightKg
       vehiclePlate: $vehiclePlate
       driverName: $driverName
       driverPhone: $driverPhone
-      serialNumber: $serialNumber
       notes: $notes
       photoFileId: $photoFileId
     ) {
       success
       message
       shipment { id shipmentCode status }
+    }
+  }
+`);
+
+export const NextShipmentSerialDoc = graphql(/* GraphQL */ `
+  query NextShipmentSerial {
+    nextShipmentSerial {
+      success
+      message
+      serialNumber
     }
   }
 `);

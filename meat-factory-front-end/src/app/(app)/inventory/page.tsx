@@ -39,21 +39,12 @@ export default async function InventoryPage() {
   const pct =
     meatCap > 0 ? Math.min(100, Math.round((meatStock / meatCap) * 100)) : 0;
   const thrPct = meatCap > 0 ? Math.min(100, (threshold / meatCap) * 100) : 0;
-  const prefillWeight =
-    cargoCap > 0 ? Math.min(cargoCap, Math.max(0, meatStock)) : meatStock;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Нөөц</h1>
-        <Link
-          href={
-            prefillWeight > 0
-              ? `/shipments/new?prefillWeightKg=${prefillWeight.toFixed(2)}`
-              : '/shipments/new'
-          }
-          className={buttonVariants()}
-        >
+        <Link href="/shipments/export/new" className={buttonVariants()}>
           Шинэ ачилт
         </Link>
       </div>
@@ -152,14 +143,7 @@ export default async function InventoryPage() {
                 ? `Багтаамжийг чөлөөлөхөд ойролцоогоор ${cargosToClear} ачаа явуулна (1 ачаа ≈ ${formatNumber(cargoCap)} кг).`
                 : 'Ачааны багтаамж тохируулаагүй эсвэл нөөц багатай.'}
             </div>
-            <Link
-              href={
-                prefillWeight > 0
-                  ? `/shipments/new?prefillWeightKg=${prefillWeight.toFixed(2)}`
-                  : '/shipments/new'
-              }
-              className="block"
-            >
+            <Link href="/shipments/export/new" className="block">
               <Button className="w-full" disabled={meatStock <= 0}>
                 Шинэ ачилт үүсгэх
               </Button>

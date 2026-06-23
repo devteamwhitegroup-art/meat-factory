@@ -6,7 +6,6 @@ import {
 import { CustomerModel } from "../customer/customer.model";
 import { SalesLineItemModel } from "./sales-line-item.model";
 import { SalesInstallmentModel } from "./sales-installment.model";
-import { ShipmentModel } from "../shipment/shipment.model";
 import { AdminModel } from "../user/admin.model";
 
 export class SalesTransactionModel
@@ -29,7 +28,6 @@ export class SalesTransactionModel
   public customer?: CustomerModel;
   public lineItems?: SalesLineItemModel[];
   public installments?: SalesInstallmentModel[];
-  public shipment?: ShipmentModel;
   public createdBy?: AdminModel;
 
   static associate(): void {
@@ -48,10 +46,6 @@ export class SalesTransactionModel
     this.hasMany(SalesInstallmentModel, {
       as: "installments",
       foreignKey: { name: "salesTransactionId", allowNull: false },
-    });
-    this.hasOne(ShipmentModel, {
-      as: "shipment",
-      foreignKey: { name: "salesTransactionId", allowNull: true },
     });
   }
 }

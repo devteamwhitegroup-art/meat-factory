@@ -24,6 +24,13 @@ export class VerificationController {
     const reg = await RegistrationController.findIdCheck(doc.registrationId);
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.WEIGHED]);
 
+    // The herder must have signed the weighed slip (agreeing to price/cost)
+    // before we can verify.
+    if (!reg.agreementSignatureFileId)
+      throw new Error(
+        "Малчны гарын үсэг (зөвшөөрсөн) шаардлагатай. Эхлээд гарын үсэг зурна уу.",
+      );
+
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
     const [verification] = await VerificationModel.findOrCreate({

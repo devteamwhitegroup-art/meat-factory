@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { PencilIcon, Trash2Icon } from 'lucide-react';
+import { PencilIcon, Trash2Icon } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { fmtDateTime, fromNow } from '@/lib/format/date';
-import { formatNumber } from '@/lib/format/money';
+import { Button } from "@/components/ui/button";
+import { fmtDateTime, fromNow } from "@/lib/format/date";
+import { formatNumber } from "@/lib/format/money";
 
 export type WeighingHistoryEntry = {
   id?: string | null;
@@ -33,7 +33,7 @@ export function WeighingHistoryList({
   onRemove: (id: string, seq: number) => void;
 }) {
   if (entries.length === 0) {
-    return <div className="text-sm text-muted-foreground">Бичлэг алга</div>;
+    return <div className="text-sm text-muted-foreground">Бичэлт алга</div>;
   }
   return (
     <ul className="space-y-2 text-sm">
