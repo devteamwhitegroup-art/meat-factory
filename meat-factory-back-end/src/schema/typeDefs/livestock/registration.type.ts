@@ -364,7 +364,7 @@ export default `#graphql
             payoutBankAccount: String
             payoutBankName: String
             payoutAccountHolderName: String
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # First payout. Pass heldAmount to withhold a portion when the medical
         # number isn't approved yet (required while unapproved; ignored/forced
@@ -372,12 +372,12 @@ export default `#graphql
         markSettlementPaid(
             registrationId: ID!
             heldAmount: Float
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Release the withheld portion after the medical number is approved.
         releaseSettlementHold(
             registrationId: ID!
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Attach a money-flow statement image (uploaded File id) to the
         # settlement after a payout has been made.
@@ -385,11 +385,11 @@ export default `#graphql
             registrationId: ID!
             fileId: ID!
             note: String
-        ): SettlementPaymentProofResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): SettlementPaymentProofResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         removeSettlementPaymentProof(
             id: ID!
-        ): Response @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): Response @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Factory confirms the medical number (optionally setting it first).
         # Unlocks releaseSettlementHold.
@@ -403,7 +403,7 @@ export default `#graphql
         setRegistrationSlaughterCosts(
             registrationId: ID!
             lines: [SlaughterCostInput!]!
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Attach the herder's drawn agreement signature (uploaded File id) to
         # the weighed slip. Pass null to clear. Allowed before VERIFIED.

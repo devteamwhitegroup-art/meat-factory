@@ -29,6 +29,7 @@ import { formatMNT } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
+import { can } from "@/lib/auth/roles";
 
 function readRoleCookie(): string | null {
   if (typeof document === "undefined") return null;
@@ -57,6 +58,8 @@ export function SettlementClient({ id }: { id: string }) {
   useEffect(() => setRole(readRoleCookie()), []);
   const canApproveMedical =
     role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
+  // Pay / release actions are settle-only; read-only roles (e.g. SCALE) just view.
+  const canSettle = can(role, "settle");
   // Admin-configured per-head slaughter cost — pre-fills the line slaughter
   // cost = pricePerAnimal × count.
   const { data: bcData } = useQuery(AnimalListDoc, {
@@ -340,6 +343,7 @@ export function SettlementClient({ id }: { id: string }) {
             existing={existing}
             busy={busy}
             canApproveMedical={canApproveMedical}
+            canSettle={canSettle}
             onMarkPaid={onMarkPaid}
             onReleaseHold={onReleaseHold}
             onApproveMedical={onApproveMedical}

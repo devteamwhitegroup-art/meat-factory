@@ -40,6 +40,7 @@ export function SettlementReceipt({
   existing,
   busy,
   canApproveMedical,
+  canSettle,
   onMarkPaid,
   onReleaseHold,
   onApproveMedical,
@@ -48,6 +49,7 @@ export function SettlementReceipt({
   existing: Settlement;
   busy: boolean;
   canApproveMedical: boolean;
+  canSettle: boolean;
   // heldAmount null → pay in full; >0 → partial settlement.
   onMarkPaid: (heldAmount: number | null) => void;
   onReleaseHold: () => void;
@@ -357,7 +359,9 @@ export function SettlementReceipt({
 
             {/* Pay screen — full pay when medical approved, otherwise a partial
                 pay that withholds an amount. */}
-            {!existing.isPaid && reg.status === "PAYMENT_PENDING" ? (
+            {canSettle &&
+            !existing.isPaid &&
+            reg.status === "PAYMENT_PENDING" ? (
               <PayBlock
                 netPayable={Number(existing.netPayable ?? 0)}
                 medicalApproved={!!reg.medicalNumberApproved}
@@ -367,7 +371,7 @@ export function SettlementReceipt({
             ) : null}
 
             {/* Release screen — for a partially-settled registration. */}
-            {reg.status === "PARTIALLY_SETTLED" ? (
+            {canSettle && reg.status === "PARTIALLY_SETTLED" ? (
               <ReleaseBlock
                 held={Number(existing.heldAmount ?? 0)}
                 paid={Number(existing.paidAmount ?? 0)}
