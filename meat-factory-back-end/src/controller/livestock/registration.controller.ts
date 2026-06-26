@@ -1,4 +1,9 @@
-import { Op, Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
+import {
+  Op,
+  Transaction,
+  UniqueConstraintError,
+  WhereOptions,
+} from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
@@ -421,6 +426,7 @@ export class RegistrationController {
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.SCALE,
     ]);
 
     const reg = await this.findIdCheck(registrationId);

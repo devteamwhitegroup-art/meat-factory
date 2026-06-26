@@ -348,7 +348,7 @@ export default `#graphql
             registrationId: ID!
             notes: String
             photoFileId: ID
-        ): VerificationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): VerificationResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
 
         setSlaughterCovered(
             registrationId: ID!
@@ -410,7 +410,7 @@ export default `#graphql
         setRegistrationAgreementSignature(
             registrationId: ID!
             fileId: ID
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         cancelRegistration(
             registrationId: ID!

@@ -27,7 +27,7 @@ export const CAPS = {
     "SUPER_ADMIN",
   ],
   byproduct: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"],
-  verify: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
+  verify: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
   settle: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"],
   // Read-only access to the settlement page — SCALE included so weighers can
   // verify their own per-entry name is correct on the final receipt.

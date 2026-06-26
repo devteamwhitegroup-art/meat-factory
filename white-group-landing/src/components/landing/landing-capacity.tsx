@@ -10,7 +10,7 @@ export function LandingCapacity() {
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
         <SectionHeading
           kicker="Үйлдвэрийн чадамж"
-          title="Бойноос хадгалалт хүртэл бүрэн шогц үйлдвэр"
+          title="Бойноос хадгалалт хүртэл бүрэн цогц үйлдвэр"
           description="2020 онд Чойбалсангаас зүүн 12 км-т ашиглалтад орсон, 2312 м² талбай бүхий орчин үеийн үйлдвэр."
         />
 

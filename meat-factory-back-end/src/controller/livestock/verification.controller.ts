@@ -15,6 +15,7 @@ export class VerificationController {
     context: TContext,
   ): Promise<VerificationModel> {
     RegistrationController.assertActorRole(context, [
+      ADMIN_ROLE.SCALE,
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
