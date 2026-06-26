@@ -23,6 +23,7 @@ import { BackButton } from "@/components/common/BackButton";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { can } from "@/lib/auth/roles";
+import { MedicalNumberEditor } from "./_components/MedicalNumberEditor";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -102,6 +103,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
             )}
           {(status === "VERIFIED" ||
             status === "PAYMENT_PENDING" ||
+            status === "PARTIALLY_SETTLED" ||
             status === "SETTLED") &&
             can(role, "settle") && (
               <Link
@@ -185,6 +187,14 @@ export default async function RegistrationDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {can(role, "medicalNumber") && (
+        <MedicalNumberEditor
+          registrationId={r.id!}
+          medicalNumber={r.medicalNumber ?? null}
+          approved={!!r.medicalNumberApproved}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -350,7 +360,6 @@ export default async function RegistrationDetailPage({ params }: Props) {
                   <TableHead>Хүлээн авсан</TableHead>
                   <TableHead>Үнэ/кг</TableHead>
                   <TableHead>Мах</TableHead>
-                  <TableHead>Дайвар</TableHead>
                   <TableHead>Бой зардал</TableHead>
                 </TableRow>
               </TableHeader>
@@ -363,7 +372,6 @@ export default async function RegistrationDetailPage({ params }: Props) {
                     <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                     <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
                     <TableCell>{formatMNT(l.meatAmount)}</TableCell>
-                    <TableCell>{formatMNT(l.byproductAmount)}</TableCell>
                     <TableCell>{formatMNT(l.slaughterCost)}</TableCell>
                   </TableRow>
                 ))}
@@ -374,10 +382,6 @@ export default async function RegistrationDetailPage({ params }: Props) {
               <div className="text-muted-foreground">Нийт мах</div>
               <div className="text-right">
                 {formatMNT(r.settlement.totalMeatAmount)}
-              </div>
-              <div className="text-muted-foreground">Нийт дайвар</div>
-              <div className="text-right">
-                {formatMNT(r.settlement.totalByproductAmount)}
               </div>
               <div className="text-muted-foreground">Нийт бой зардал</div>
               <div className="text-right">
@@ -393,6 +397,18 @@ export default async function RegistrationDetailPage({ params }: Props) {
               <div className="text-right text-base font-semibold">
                 {formatMNT(r.settlement.netPayable)}
               </div>
+              {Number(r.settlement.heldAmount ?? 0) > 0 && (
+                <>
+                  <div className="text-muted-foreground">Олгосон дүн</div>
+                  <div className="text-right">
+                    {formatMNT(r.settlement.paidAmount)}
+                  </div>
+                  <div className="text-amber-700">Үлдэгдэл</div>
+                  <div className="text-right text-amber-700">
+                    {formatMNT(r.settlement.heldAmount)}
+                  </div>
+                </>
+              )}
               <div className="text-muted-foreground">Төлсөн эсэх</div>
               <div className="text-right">
                 {r.settlement.isPaid

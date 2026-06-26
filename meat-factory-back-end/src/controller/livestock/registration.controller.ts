@@ -357,6 +357,8 @@ export class RegistrationController {
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
       ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.SCALE,
+      ADMIN_ROLE.STOREKEEPER,
     ]);
 
     const reg = await this.findIdCheck(registrationId);

@@ -396,7 +396,7 @@ export default `#graphql
         approveMedicalNumber(
             registrationId: ID!
             medicalNumber: String
-        ): RegistrationResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN","STOREKEEPER", "SCALE"])
 
         # Capture бой зардал per animal type before VERIFIED (prints on the
         # herder slip; settlement defaults to these).
