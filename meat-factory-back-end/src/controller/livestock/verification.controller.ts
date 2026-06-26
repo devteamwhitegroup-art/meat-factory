@@ -69,6 +69,7 @@ export class VerificationController {
       ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
       ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.SCALE,
     ]);
     const reg = await RegistrationController.findIdCheck(registrationId);
     // Cover toggling is allowed up until the settlement is created — at
