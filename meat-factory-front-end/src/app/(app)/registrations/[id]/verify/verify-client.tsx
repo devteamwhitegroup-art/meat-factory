@@ -171,7 +171,7 @@ export function VerifyClient({ id }: { id: string }) {
         ) : null}
       </div>
 
-      {reg.status === "WEIGHED" ? (
+      {compact(reg.weighingEntries).length > 0 ? (
         <WeighSlip reg={reg} covered={covered} coverByType={coverByType} />
       ) : null}
 

@@ -80,26 +80,26 @@ export default async function RegistrationDetailPage({ params }: Props) {
               Хэмжүүр
             </Link>
           )}
-          {status === "WEIGHED" && (
-            <>
-              {can(role, "byproduct") && (
-                <Link
-                  href={`/registrations/${r.id}/byproduct`}
-                  className={buttonVariants()}
-                >
-                  Дайвар
-                </Link>
-              )}
-              {can(role, "verify") && (
-                <Link
-                  href={`/registrations/${r.id}/verify`}
-                  className={buttonVariants()}
-                >
-                  Баталгаажуулах
-                </Link>
-              )}
-            </>
+          {status === "WEIGHED" && can(role, "byproduct") && (
+            <Link
+              href={`/registrations/${r.id}/byproduct`}
+              className={buttonVariants()}
+            >
+              Дайвар
+            </Link>
           )}
+          {status !== "REGISTERED" &&
+            status !== "CANCELLED" &&
+            can(role, "verify") && (
+              <Link
+                href={`/registrations/${r.id}/verify`}
+                className={buttonVariants(
+                  status === "WEIGHED" ? {} : { variant: "outline" },
+                )}
+              >
+                {status === "WEIGHED" ? "Баталгаажуулах" : "Баталгаажуулалт"}
+              </Link>
+            )}
           {(status === "VERIFIED" ||
             status === "PAYMENT_PENDING" ||
             status === "SETTLED") &&
