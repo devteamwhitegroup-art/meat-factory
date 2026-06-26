@@ -294,8 +294,8 @@ export default `#graphql
         ): RegistrationsResponse @authLogin
         registration(id: ID!): RegistrationResponse @authLogin
         nextRegistrationNumber: NextRegistrationNumberResponse @auth(permissions: ["GUARD", "STOREKEEPER", "MANAGER", "SCALE", "ADMIN", "SUPER_ADMIN"])
-        derivedByproducts(registrationId: ID!): DerivedByproductsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
-        byproductHandoff(dateRange: DateRangeInput): ByproductHandoffResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        derivedByproducts(registrationId: ID!): DerivedByproductsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
+        byproductHandoff(dateRange: DateRangeInput): ByproductHandoffResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
     }
 
     extend type Mutation {
@@ -310,7 +310,7 @@ export default `#graphql
             intakeDate: Date
             isPreButchered: Boolean
             animalLines: [RegistrationAnimalLineInput!]!
-        ): RegistrationResponse @auth(permissions: ["GUARD", "STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["GUARD", "STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Weighing can be carried out by anyone on the floor except the
         # gate guard — covering shifts where SCALE isn't around, the store-
@@ -342,7 +342,7 @@ export default `#graphql
         setRegistrationByproducts(
             registrationId: ID!
             items: [ByproductItemInput!]!
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         verifyRegistration(
             registrationId: ID!
@@ -353,7 +353,7 @@ export default `#graphql
         setSlaughterCovered(
             registrationId: ID!
             covered: Boolean!
-        ): VerificationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): VerificationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
 
         createSettlement(
             registrationId: ID!
