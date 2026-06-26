@@ -93,9 +93,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
               {can(role, "verify") && (
                 <Link
                   href={`/registrations/${r.id}/verify`}
-                  className={buttonVariants({ variant: "outline" })}
+                  className={buttonVariants()}
                 >
-                  Баталгаажуулалт
+                  Баталгаажуулах
                 </Link>
               )}
             </>
