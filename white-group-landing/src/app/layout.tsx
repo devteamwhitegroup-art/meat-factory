@@ -33,7 +33,6 @@ export const metadata: Metadata = {
     "Чойбалсан мах",
   ],
   alternates: { canonical: SITE_URL },
-  icons: { icon: "/brand/mark-dark.png" },
   openGraph: {
     type: "website",
     locale: "mn_MN",
