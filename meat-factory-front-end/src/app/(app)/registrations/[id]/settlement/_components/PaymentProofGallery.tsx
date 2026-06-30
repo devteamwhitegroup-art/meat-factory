@@ -41,6 +41,9 @@ export function PaymentProofGallery({
   onChanged: () => void;
 }) {
   const [uploadValue, setUploadValue] = useState<string | null>(null);
+  // Bumped after each add to remount PhotoUpload, clearing the native file
+  // input's retained filename/preview (an uncontrolled <input type=file>).
+  const [uploadKey, setUploadKey] = useState(0);
   const [note, setNote] = useState("");
   const [add] = useMutation(AddSettlementPaymentProofDoc);
   const [remove] = useMutation(RemoveSettlementPaymentProofDoc);
@@ -67,6 +70,7 @@ export function PaymentProofGallery({
         success: "Баримт нэмэгдлээ",
         onSuccess: () => {
           setUploadValue(null);
+          setUploadKey((k) => k + 1);
           setNote("");
           onChanged();
         },
@@ -102,6 +106,7 @@ export function PaymentProofGallery({
               className="h-10"
             />
             <PhotoUpload
+              key={uploadKey}
               value={uploadValue}
               onChange={(fid) => {
                 setUploadValue(fid);

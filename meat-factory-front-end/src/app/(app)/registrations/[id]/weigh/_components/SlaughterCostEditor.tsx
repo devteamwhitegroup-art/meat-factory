@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SetRegistrationSlaughterCostsDoc } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
-import { ANIMAL_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 
 type Line = {
   animalType: string;
@@ -33,6 +33,7 @@ export function SlaughterCostEditor({
   onChanged: () => void;
 }) {
   const [save, { loading }] = useMutation(SetRegistrationSlaughterCostsDoc);
+  const { animalName } = useAnimalCatalog();
 
   // Distinct animal types (sum counts + any stored cost across duplicate lines).
   const types = useMemo(() => {
@@ -88,7 +89,7 @@ export function SlaughterCostEditor({
           {types.map((t) => (
             <div key={t.animalType} className="space-y-1.5">
               <Label className="text-xs">
-                {ANIMAL_MN[t.animalType] ?? t.animalType} ({t.count})
+                {animalName.get(t.animalType) ?? t.animalType} ({t.count})
               </Label>
               <Input
                 type="number"

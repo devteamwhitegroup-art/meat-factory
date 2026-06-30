@@ -45,7 +45,7 @@ export class SalesTransactionController {
     const lineRows: Array<{
       productType: PRODUCT_TYPE;
       animalType: string | null;
-      byproductType: string | null;
+      byproductName: string | null;
       quantityKg: number;
       unitPrice: number;
       lineAmount: number;
@@ -59,11 +59,11 @@ export class SalesTransactionController {
           throw new Error("Line unit price must be >= 0");
         if (li.productType === PRODUCT_TYPE.MEAT) {
           if (!li.animalType) throw new Error("MEAT line requires animalType");
-          if (li.byproductType)
-            throw new Error("MEAT line cannot have byproductType");
+          if (li.byproductName)
+            throw new Error("MEAT line cannot have byproductName");
         } else {
-          if (!li.byproductType)
-            throw new Error("BYPRODUCT line requires byproductType");
+          if (!li.byproductName?.trim())
+            throw new Error("BYPRODUCT line requires byproductName");
           if (li.animalType)
             throw new Error("BYPRODUCT line cannot have animalType");
         }
@@ -72,7 +72,7 @@ export class SalesTransactionController {
         lineRows.push({
           productType: li.productType,
           animalType: li.animalType ?? null,
-          byproductType: li.byproductType ?? null,
+          byproductName: li.byproductName?.trim() || null,
           quantityKg: li.quantityKg,
           unitPrice: li.unitPrice,
           lineAmount,

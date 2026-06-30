@@ -2,8 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ANIMAL_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 
 export type LineInput = {
   animalType: string;
@@ -27,6 +27,7 @@ export function SettlementPreview({
   meatByType,
   lines,
 }: Props) {
+  const { animalName } = useAnimalCatalog();
   const totalReceived = Object.values(receivedByType).reduce(
     (a, b) => a + b,
     0,
@@ -64,7 +65,7 @@ export function SettlementPreview({
             {rows.map((r) => (
               <tr key={r.animalType} className="border-t">
                 <td className="py-2">
-                  {ANIMAL_MN[r.animalType] ?? r.animalType}
+                  {animalName.get(r.animalType) ?? r.animalType}
                 </td>
                 <td className="py-2">{formatNumber(r.received)}</td>
                 <td className="py-2">{formatMNT(r.avgPrice)}</td>

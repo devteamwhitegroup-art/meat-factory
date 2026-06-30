@@ -3,10 +3,7 @@ import {
   PRODUCT_TYPE,
   TSalesLineItem,
 } from "../../types/sales/sales-transaction.type";
-import {
-  ANIMAL_TYPE,
-  BYPRODUCT_TYPE,
-} from "../../types/livestock/registration.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { SalesTransactionModel } from "./sales-transaction.model";
 
 export class SalesLineItemModel extends Model implements TSalesLineItem {
@@ -14,7 +11,7 @@ export class SalesLineItemModel extends Model implements TSalesLineItem {
   public salesTransactionId!: string;
   public productType!: PRODUCT_TYPE;
   public animalType!: ANIMAL_TYPE | null;
-  public byproductType!: BYPRODUCT_TYPE | null;
+  public byproductName!: string | null;
   public quantityKg!: number;
   public unitPrice!: number;
   public lineAmount!: number;
@@ -49,8 +46,8 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
         allowNull: true,
         defaultValue: null,
       },
-      byproductType: {
-        type: DataTypes.ENUM(...Object.values(BYPRODUCT_TYPE)),
+      byproductName: {
+        type: DataTypes.STRING,
         allowNull: true,
         defaultValue: null,
       },
@@ -76,7 +73,7 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
       indexes: [
         { fields: ["sales_transaction_id"] },
         { fields: ["product_type", "animal_type"] },
-        { fields: ["product_type", "byproduct_type"] },
+        { fields: ["product_type", "byproduct_name"] },
       ],
     },
   );

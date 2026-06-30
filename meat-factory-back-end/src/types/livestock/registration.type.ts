@@ -1,8 +1,5 @@
 import { TPagination } from '../global/global.type';
 
-// Бүртгэлийн дугаар starts at 8821 (per Postgres SEQUENCE).
-export const REGISTRATION_NUMBER_START = 8821;
-
 // Canonical animal-type enum — shared across livestock/sales/inventory.
 export enum ANIMAL_TYPE {
   COW = 'COW', // Үхэр
@@ -10,23 +7,6 @@ export enum ANIMAL_TYPE {
   HORSE = 'HORSE', // Адуу
   GOAT = 'GOAT', // Ямаа
   CAMEL = 'CAMEL', // Тэмээ
-}
-
-// Canonical byproduct (дайвар) enum — shared across domains.
-export enum BYPRODUCT_TYPE {
-  HEART = 'HEART',
-  LUNG = 'LUNG',
-  LIVER = 'LIVER',
-  KIDNEY = 'KIDNEY',
-  STOMACH = 'STOMACH',
-  INTESTINE = 'INTESTINE',
-  TONGUE = 'TONGUE',
-  HEAD = 'HEAD',
-  TAIL = 'TAIL',
-  LEG = 'LEG',
-  BLOOD = 'BLOOD',
-  HIDE = 'HIDE',
-  OTHER = 'OTHER'
 }
 
 export enum REGISTRATION_STATUS {
@@ -46,9 +26,8 @@ export type TRegistrationAnimalLineInput = {
 
 export type TRegistration = {
   id: string;
-  registrationNumber: number;
-  // Human-readable code REG-YYYYMMDD-N; null for legacy rows.
-  registrationCode: string | null;
+  // Human-readable key REG-YYYYMMDD-N.
+  registrationCode: string;
   herderId: string;
   vehicleNumber: string;
   stamp: string | null;
@@ -88,7 +67,7 @@ export type TGetRegistrations = {
   // (e.g. "Дүн тооцоолж буй" = [WEIGHED, VERIFIED]).
   statuses?: REGISTRATION_STATUS[];
   herderId?: string;
-  registrationNumber?: number;
+  registrationCode?: string;
   // Filters on intakeDate (livestock arrival), inclusive both ends.
   dateRange?: { startDate?: Date | null; endDate?: Date | null };
 } & TPagination;

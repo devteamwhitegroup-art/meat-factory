@@ -18,10 +18,7 @@ export default `#graphql
         sku: String
         productType: PRODUCT_TYPE
         animalType: ANIMAL_TYPE
-        # Legacy enum (HEART/LIVER/…) used by manual adjust + sales SKUs.
-        byproductType: BYPRODUCT_TYPE
-        # Free-form Mongolian name used by livestock auto-ingest after
-        # Phase-3 byproduct catalogue redesign.
+        # Free-form Mongolian byproduct name (SKU BYPN:<name>).
         byproductName: String
         quantityKg: Float
         createdAt: Date
@@ -88,7 +85,7 @@ export default `#graphql
         inventoryStock(
             productType: PRODUCT_TYPE
             animalType: ANIMAL_TYPE
-            byproductType: BYPRODUCT_TYPE
+            byproductName: String
         ): InventoryItemsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         inventoryMovements(
@@ -106,7 +103,7 @@ export default `#graphql
         adjustInventory(
             productType: PRODUCT_TYPE!
             animalType: ANIMAL_TYPE
-            byproductType: BYPRODUCT_TYPE
+            byproductName: String
             quantityKg: Float!
             direction: MOVEMENT_TYPE!
             notes: String

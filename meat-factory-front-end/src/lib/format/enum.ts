@@ -11,29 +11,8 @@ export const ROLE_MN: Record<string, string> = {
   STOREKEEPER: "Нярав",
 };
 
-export const ANIMAL_MN: Record<string, string> = {
-  COW: "Үхэр",
-  SHEEP: "Хонь",
-  HORSE: "Адуу",
-  GOAT: "Ямаа",
-  CAMEL: "Тэмээ",
-};
-
-export const BYPRODUCT_MN: Record<string, string> = {
-  HEART: "Зүрх",
-  LUNG: "Уушги",
-  LIVER: "Элэг",
-  KIDNEY: "Бөөр",
-  STOMACH: "Гүзээ",
-  INTESTINE: "Гэдэс",
-  TONGUE: "Хэл",
-  HEAD: "Тархи",
-  TAIL: "Сүүл",
-  LEG: "Шийр",
-  BLOOD: "Цус",
-  HIDE: "Арьс",
-  OTHER: "Бусад",
-};
+// Animal-type display names are admin-editable and come from the Animals
+// catalogue (Animal.name) via useAnimalCatalog().animalName / getAnimalNames().
 
 export const REGISTRATION_STATUS_MN: Record<string, string> = {
   REGISTERED: "Бүртгэгдсэн",
@@ -99,19 +78,3 @@ export const PRODUCT_TYPE_MN: Record<string, string> = {
 // Deprecated — prefer useAnimalCatalog() so the list comes from the DB
 // (Animals table). Kept here only as a fallback ordering for sorts.
 export const ANIMAL_TYPES = ["COW", "SHEEP", "HORSE", "GOAT", "CAMEL"] as const;
-
-export const BYPRODUCT_TYPES = [
-  "HEART",
-  "LUNG",
-  "LIVER",
-  "KIDNEY",
-  "STOMACH",
-  "INTESTINE",
-  "TONGUE",
-  "HEAD",
-  "TAIL",
-  "LEG",
-  "BLOOD",
-  "HIDE",
-  "OTHER",
-] as const;

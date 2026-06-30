@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const SalesListDoc = graphql(/* GraphQL */ `
   query SalesTransactions(
@@ -25,7 +25,10 @@ export const SalesListDoc = graphql(/* GraphQL */ `
         totalWeightKg
         paymentStatus
         transactionDate
-        customer { id name }
+        customer {
+          id
+          name
+        }
       }
     }
   }
@@ -45,12 +48,17 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
         transactionDate
         paidAt
         notes
-        customer { id name contactPhone bankAccount }
+        customer {
+          id
+          name
+          contactPhone
+          bankAccount
+        }
         lineItems {
           id
           productType
           animalType
-          byproductType
+          byproductName
           quantityKg
           unitPrice
           lineAmount
@@ -61,7 +69,10 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
           paidAt
           notes
           createdAt
-          createdBy { id param }
+          createdBy {
+            id
+            param
+          }
         }
       }
     }
@@ -85,7 +96,11 @@ export const CreateSalesTransactionDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      salesTransaction { id transactionCode amount }
+      salesTransaction {
+        id
+        transactionCode
+        amount
+      }
     }
   }
 `);
@@ -95,7 +110,11 @@ export const MarkSalesTransactionPaidDoc = graphql(/* GraphQL */ `
     markSalesTransactionPaid(id: $id) {
       success
       message
-      salesTransaction { id paymentStatus paidAt }
+      salesTransaction {
+        id
+        paymentStatus
+        paidAt
+      }
     }
   }
 `);
@@ -115,13 +134,21 @@ export const AddSalesInstallmentDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      installment { id amountMnt paidAt notes }
+      installment {
+        id
+        amountMnt
+        paidAt
+        notes
+      }
     }
   }
 `);
 
 export const RemoveSalesInstallmentDoc = graphql(/* GraphQL */ `
   mutation RemoveSalesInstallment($id: ID!) {
-    removeSalesInstallment(id: $id) { success message }
+    removeSalesInstallment(id: $id) {
+      success
+      message
+    }
   }
 `);

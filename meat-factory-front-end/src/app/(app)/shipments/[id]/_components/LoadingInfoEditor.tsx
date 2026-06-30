@@ -72,7 +72,7 @@ export function LoadingInfoEditor({
                 <Input
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
-                  placeholder="ж: Лиаз 134467"
+                  placeholder="ж: УНО0223"
                   className="h-11"
                 />
               </div>

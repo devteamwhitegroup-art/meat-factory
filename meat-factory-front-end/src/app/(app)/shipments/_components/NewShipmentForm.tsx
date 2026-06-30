@@ -154,7 +154,7 @@ export function NewShipmentForm({
             <Input
               value={vehiclePlate}
               onChange={(e) => setVehiclePlate(e.target.value)}
-              placeholder="ж: Лиаз 134467"
+              placeholder="ж: УНО0223"
               className="h-11"
             />
           </div>

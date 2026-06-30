@@ -1,6 +1,5 @@
 import {
   ANIMAL_TYPE,
-  BYPRODUCT_TYPE,
   REGISTRATION_STATUS,
 } from "../../../types/livestock/registration.type";
 import { PaginationSchema } from "../global/global.type";
@@ -8,10 +7,6 @@ import { PaginationSchema } from "../global/global.type";
 export default `#graphql
     enum ANIMAL_TYPE {
         ${Object.values(ANIMAL_TYPE).join("\n ")}
-    }
-
-    enum BYPRODUCT_TYPE {
-        ${Object.values(BYPRODUCT_TYPE).join("\n ")}
     }
 
     enum REGISTRATION_STATUS {
@@ -193,8 +188,7 @@ export default `#graphql
 
     type Registration {
         id: ID
-        registrationNumber: Int
-        # Human-readable code REG-YYYYMMDD-N (N = per-day counter).
+        # Human-readable key REG-YYYYMMDD-N (N = per-day counter).
         registrationCode: String
         herderId: ID
         herder: Herder
@@ -233,12 +227,6 @@ export default `#graphql
         success: Boolean
         message: String
         registration: Registration
-    }
-
-    type NextRegistrationNumberResponse {
-        success: Boolean
-        message: String
-        registrationNumber: Int
     }
 
     type RegistrationsResponse {
@@ -288,12 +276,11 @@ export default `#graphql
             # Used by the FE "stage" chips (e.g. WEIGHED+VERIFIED).
             statuses: [REGISTRATION_STATUS!]
             herderId: ID
-            registrationNumber: Int
+            registrationCode: String
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): RegistrationsResponse @authLogin
         registration(id: ID!): RegistrationResponse @authLogin
-        nextRegistrationNumber: NextRegistrationNumberResponse @auth(permissions: ["GUARD", "STOREKEEPER", "MANAGER", "SCALE", "ADMIN", "SUPER_ADMIN"])
         derivedByproducts(registrationId: ID!): DerivedByproductsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
         byproductHandoff(dateRange: DateRangeInput): ByproductHandoffResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
     }

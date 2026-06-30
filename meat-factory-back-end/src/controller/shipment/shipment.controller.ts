@@ -201,7 +201,6 @@ export class ShipmentController {
       .map((g) => ({
         productType: g.productType,
         animalType: g.productType === PRODUCT_TYPE.MEAT ? g.animalType : null,
-        byproductType: null,
         byproductName:
           g.productType === PRODUCT_TYPE.BYPRODUCT ? g.byproductName : null,
         quantityKg: g.totalWeightKg,

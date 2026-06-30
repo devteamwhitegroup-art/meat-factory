@@ -1,15 +1,15 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const InventoryStockDoc = graphql(/* GraphQL */ `
   query InventoryStock(
     $productType: PRODUCT_TYPE
     $animalType: ANIMAL_TYPE
-    $byproductType: BYPRODUCT_TYPE
+    $byproductName: String
   ) {
     inventoryStock(
       productType: $productType
       animalType: $animalType
-      byproductType: $byproductType
+      byproductName: $byproductName
     ) {
       success
       message
@@ -19,7 +19,6 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
         sku
         productType
         animalType
-        byproductType
         byproductName
         quantityKg
         updatedAt
@@ -56,7 +55,10 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
         balanceAfterKg
         createdAt
         notes
-        item { id sku }
+        item {
+          id
+          sku
+        }
       }
     }
   }
@@ -85,7 +87,7 @@ export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   mutation AdjustInventory(
     $productType: PRODUCT_TYPE!
     $animalType: ANIMAL_TYPE
-    $byproductType: BYPRODUCT_TYPE
+    $byproductName: String
     $quantityKg: Float!
     $direction: MOVEMENT_TYPE!
     $notes: String
@@ -93,14 +95,18 @@ export const AdjustInventoryDoc = graphql(/* GraphQL */ `
     adjustInventory(
       productType: $productType
       animalType: $animalType
-      byproductType: $byproductType
+      byproductName: $byproductName
       quantityKg: $quantityKg
       direction: $direction
       notes: $notes
     ) {
       success
       message
-      inventoryItem { id sku quantityKg }
+      inventoryItem {
+        id
+        sku
+        quantityKg
+      }
     }
   }
 `);

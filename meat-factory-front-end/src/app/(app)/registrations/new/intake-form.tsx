@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useMutation } from "@apollo/client/react";
 import { useForm, Controller, useWatch, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,10 +29,7 @@ import { AnimalCountGrid } from "@/components/registration/AnimalCountGrid";
 import { SlaughterCostPreview } from "@/components/registration/SlaughterCostPreview";
 import { SignatureField } from "@/components/common/SignatureField";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
-import {
-  CreateRegistrationDoc,
-  NextRegistrationNumberDoc,
-} from "@/lib/queries/registration";
+import { CreateRegistrationDoc } from "@/lib/queries/registration";
 import { unwrap } from "@/lib/unwrap";
 
 const schema = z.object({
@@ -88,10 +85,6 @@ export function IntakeForm() {
   const [createRegistration] = useMutation(CreateRegistrationDoc);
   const [submitting, setSubmitting] = useState(false);
   const [herder, setHerder] = useState<PickedHerder | null>(null);
-  const { data: nextData } = useQuery(NextRegistrationNumberDoc, {
-    fetchPolicy: "network-only",
-  });
-  const nextNumber = nextData?.nextRegistrationNumber?.registrationNumber;
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -152,7 +145,7 @@ export function IntakeForm() {
       });
       const reg = unwrap(r.data?.createRegistration).registration;
       if (!reg?.id) throw new Error("Хариу буцаасангүй");
-      toast.success(`Бүртгэл №${reg.registrationNumber} үүсгэгдлээ`);
+      toast.success(`Бүртгэл ${reg.registrationCode ?? ""} үүсгэгдлээ`);
       router.push(`/registrations/${reg.id}`);
       router.refresh();
     } catch (e) {
@@ -167,19 +160,9 @@ export function IntakeForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardContent className="space-y-6 p-6">
-            {/* Бүртгэлийн дугаар + Машины дугаар */}
+            {/* Машины дугаар + Эмнэлгийн дугаар. The registration code is
+                assigned by the server on create. */}
             <div className="grid items-start gap-6 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-base text-muted-foreground">
-                  Бүртгэлийн дугаар
-                </Label>
-                <div className="text-4xl font-bold tabular-nums">
-                  №{nextNumber ?? "…"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Эцсийн дугаар бүртгэх үед олгогдоно.
-                </p>
-              </div>
               <FormField
                 control={form.control}
                 name="vehicleNumber"

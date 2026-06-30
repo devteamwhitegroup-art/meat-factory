@@ -2,6 +2,7 @@ import { Sequelize, Options } from "sequelize";
 import { setupModel } from "../models";
 import { AnimalModel } from "../models/livestock/animal.model";
 import { ANIMAL_TYPE } from "../types/livestock/registration.type";
+import { ANIMAL_TYPE_LABEL } from "../types/livestock/animal.type";
 import config from ".";
 
 const {
@@ -47,16 +48,6 @@ export const connectDatabase = async (): Promise<void> => {
           force: false,
           alter: DB_SYNC_ALTER,
         });
-        try {
-          await sequelize.query(
-            "CREATE SEQUENCE IF NOT EXISTS registration_number_seq START WITH 8821",
-          );
-        } catch (seqErr) {
-          console.error(
-            "⚠️ registration_number_seq create skipped:",
-            seqErr instanceof Error ? seqErr.message : "unknown error",
-          );
-        }
 
         // Seed Animals catalog — one row per ANIMAL_TYPE enum value. The FE
         // drives its animal lists off this query, so every supported type
@@ -64,15 +55,18 @@ export const connectDatabase = async (): Promise<void> => {
         // edits via /animals).
         try {
           for (const t of Object.values(ANIMAL_TYPE)) {
-            await AnimalModel.findOrCreate({
+            const [row] = await AnimalModel.findOrCreate({
               where: { animalType: t },
               defaults: {
                 animalType: t,
+                name: ANIMAL_TYPE_LABEL[t],
                 pricePerAnimal: 0,
                 canCoverSlaughterCost: false,
                 isActive: true,
               },
             });
+            // Backfill name on pre-existing rows.
+            if (!row.name) await row.update({ name: ANIMAL_TYPE_LABEL[t] });
           }
         } catch (seedErr) {
           console.error(

@@ -1,37 +1,32 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "./StatusBadge";
-import { ANIMAL_MN } from "@/lib/format/enum";
 
 type Line = { animalType: string; count: number };
 type Props = {
   id: string;
-  registrationNumber: number;
   registrationCode?: string | null;
   status: string;
   herderName?: string | null;
   animalLines?: Line[] | null;
+  // animalType → display name from the Animals catalogue (passed by the page).
+  animalNames: Record<string, string>;
 };
 
 export function RegistrationCard({
   id,
-  registrationNumber,
   registrationCode,
   status,
   herderName,
   animalLines,
+  animalNames,
 }: Props) {
   return (
     <Link href={`/registrations/${id}`} className="block h-full">
       <Card className="flex h-full flex-col transition-colors hover:bg-muted/40">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg">
-            <p>Дугаар: {registrationNumber}</p>
-            {registrationCode ? (
-              <p className="font-mono text-xs font-normal text-muted-foreground">
-                {registrationCode}
-              </p>
-            ) : null}
+            <p className="font-mono">{registrationCode ?? "—"}</p>
             <StatusBadge status={status} />
           </CardTitle>
         </CardHeader>
@@ -41,7 +36,7 @@ export function RegistrationCard({
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {(animalLines ?? []).map((l) => (
               <span key={l.animalType}>
-                {ANIMAL_MN[l.animalType] ?? l.animalType}: <b>{l.count}</b>
+                {animalNames[l.animalType] ?? l.animalType}: <b>{l.count}</b>
               </span>
             ))}
           </div>

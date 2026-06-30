@@ -1,5 +1,15 @@
 import { ANIMAL_TYPE } from './registration.type';
 
+// Default Mongolian display name per type — used by the boot seed + upsert
+// default. Admin can override via /animals.
+export const ANIMAL_TYPE_LABEL: Record<ANIMAL_TYPE, string> = {
+  [ANIMAL_TYPE.COW]: 'Үхэр',
+  [ANIMAL_TYPE.SHEEP]: 'Хонь',
+  [ANIMAL_TYPE.HORSE]: 'Адуу',
+  [ANIMAL_TYPE.GOAT]: 'Ямаа',
+  [ANIMAL_TYPE.CAMEL]: 'Тэмээ'
+};
+
 // Top-level per-animal-type config:
 //   pricePerAnimal — slaughter (бой) cost per head; pre-fills settlement.
 //   canCoverSlaughterCost — whether THIS animal's byproducts may be used to
@@ -9,6 +19,9 @@ import { ANIMAL_TYPE } from './registration.type';
 export type TAnimal = {
   id: string;
   animalType: ANIMAL_TYPE;
+  // Mongolian display name (Үхэр, Хонь, …). The catalogue source of truth so
+  // BE+FE stop hardcoding the translation.
+  name: string;
   pricePerAnimal: number;
   canCoverSlaughterCost: boolean;
   // Carcass-to-saleable yield (%) applied when meat hits inventory. Horse =
@@ -21,6 +34,7 @@ export type TAnimal = {
 
 export type TUpsertAnimal = {
   animalType: ANIMAL_TYPE;
+  name?: string;
   pricePerAnimal?: number;
   canCoverSlaughterCost?: boolean;
   yieldPercent?: number;

@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useMutation } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -15,11 +15,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { SetShipmentSalePriceDoc } from '@/lib/queries/shipment';
-import { runMutation } from '@/lib/runMutation';
-import { ANIMAL_MN, PRODUCT_TYPE_MN } from '@/lib/format/enum';
-import { formatNumber, formatMNT } from '@/lib/format/money';
+} from "@/components/ui/table";
+import { SetShipmentSalePriceDoc } from "@/lib/queries/shipment";
+import { runMutation } from "@/lib/runMutation";
+import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
+import { formatNumber, formatMNT } from "@/lib/format/money";
 
 // ─── End-of-load pricing ─────────────────────────────────────────────
 //
@@ -37,9 +38,11 @@ export type SaleLineRow = {
   amount: number | null;
 };
 
-function lineLabel(r: SaleLineRow): string {
-  if (r.productType === 'MEAT') {
-    return r.animalType ? (ANIMAL_MN[r.animalType] ?? r.animalType) : 'Мах';
+function lineLabel(r: SaleLineRow, animalName: Map<string, string>): string {
+  if (r.productType === "MEAT") {
+    return r.animalType
+      ? (animalName.get(r.animalType) ?? r.animalType)
+      : PRODUCT_TYPE_MN.MEAT;
   }
   return r.byproductName ?? PRODUCT_TYPE_MN.BYPRODUCT;
 }
@@ -56,12 +59,13 @@ export function SalePricingPanel({
   onChanged: () => void;
 }) {
   const [setPrice] = useMutation(SetShipmentSalePriceDoc);
+  const { animalName } = useAnimalCatalog();
 
   async function onSave(id: string, raw: string) {
     const trimmed = raw.trim();
     const next = trimmed ? Number(trimmed) : null;
     if (next != null && (!Number.isFinite(next) || next < 0)) {
-      toast.error('Үнэ сөрөг байж болохгүй');
+      toast.error("Үнэ сөрөг байж болохгүй");
       return;
     }
     await runMutation(
@@ -103,7 +107,9 @@ export function SalePricingPanel({
               <TableBody>
                 {saleLines.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{lineLabel(r)}</TableCell>
+                    <TableCell className="font-medium">
+                      {lineLabel(r, animalName)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatNumber(r.totalWeightKg)}
                     </TableCell>
@@ -120,7 +126,7 @@ export function SalePricingPanel({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {r.amount != null ? formatMNT(r.amount) : '—'}
+                      {r.amount != null ? formatMNT(r.amount) : "—"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -132,7 +138,7 @@ export function SalePricingPanel({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border-2 border-primary/40 bg-primary/5 px-3 py-2">
           <span className="text-base font-semibold">Нийт үнэ</span>
           <span className="text-base font-semibold tabular-nums">
-            {totalPrice != null ? formatMNT(totalPrice) : '—'}
+            {totalPrice != null ? formatMNT(totalPrice) : "—"}
           </span>
         </div>
       </CardContent>
@@ -149,14 +155,14 @@ function PriceCell({
   onSave: (raw: string) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value != null ? String(value) : '');
+  const [draft, setDraft] = useState(value != null ? String(value) : "");
 
   if (!editing) {
     return (
       <button
         type="button"
         onClick={() => {
-          setDraft(value != null ? String(value) : '');
+          setDraft(value != null ? String(value) : "");
           setEditing(true);
         }}
         className="font-mono tabular-nums hover:underline"

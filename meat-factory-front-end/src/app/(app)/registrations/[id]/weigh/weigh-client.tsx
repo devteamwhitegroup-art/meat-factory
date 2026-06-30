@@ -14,7 +14,7 @@ import { NumericKeypad } from "@/components/forms/NumericKeypad";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { ANIMAL_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatNumber } from "@/lib/format/money";
 import {
   AddWeighingEntryDoc,
@@ -59,6 +59,7 @@ function canEditEntries(status: string, role: string | null): boolean {
 
 export function WeighClient({ id }: { id: string }) {
   const router = useRouter();
+  const { animalName } = useAnimalCatalog();
   const {
     data,
     loading: fetching,
@@ -238,12 +239,10 @@ export function WeighClient({ id }: { id: string }) {
         <div className="flex items-center gap-6">
           <BackButton href={`/registrations/${id}`} />
           <div>
-            <div className="text-sm text-muted-foreground">
-              Бүртгэлийн дугаар
-            </div>
+            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">
-                #{reg.registrationNumber}
+              <h1 className="font-mono text-2xl font-semibold">
+                {reg.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={reg.status} />
             </div>
@@ -273,7 +272,7 @@ export function WeighClient({ id }: { id: string }) {
         <TabsList>
           {types.map((t) => (
             <TabsTrigger key={t} value={t}>
-              {ANIMAL_MN[t] ?? t}
+              {animalName.get(t) ?? t}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -282,7 +281,7 @@ export function WeighClient({ id }: { id: string }) {
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <Card>
                 <CardHeader>
-                  <CardTitle>Жин бүртгэл — {ANIMAL_MN[t] ?? t}</CardTitle>
+                  <CardTitle>Жин бүртгэл — {animalName.get(t) ?? t}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <NumericKeypad

@@ -60,9 +60,6 @@ export default {
     registration: wrapOne("registration", ({ id }: { id: string }) =>
       RegistrationController.getById(id),
     ),
-    nextRegistrationNumber: wrapOne("registrationNumber", () =>
-      RegistrationController.previewNextRegistrationNumber(),
-    ),
     derivedByproducts: wrapItems(
       "items",
       ({ registrationId }: { registrationId: string }) =>

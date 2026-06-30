@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -18,28 +18,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 import {
   ByproductWrapperListDoc,
   CreateByproductWrapperDoc,
   DeleteByproductWrapperDoc,
   UpdateByproductWrapperDoc,
-} from '@/lib/queries/byproduct-wrapper';
+} from "@/lib/queries/byproduct-wrapper";
 import {
   CreateByproductConstantDoc,
   DeleteByproductConstantDoc,
   UpdateByproductConstantDoc,
-} from '@/lib/queries/byproduct-constant';
-import { ANIMAL_MN } from '@/lib/format/enum';
-import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
+} from "@/lib/queries/byproduct-constant";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
 
 type WrapperForm = { id?: string; name: string };
 type ItemForm = {
@@ -51,11 +50,11 @@ type ItemForm = {
 };
 
 export function ByproductConstantsClient() {
-  const { animalTypes } = useAnimalCatalog();
-  const [animalType, setAnimalType] = useState<string>('COW');
+  const { animalTypes, animalName } = useAnimalCatalog();
+  const [animalType, setAnimalType] = useState<string>("COW");
   const { data, loading, refetch } = useQuery(ByproductWrapperListDoc, {
     variables: { animalType: animalType as never, isActive: null },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
 
   const [createWrapper] = useMutation(CreateByproductWrapperDoc);
@@ -67,36 +66,33 @@ export function ByproductConstantsClient() {
 
   const [wrapperSheet, setWrapperSheet] = useState(false);
   const [wrapperForm, setWrapperForm] = useState<WrapperForm>({
-    name: '',
+    name: "",
   });
   const [itemSheet, setItemSheet] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>({
-    wrapperId: '',
-    name: '',
-    qty: '1',
-    unitWeight: '',
+    wrapperId: "",
+    name: "",
+    qty: "1",
+    unitWeight: "",
   });
 
   const wrappers = compact(data?.byproductWrappers?.byproductWrappers);
 
   // ── wrapper handlers ──
   function openCreateWrapper() {
-    setWrapperForm({ name: '' });
+    setWrapperForm({ name: "" });
     setWrapperSheet(true);
   }
-  function openEditWrapper(w: {
-    id?: string | null;
-    name?: string | null;
-  }) {
+  function openEditWrapper(w: { id?: string | null; name?: string | null }) {
     setWrapperForm({
       id: w.id ?? undefined,
-      name: w.name ?? '',
+      name: w.name ?? "",
     });
     setWrapperSheet(true);
   }
   async function saveWrapper() {
     if (!wrapperForm.name.trim()) {
-      toast.error('Багцын нэр оруулна уу');
+      toast.error("Багцын нэр оруулна уу");
       return;
     }
     await runMutation(
@@ -119,7 +115,7 @@ export function ByproductConstantsClient() {
         return r.data?.createByproductWrapper;
       },
       {
-        success: 'Хадгалагдлаа',
+        success: "Хадгалагдлаа",
         onSuccess: () => {
           setWrapperSheet(false);
           refetch();
@@ -136,17 +132,18 @@ export function ByproductConstantsClient() {
     );
   }
   async function removeWrapper(id: string) {
-    if (!confirm('Багц болон доторх дайваруудыг устгах уу?')) return;
+    if (!confirm("Багц болон доторх дайваруудыг устгах уу?")) return;
     await runMutation(
       async () =>
-        (await deleteWrapper({ variables: { id } })).data?.deleteByproductWrapper,
-      { success: 'Устгагдлаа', onSuccess: refetch },
+        (await deleteWrapper({ variables: { id } })).data
+          ?.deleteByproductWrapper,
+      { success: "Устгагдлаа", onSuccess: refetch },
     );
   }
 
   // ── item handlers ──
   function openCreateItem(wrapperId: string) {
-    setItemForm({ wrapperId, name: '', qty: '1', unitWeight: '' });
+    setItemForm({ wrapperId, name: "", qty: "1", unitWeight: "" });
     setItemSheet(true);
   }
   function openEditItem(item: {
@@ -158,20 +155,20 @@ export function ByproductConstantsClient() {
   }) {
     setItemForm({
       id: item.id ?? undefined,
-      wrapperId: item.wrapperId ?? '',
-      name: item.name ?? '',
+      wrapperId: item.wrapperId ?? "",
+      name: item.name ?? "",
       qty: String(item.quantityPerAnimal ?? 1),
-      unitWeight: item.unitWeightKg != null ? String(item.unitWeightKg) : '',
+      unitWeight: item.unitWeightKg != null ? String(item.unitWeightKg) : "",
     });
     setItemSheet(true);
   }
   async function saveItem() {
     if (!itemForm.name.trim()) {
-      toast.error('Дайврын нэр оруулна уу');
+      toast.error("Дайврын нэр оруулна уу");
       return;
     }
     if (Number(itemForm.qty) < 1) {
-      toast.error('Тоо хэмжээ 1-ээс багагүй');
+      toast.error("Тоо хэмжээ 1-ээс багагүй");
       return;
     }
     const weight = itemForm.unitWeight.trim()
@@ -201,7 +198,7 @@ export function ByproductConstantsClient() {
         return r.data?.createByproductConstant;
       },
       {
-        success: 'Хадгалагдлаа',
+        success: "Хадгалагдлаа",
         onSuccess: () => {
           setItemSheet(false);
           refetch();
@@ -210,21 +207,24 @@ export function ByproductConstantsClient() {
     );
   }
   async function removeItem(id: string) {
-    if (!confirm('Дайвар устгах уу?')) return;
+    if (!confirm("Дайвар устгах уу?")) return;
     await runMutation(
       async () =>
         (await deleteItem({ variables: { id } })).data?.deleteByproductConstant,
-      { success: 'Устгагдлаа', onSuccess: refetch },
+      { success: "Устгагдлаа", onSuccess: refetch },
     );
   }
 
   return (
     <div className="space-y-4">
-      <Tabs value={animalType} onValueChange={(v) => setAnimalType(v as string)}>
+      <Tabs
+        value={animalType}
+        onValueChange={(v) => setAnimalType(v as string)}
+      >
         <TabsList>
           {animalTypes.map((t) => (
             <TabsTrigger key={t} value={t}>
-              {ANIMAL_MN[t]}
+              {animalName.get(t) ?? t}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -232,7 +232,7 @@ export function ByproductConstantsClient() {
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {ANIMAL_MN[animalType]} — дайвар багцууд
+          {animalName.get(animalType) ?? animalType} — дайвар багцууд
         </div>
         <Button onClick={openCreateWrapper}>Шинэ багц</Button>
       </div>
@@ -252,16 +252,18 @@ export function ByproductConstantsClient() {
                   <span className="text-lg font-semibold">{w.name}</span>
                   <button
                     type="button"
-                    onClick={() => toggleWrapperActive(w.id!, w.isActive ?? false)}
+                    onClick={() =>
+                      toggleWrapperActive(w.id!, w.isActive ?? false)
+                    }
                   >
                     <Badge
                       className={
                         w.isActive
-                          ? 'border-0 bg-emerald-100 text-emerald-800'
-                          : 'border-0 bg-rose-100 text-rose-800'
+                          ? "border-0 bg-emerald-100 text-emerald-800"
+                          : "border-0 bg-rose-100 text-rose-800"
                       }
                     >
-                      {w.isActive ? 'Идэвхтэй' : 'Идэвхгүй'}
+                      {w.isActive ? "Идэвхтэй" : "Идэвхгүй"}
                     </Badge>
                   </button>
                 </div>
@@ -307,12 +309,14 @@ export function ByproductConstantsClient() {
                     <TableBody>
                       {compact(w.items).map((it) => (
                         <TableRow key={it.id!}>
-                          <TableCell className="font-medium">{it.name}</TableCell>
+                          <TableCell className="font-medium">
+                            {it.name}
+                          </TableCell>
                           <TableCell className="tabular-nums">
                             {it.quantityPerAnimal}
                           </TableCell>
                           <TableCell className="tabular-nums">
-                            {it.unitWeightKg ?? '—'}
+                            {it.unitWeightKg ?? "—"}
                           </TableCell>
                           <TableCell className="flex gap-2">
                             <Button
@@ -346,8 +350,8 @@ export function ByproductConstantsClient() {
         <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>
-              {wrapperForm.id ? 'Багц засах' : 'Шинэ багц'} —{' '}
-              {ANIMAL_MN[animalType]}
+              {wrapperForm.id ? "Багц засах" : "Шинэ багц"} —{" "}
+              {animalName.get(animalType) ?? animalType}
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-3 p-4">
@@ -376,7 +380,9 @@ export function ByproductConstantsClient() {
       <Sheet open={itemSheet} onOpenChange={setItemSheet}>
         <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>{itemForm.id ? 'Дайвар засах' : 'Шинэ дайвар'}</SheetTitle>
+            <SheetTitle>
+              {itemForm.id ? "Дайвар засах" : "Шинэ дайвар"}
+            </SheetTitle>
           </SheetHeader>
           <div className="space-y-3 p-4">
             <div className="space-y-1.5">

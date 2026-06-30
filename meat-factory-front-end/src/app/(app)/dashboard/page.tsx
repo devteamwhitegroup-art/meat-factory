@@ -1,51 +1,53 @@
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MetricCard } from '@/components/dashboard/MetricCard';
-import { BreakdownPie } from '@/components/dashboard/BreakdownPie';
-import { MonthlyOverviewChart } from '@/components/dashboard/MonthlyOverviewChart';
-import { getClient } from '@/lib/apollo/server';
-import { DashboardDoc } from '@/lib/queries/dashboard';
-import { compact } from '@/lib/compact';
-import {
-  ANIMAL_MN,
-  PAYMENT_STATUS_MN,
-  SHIPMENT_STATUS_MN,
-} from '@/lib/format/enum';
-import { formatMNT, formatNumber } from '@/lib/format/money';
-import { fmtDate } from '@/lib/format/date';
-import { parseRange, thisMonth } from '@/lib/date/range';
-import { DateRangeFilter } from '@/components/common/DateRangeFilter';
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { BreakdownPie } from "@/components/dashboard/BreakdownPie";
+import { MonthlyOverviewChart } from "@/components/dashboard/MonthlyOverviewChart";
+import { getClient } from "@/lib/apollo/server";
+import { DashboardDoc } from "@/lib/queries/dashboard";
+import { compact } from "@/lib/compact";
+import { PAYMENT_STATUS_MN, SHIPMENT_STATUS_MN } from "@/lib/format/enum";
+import { formatMNT, formatNumber } from "@/lib/format/money";
+import { fmtDate } from "@/lib/format/date";
+import { parseRange, thisMonth } from "@/lib/date/range";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
+import { getAnimalNames } from "@/lib/animalNames";
 
-import { requireCap } from '@/lib/auth/server';
+import { requireCap } from "@/lib/auth/server";
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  await requireCap('dashboard');
+  await requireCap("dashboard");
   const sp = await searchParams;
   const def = thisMonth();
-  const { data } = await getClient().query({
-    query: DashboardDoc,
-    variables: { dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to) },
-  });
+  const [{ data }, animalNames] = await Promise.all([
+    getClient().query({
+      query: DashboardDoc,
+      variables: {
+        dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to),
+      },
+    }),
+    getAnimalNames(),
+  ]);
   const wrap = data?.dashboard;
   if (!wrap?.success || !wrap.dashboard) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-        {wrap?.message ?? 'Тайлан ачаалж чадсангүй'}
+        {wrap?.message ?? "Тайлан ачаалж чадсангүй"}
       </div>
     );
   }
   const d = wrap.dashboard;
   const animalSlices = compact(d.animalBreakdown).map((a) => ({
-    name: ANIMAL_MN[a.animalType ?? ''] ?? a.animalType ?? '',
+    name: animalNames.get(a.animalType ?? "") ?? a.animalType ?? "",
     value: Number(a.totalKg ?? 0),
   }));
   const byprodSlices = compact(d.byproductBreakdown).map((b) => ({
-    name: b.name ?? '',
+    name: b.name ?? "",
     value: Number(b.totalKg ?? 0),
   }));
   const txns = compact(d.recentTransactions);
@@ -102,7 +104,9 @@ export default async function DashboardPage({
               href="/registrations?stage=paid"
               className="rounded-md border bg-emerald-50 p-3 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/30"
             >
-              <div className="text-xs text-muted-foreground">Төлбөр хийгдсэн</div>
+              <div className="text-xs text-muted-foreground">
+                Төлбөр хийгдсэн
+              </div>
               <div className="text-2xl font-semibold tabular-nums">
                 {pipe?.paid ?? 0}
               </div>
@@ -112,10 +116,7 @@ export default async function DashboardPage({
       </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label="Махны орлого"
-          value={formatMNT(d.totalMeatIncome)}
-        />
+        <MetricCard label="Махны орлого" value={formatMNT(d.totalMeatIncome)} />
         <MetricCard
           label="Малчдад төлсөн"
           value={formatMNT(d.totalHerderIncome)}
@@ -140,7 +141,7 @@ export default async function DashboardPage({
         />
         <MetricCard
           label="Дайвар (кг, гарт өгсөн)"
-          value={formatNumber(d.totalByproductKg) + ' кг'}
+          value={formatNumber(d.totalByproductKg) + " кг"}
         />
       </div>
 
@@ -179,7 +180,7 @@ export default async function DashboardPage({
                       className="flex flex-1 items-center gap-2"
                     >
                       <span className="font-medium">
-                        {t.customer?.name ?? '—'}
+                        {t.customer?.name ?? "—"}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {t.transactionCode}
@@ -188,16 +189,18 @@ export default async function DashboardPage({
                     <span className="text-xs text-muted-foreground">
                       {fmtDate(t.transactionDate)}
                     </span>
-                    <span className="ml-3 text-right">{formatMNT(t.amount)}</span>
+                    <span className="ml-3 text-right">
+                      {formatMNT(t.amount)}
+                    </span>
                     <Badge
                       className={
-                        'ml-3 border-0 ' +
-                        (t.paymentStatus === 'PAID'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800')
+                        "ml-3 border-0 " +
+                        (t.paymentStatus === "PAID"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800")
                       }
                     >
-                      {PAYMENT_STATUS_MN[t.paymentStatus ?? ''] ??
+                      {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ??
                         t.paymentStatus}
                     </Badge>
                   </li>
@@ -226,7 +229,7 @@ export default async function DashboardPage({
                       className="flex flex-1 items-center gap-2"
                     >
                       <span className="font-medium">
-                        {s.customer?.name ?? '—'}
+                        {s.customer?.name ?? "—"}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {s.shipmentCode}
@@ -239,7 +242,7 @@ export default async function DashboardPage({
                       {formatNumber(s.weightKg)} кг
                     </span>
                     <Badge className="ml-3 border-0 bg-primary/10 text-primary">
-                      {SHIPMENT_STATUS_MN[s.status ?? ''] ?? s.status}
+                      {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status}
                     </Badge>
                   </li>
                 ))}

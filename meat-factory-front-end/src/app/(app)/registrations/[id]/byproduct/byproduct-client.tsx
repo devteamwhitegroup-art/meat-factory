@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { ANIMAL_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatNumber } from "@/lib/format/money";
 import {
   DerivedByproductsDoc,
@@ -35,6 +35,7 @@ type Row = {
 
 export function ByproductClient({ id }: { id: string }) {
   const router = useRouter();
+  const { animalName } = useAnimalCatalog();
   const {
     data,
     loading: fetching,
@@ -123,7 +124,6 @@ export function ByproductClient({ id }: { id: string }) {
     });
     return Array.from(m.entries()).map(([animalType, wmap]) => ({
       animalType,
-      animalLabel: ANIMAL_MN[animalType] ?? animalType,
       wrappers: Array.from(wmap.entries()).map(([wrapperName, items]) => ({
         wrapperName,
         items,
@@ -181,12 +181,10 @@ export function ByproductClient({ id }: { id: string }) {
         <div className="flex items-center gap-6">
           <BackButton href={`/registrations/${id}`} />
           <div>
-            <div className="text-sm text-muted-foreground">
-              Бүртгэлийн дугаар
-            </div>
+            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">
-                #{reg.registrationNumber}
+              <h1 className="font-mono text-2xl font-semibold">
+                {reg.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={reg.status} />
             </div>
@@ -228,7 +226,8 @@ export function ByproductClient({ id }: { id: string }) {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <CardTitle className="text-lg">
-                          {animalGroup.animalLabel}
+                          {animalName.get(animalGroup.animalType) ??
+                            animalGroup.animalType}
                         </CardTitle>
                         {coverable ? (
                           <Badge

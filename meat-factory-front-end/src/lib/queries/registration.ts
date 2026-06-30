@@ -5,7 +5,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
     $status: REGISTRATION_STATUS
     $statuses: [REGISTRATION_STATUS!]
     $herderId: ID
-    $registrationNumber: Int
+    $registrationCode: String
     $dateRange: DateRangeInput
     $limit: Int
     $page: Int
@@ -14,7 +14,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
       status: $status
       statuses: $statuses
       herderId: $herderId
-      registrationNumber: $registrationNumber
+      registrationCode: $registrationCode
       dateRange: $dateRange
       limit: $limit
       page: $page
@@ -24,7 +24,6 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
       count
       registrations {
         id
-        registrationNumber
         registrationCode
         status
         intakeDate
@@ -50,7 +49,6 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
       message
       registration {
         id
-        registrationNumber
         registrationCode
         status
         intakeDate
@@ -229,20 +227,10 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
       message
       registration {
         id
-        registrationNumber
+        registrationCode
         status
         isPreButchered
       }
-    }
-  }
-`);
-
-export const NextRegistrationNumberDoc = graphql(/* GraphQL */ `
-  query NextRegistrationNumber {
-    nextRegistrationNumber {
-      success
-      message
-      registrationNumber
     }
   }
 `);

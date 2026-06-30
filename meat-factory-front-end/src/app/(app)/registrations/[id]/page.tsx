@@ -15,7 +15,7 @@ import { StatusBadge } from "@/components/registration/StatusBadge";
 import { ImagePreviewLink } from "@/components/common/ImagePreviewLink";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { ANIMAL_MN } from "@/lib/format/enum";
+import { getAnimalNames } from "@/lib/animalNames";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
@@ -29,10 +29,13 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function RegistrationDetailPage({ params }: Props) {
   const { id } = await params;
-  const { data } = await getClient().query({
-    query: RegistrationDetailDoc,
-    variables: { id },
-  });
+  const [{ data }, animalNames] = await Promise.all([
+    getClient().query({
+      query: RegistrationDetailDoc,
+      variables: { id },
+    }),
+    getAnimalNames(),
+  ]);
   const wrap = data?.registration;
   if (!wrap?.success || !wrap.registration) {
     return (
@@ -56,20 +59,13 @@ export default async function RegistrationDetailPage({ params }: Props) {
         <div className="flex items-center gap-6">
           <BackButton href="/registrations" />
           <div>
-            <div className="text-sm text-muted-foreground">
-              Бүртгэлийн дугаар
-            </div>
+            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-semibold">
-                #{r.registrationNumber}
+              <h1 className="font-mono text-3xl font-semibold">
+                {r.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={status} />
             </div>
-            {r.registrationCode ? (
-              <div className="font-mono text-xs text-muted-foreground">
-                {r.registrationCode}
-              </div>
-            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -178,7 +174,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
               {r.photo?.url ? (
                 <ImagePreviewLink
                   url={r.photo.url}
-                  title={`Бүртгэл #${r.registrationNumber} — Зураг`}
+                  title={`Бүртгэл ${r.registrationCode ?? ""} — Зураг`}
                 />
               ) : (
                 "—"
@@ -203,7 +199,8 @@ export default async function RegistrationDetailPage({ params }: Props) {
         <CardContent className="flex flex-wrap gap-3 text-sm">
           {compact(r.animalLines).map((l) => (
             <div key={l.id!} className="rounded-md border px-3 py-1.5">
-              {ANIMAL_MN[l.animalType ?? ""] ?? l.animalType}: <b>{l.count}</b>
+              {animalNames.get(l.animalType ?? "") ?? l.animalType}:{" "}
+              <b>{l.count}</b>
             </div>
           ))}
         </CardContent>
@@ -246,7 +243,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                       <TableRow key={w.id!}>
                         <TableCell>{ordinal[w.id!] ?? w.sequenceNo}</TableCell>
                         <TableCell>
-                          {ANIMAL_MN[w.animalType ?? ""] ?? w.animalType}
+                          {animalNames.get(w.animalType ?? "") ?? w.animalType}
                         </TableCell>
                         <TableCell>{formatNumber(w.weightKg)}</TableCell>
                         <TableCell>
@@ -300,7 +297,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                     </TableCell>
                     <TableCell>
                       {b.animalType
-                        ? (ANIMAL_MN[b.animalType] ?? b.animalType)
+                        ? (animalNames.get(b.animalType) ?? b.animalType)
                         : "—"}
                     </TableCell>
                     <TableCell>{b.count}</TableCell>
@@ -367,7 +364,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 {compact(r.settlement.lines).map((l) => (
                   <TableRow key={l.id!}>
                     <TableCell>
-                      {ANIMAL_MN[l.animalType ?? ""] ?? l.animalType}
+                      {animalNames.get(l.animalType ?? "") ?? l.animalType}
                     </TableCell>
                     <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                     <TableCell>{formatMNT(l.pricePerKg)}</TableCell>

@@ -14,10 +14,8 @@ import { AdminModel } from "../user/admin.model";
 
 export class RegistrationModel extends Model implements TRegistration {
   public id!: string;
-  public registrationNumber!: number;
-  // Human-readable code REG-YYYYMMDD-N (N = per-day counter), assigned at
-  // create alongside the numeric registrationNumber. Nullable for legacy rows.
-  public registrationCode!: string | null;
+  // Human-readable key REG-YYYYMMDD-N (N = per-day counter), assigned at create.
+  public registrationCode!: string;
   public herderId!: string;
   public vehicleNumber!: string;
   public stamp!: string | null;
@@ -111,14 +109,9 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      registrationNumber: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        unique: true,
-      },
       registrationCode: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
         unique: true,
       },
       vehicleNumber: {
@@ -163,7 +156,6 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
       underscored: true,
       sequelize,
       indexes: [
-        { fields: ["registration_number"], unique: true },
         { fields: ["registration_code"], unique: true },
         { fields: ["status"] },
         { fields: ["herder_id"] },

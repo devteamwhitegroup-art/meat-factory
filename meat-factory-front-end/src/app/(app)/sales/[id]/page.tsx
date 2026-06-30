@@ -12,14 +12,10 @@ import {
 import { getClient } from "@/lib/apollo/server";
 import { SalesDetailDoc } from "@/lib/queries/sales";
 import { compact } from "@/lib/compact";
-import {
-  ANIMAL_MN,
-  BYPRODUCT_MN,
-  PAYMENT_STATUS_MN,
-  PRODUCT_TYPE_MN,
-} from "@/lib/format/enum";
+import { PAYMENT_STATUS_MN, PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
+import { getAnimalNames } from "@/lib/animalNames";
 import { MarkPaidButton } from "./mark-paid-button";
 import { InstallmentsCard } from "./installments-card";
 import { BackButton } from "@/components/common/BackButton";
@@ -30,10 +26,13 @@ type Props = { params: Promise<{ id: string }> };
 export default async function SalesDetailPage({ params }: Props) {
   await requireCap("sales");
   const { id } = await params;
-  const { data } = await getClient().query({
-    query: SalesDetailDoc,
-    variables: { id },
-  });
+  const [{ data }, animalNames] = await Promise.all([
+    getClient().query({
+      query: SalesDetailDoc,
+      variables: { id },
+    }),
+    getAnimalNames(),
+  ]);
   const wrap = data?.salesTransaction;
   if (!wrap?.success || !wrap.salesTransaction) {
     return (
@@ -135,8 +134,8 @@ export default async function SalesDetailPage({ params }: Props) {
               {lines.map((l) => {
                 const product =
                   l.productType === "MEAT"
-                    ? (ANIMAL_MN[l.animalType ?? ""] ?? l.animalType)
-                    : (BYPRODUCT_MN[l.byproductType ?? ""] ?? l.byproductType);
+                    ? (animalNames.get(l.animalType ?? "") ?? l.animalType)
+                    : (l.byproductName ?? "—");
                 return (
                   <TableRow key={l.id!}>
                     <TableCell>

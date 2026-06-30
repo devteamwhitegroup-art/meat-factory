@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { ANIMAL_MN } from "@/lib/format/enum";
 import { formatMNT } from "@/lib/format/money";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 
@@ -16,7 +15,7 @@ export function SlaughterCostPreview({
   counts: Record<string, number>;
   isPreButchered: boolean;
 }) {
-  const { animals } = useAnimalCatalog();
+  const { animals, animalName } = useAnimalCatalog();
 
   const rows = useMemo(() => {
     const priceByType: Record<string, number> = {};
@@ -51,7 +50,7 @@ export function SlaughterCostPreview({
           {rows.map((r) => (
             <div key={r.animalType} className="flex justify-between">
               <span className="text-muted-foreground">
-                {ANIMAL_MN[r.animalType] ?? r.animalType} {r.count} ×{" "}
+                {animalName.get(r.animalType) ?? r.animalType} {r.count} ×{" "}
                 {formatMNT(r.price)}
               </span>
               <span className="tabular-nums">{formatMNT(r.subtotal)}</span>

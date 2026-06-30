@@ -22,7 +22,6 @@ import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { SignatureField } from "@/components/common/SignatureField";
 import { WeighSlip } from "../_components/WeighSlip";
 import { fmtDateTime } from "@/lib/format/date";
-import { ANIMAL_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import {
   DerivedByproductsDoc,
@@ -78,8 +77,11 @@ export function VerifyClient({ id }: { id: string }) {
   // (Animal.canCoverSlaughterCost). Shared with the slip so its бой total
   // tracks the cover toggle, same as the summary below.
   const coverByType: Record<string, boolean> = {};
+  // animalType → display name, reused from the already-fetched Animals config.
+  const animalName = new Map<string, string>();
   for (const c of compact(bcData?.animals?.animals)) {
     if (c.animalType) coverByType[c.animalType] = !!c.canCoverSlaughterCost;
+    if (c.animalType && c.name) animalName.set(c.animalType, c.name);
   }
 
   async function toggleCover() {
@@ -149,12 +151,10 @@ export function VerifyClient({ id }: { id: string }) {
         <div className="flex items-center gap-6">
           <BackButton href={`/registrations/${id}`} />
           <div>
-            <div className="text-sm text-muted-foreground">
-              Бүртгэлийн дугаар
-            </div>
+            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">
-                #{reg.registrationNumber}
+              <h1 className="font-mono text-2xl font-semibold">
+                {reg.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={reg.status} />
             </div>
@@ -261,7 +261,7 @@ export function VerifyClient({ id }: { id: string }) {
                     <TableBody>
                       {Object.entries(byType).map(([t, x]) => (
                         <TableRow key={t}>
-                          <TableCell>{ANIMAL_MN[t] ?? t}</TableCell>
+                          <TableCell>{animalName.get(t) ?? t}</TableCell>
                           <TableCell>{formatNumber(x.received)}</TableCell>
                           <TableCell>
                             {formatMNT(
@@ -297,7 +297,7 @@ export function VerifyClient({ id }: { id: string }) {
                         const offset = covered && slaughter[t].coverable;
                         return (
                           <TableRow key={t}>
-                            <TableCell>{ANIMAL_MN[t] ?? t}</TableCell>
+                            <TableCell>{animalName.get(t) ?? t}</TableCell>
                             <TableCell>{slaughter[t].count}</TableCell>
                             <TableCell>
                               {slaughter[t].price > 0

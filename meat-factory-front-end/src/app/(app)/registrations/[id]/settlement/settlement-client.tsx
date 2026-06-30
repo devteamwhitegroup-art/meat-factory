@@ -56,8 +56,7 @@ export function SettlementClient({ id }: { id: string }) {
   const [role, setRole] = useState<string | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setRole(readRoleCookie()), []);
-  const canApproveMedical =
-    role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
+  const canApproveMedical = can(role, "medicalNumber");
   // Pay / release actions are settle-only; read-only roles (e.g. SCALE) just view.
   const canSettle = can(role, "settle");
   // Admin-configured per-head slaughter cost — pre-fills the line slaughter
@@ -293,12 +292,10 @@ export function SettlementClient({ id }: { id: string }) {
         <div className="flex items-center gap-6">
           <BackButton href={`/registrations/${id}`} />
           <div>
-            <div className="text-sm text-muted-foreground">
-              Бүртгэлийн дугаар
-            </div>
+            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">
-                #{reg.registrationNumber}
+              <h1 className="font-mono text-2xl font-semibold">
+                {reg.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={reg.status} />
             </div>

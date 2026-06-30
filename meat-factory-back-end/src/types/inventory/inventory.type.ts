@@ -1,8 +1,5 @@
 import { TPagination } from '../global/global.type';
-import {
-  ANIMAL_TYPE,
-  BYPRODUCT_TYPE
-} from '../livestock/registration.type';
+import { ANIMAL_TYPE } from '../livestock/registration.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 export enum MOVEMENT_TYPE {
@@ -22,12 +19,8 @@ export type TInventoryItem = {
   sku: string;
   productType: PRODUCT_TYPE;
   animalType: ANIMAL_TYPE | null;
-  // Legacy BYPRODUCT_TYPE enum (HEART, LIVER, ...). Still used by the
-  // manual-adjust path + sales line items.
-  byproductType: BYPRODUCT_TYPE | null;
-  // Free-form Mongolian byproduct name (e.g. "Адууны хэл", "Хацар мах").
-  // Populated by livestock byproduct ingestion after Phase-3 redesign —
-  // the byproduct catalogue is name-driven and no longer maps to the enum.
+  // Free-form Mongolian byproduct name (e.g. "Адууны хэл", "Хацар мах") — the
+  // only byproduct identity. SKU is BYPN:<name>.
   byproductName: string | null;
   quantityKg: number;
   createdAt: Date;
@@ -52,7 +45,7 @@ export type TInventoryMovement = {
 export type TManualAdjustInput = {
   productType: PRODUCT_TYPE;
   animalType?: ANIMAL_TYPE | null;
-  byproductType?: BYPRODUCT_TYPE | null;
+  byproductName?: string | null;
   quantityKg: number;
   direction: MOVEMENT_TYPE;
   notes?: string | null;
@@ -68,7 +61,7 @@ export type TGetMovements = {
 export type TGetStock = {
   productType?: PRODUCT_TYPE;
   animalType?: ANIMAL_TYPE;
-  byproductType?: BYPRODUCT_TYPE;
+  byproductName?: string;
 };
 
 // Decoupling DTOs — callers (livestock settlement, shipment) hand these
@@ -76,8 +69,7 @@ export type TGetStock = {
 export type TStockLine = {
   productType: PRODUCT_TYPE;
   animalType?: ANIMAL_TYPE | null;
-  // Set either byproductType OR byproductName for BYPRODUCT lines (not both).
-  byproductType?: BYPRODUCT_TYPE | null;
+  // BYPRODUCT lines carry a free-form byproductName (SKU BYPN:<name>).
   byproductName?: string | null;
   quantityKg: number;
 };

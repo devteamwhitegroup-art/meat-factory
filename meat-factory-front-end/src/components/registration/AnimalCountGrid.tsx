@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ANIMAL_MN } from "@/lib/format/enum";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 
 export type AnimalCounts = Record<string, number>;
@@ -14,7 +13,7 @@ type Props = {
 };
 
 export function AnimalCountGrid({ value, onChange }: Props) {
-  const { animalTypes } = useAnimalCatalog();
+  const { animalTypes, animalName } = useAnimalCatalog();
   function set(type: string, n: number) {
     onChange({ ...value, [type]: Math.max(0, Math.floor(n)) });
   }
@@ -29,7 +28,9 @@ export function AnimalCountGrid({ value, onChange }: Props) {
             className={active ? "border-primary ring-1 ring-primary/30" : ""}
           >
             <CardContent className="flex flex-col items-center gap-3 p-4">
-              <div className="text-lg font-semibold">{ANIMAL_MN[t]}</div>
+              <div className="text-lg font-semibold">
+                {animalName.get(t) ?? t}
+              </div>
               <div className="flex w-full items-center justify-between gap-2">
                 <Button
                   type="button"

@@ -21,7 +21,6 @@ import { ByproductWrapperListDoc } from "@/lib/queries/byproduct-wrapper";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
-import { ANIMAL_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
 
 // ─── Add cargo line ──────────────────────────────────────────────────
@@ -45,7 +44,7 @@ export function CargoLineForm({
 }) {
   const isExport = category === "EXPORT";
 
-  const { animalTypes } = useAnimalCatalog();
+  const { animalTypes, animalName } = useAnimalCatalog();
   const [addEntry, { loading: adding }] = useMutation(AddCargoEntryDoc);
 
   const [productType, setProductType] = useState<ProductType>("MEAT");
@@ -172,7 +171,7 @@ export function CargoLineForm({
               <SelectContent>
                 {animalTypes.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {ANIMAL_MN[t] ?? t}
+                    {animalName.get(t) ?? t}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -201,7 +200,7 @@ export function CargoLineForm({
                 <SelectContent>
                   {animalTypes.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {ANIMAL_MN[t] ?? t}
+                      {animalName.get(t) ?? t}
                     </SelectItem>
                   ))}
                 </SelectContent>

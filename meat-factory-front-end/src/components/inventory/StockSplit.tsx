@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,10 +8,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { cn } from '@/lib/utils';
-import { ANIMAL_MN, BYPRODUCT_MN } from '@/lib/format/enum';
-import { formatNumber } from '@/lib/format/money';
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
+import { formatNumber } from "@/lib/format/money";
 
 // Tab-split inventory view. Server passes the already-fetched items; we
 // partition client-side by productType so there's no extra round-trip.
@@ -19,9 +19,8 @@ import { formatNumber } from '@/lib/format/money';
 type Item = {
   id: string;
   sku: string;
-  productType: 'MEAT' | 'BYPRODUCT' | string;
+  productType: "MEAT" | "BYPRODUCT" | string;
   animalType?: string | null;
-  byproductType?: string | null;
   byproductName?: string | null;
   quantityKg: number;
 };
@@ -29,47 +28,53 @@ type Item = {
 // Fixed palette so each animal type keeps the same colour across renders
 // (matches the dashboard pie's visual language).
 const ANIMAL_COLORS: Record<string, string> = {
-  COW: 'bg-rose-500',
-  SHEEP: 'bg-amber-500',
-  HORSE: 'bg-violet-500',
-  GOAT: 'bg-teal-500',
-  CAMEL: 'bg-sky-500',
+  COW: "bg-rose-500",
+  SHEEP: "bg-amber-500",
+  HORSE: "bg-violet-500",
+  GOAT: "bg-teal-500",
+  CAMEL: "bg-sky-500",
 };
 
-function meatLabel(i: Item): string {
-  return ANIMAL_MN[i.animalType ?? ''] ?? i.animalType ?? '—';
+// animalType → display name comes from the Animals catalogue (admin-editable),
+// passed in by the server page. Falls back to the raw type code.
+function meatLabel(i: Item, names: Record<string, string>): string {
+  const t = i.animalType ?? "";
+  return t ? `${names[t] ?? t} мах` : "—";
 }
 
 function byproductLabel(i: Item): string {
-  return (
-    i.byproductName ??
-    BYPRODUCT_MN[i.byproductType ?? ''] ??
-    i.byproductType ??
-    '—'
-  );
+  return i.byproductName ?? "—";
 }
 
-export function StockSplit({ items }: { items: Item[] }) {
-  const [tab, setTab] = useState<'meat' | 'byproduct'>('meat');
+export function StockSplit({
+  items,
+  animalNames,
+}: {
+  items: Item[];
+  animalNames: Record<string, string>;
+}) {
+  const [tab, setTab] = useState<"meat" | "byproduct">("meat");
 
-  const meat = items.filter((i) => i.productType === 'MEAT');
-  const byproduct = items.filter((i) => i.productType === 'BYPRODUCT');
+  const meat = items.filter((i) => i.productType === "MEAT");
+  const byproduct = items.filter((i) => i.productType === "BYPRODUCT");
 
   const meatTotal = meat.reduce((s, i) => s + Number(i.quantityKg ?? 0), 0);
-  const byTotal = byproduct.reduce(
-    (s, i) => s + Number(i.quantityKg ?? 0),
-    0,
-  );
+  const byTotal = byproduct.reduce((s, i) => s + Number(i.quantityKg ?? 0), 0);
 
   return (
     <div className="space-y-4">
       <div className="inline-flex w-full max-w-md rounded-md bg-muted p-1 text-sm">
         {(
           [
-            { key: 'meat', label: 'Мах', count: meat.length, total: meatTotal },
             {
-              key: 'byproduct',
-              label: 'Дайвар',
+              key: "meat",
+              label: PRODUCT_TYPE_MN.MEAT,
+              count: meat.length,
+              total: meatTotal,
+            },
+            {
+              key: "byproduct",
+              label: PRODUCT_TYPE_MN.BYPRODUCT,
               count: byproduct.length,
               total: byTotal,
             },
@@ -80,13 +85,13 @@ export function StockSplit({ items }: { items: Item[] }) {
             type="button"
             onClick={() => setTab(t.key)}
             className={cn(
-              'flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors',
+              "flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors",
               tab === t.key
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {t.label}{' '}
+            {t.label}{" "}
             <span className="text-xs text-muted-foreground">
               ({formatNumber(t.total)} кг)
             </span>
@@ -94,8 +99,8 @@ export function StockSplit({ items }: { items: Item[] }) {
         ))}
       </div>
 
-      {tab === 'meat' ? (
-        <MeatPanel items={meat} total={meatTotal} />
+      {tab === "meat" ? (
+        <MeatPanel items={meat} total={meatTotal} animalNames={animalNames} />
       ) : (
         <ByproductPanel items={byproduct} total={byTotal} />
       )}
@@ -105,15 +110,23 @@ export function StockSplit({ items }: { items: Item[] }) {
 
 // ─── Meat tab ────────────────────────────────────────────────────────
 
-function MeatPanel({ items, total }: { items: Item[]; total: number }) {
+function MeatPanel({
+  items,
+  total,
+  animalNames,
+}: {
+  items: Item[];
+  total: number;
+  animalNames: Record<string, string>;
+}) {
   // Sort animals descending by kg so the largest segment is on the left
   // of the proportional bar.
   const sorted = [...items]
     .map((i) => ({
       ...i,
       kg: Number(i.quantityKg ?? 0),
-      label: meatLabel(i),
-      color: ANIMAL_COLORS[i.animalType ?? ''] ?? 'bg-slate-400',
+      label: meatLabel(i, animalNames),
+      color: ANIMAL_COLORS[i.animalType ?? ""] ?? "bg-slate-400",
     }))
     .sort((a, b) => b.kg - a.kg);
   const nonZero = sorted.filter((i) => i.kg > 0);
@@ -127,7 +140,7 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
             {nonZero.map((i) => (
               <div
                 key={i.id}
-                className={cn(i.color, 'h-full')}
+                className={cn(i.color, "h-full")}
                 style={{ width: `${(i.kg / total) * 100}%` }}
                 title={`${i.label}: ${formatNumber(i.kg)} кг`}
               />
@@ -137,15 +150,9 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
             {nonZero.map((i) => {
               const pct = (i.kg / total) * 100;
               return (
-                <li
-                  key={i.id}
-                  className="flex items-center gap-2 text-sm"
-                >
+                <li key={i.id} className="flex items-center gap-2 text-sm">
                   <span
-                    className={cn(
-                      'inline-block h-3 w-3 rounded-sm',
-                      i.color,
-                    )}
+                    className={cn("inline-block h-3 w-3 rounded-sm", i.color)}
                   />
                   <span className="flex-1">{i.label}</span>
                   <span className="tabular-nums text-muted-foreground">
@@ -182,9 +189,7 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
                 const pct = total > 0 ? (i.kg / total) * 100 : 0;
                 return (
                   <TableRow key={i.id}>
-                    <TableCell className="font-mono text-xs">
-                      {i.sku}
-                    </TableCell>
+                    <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                     <TableCell className="font-medium">{i.label}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {formatNumber(i.kg)} кг
@@ -193,7 +198,7 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
                       <div className="flex items-center gap-2">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                           <div
-                            className={cn(i.color, 'h-full')}
+                            className={cn(i.color, "h-full")}
                             style={{ width: `${pct}%` }}
                           />
                         </div>

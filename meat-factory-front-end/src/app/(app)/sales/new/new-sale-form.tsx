@@ -1,45 +1,41 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { CustomerListDoc } from '@/lib/queries/customer';
-import { CreateSalesTransactionDoc } from '@/lib/queries/sales';
-import { unwrap } from '@/lib/unwrap';
-import { compact } from '@/lib/compact';
-import {
-  ANIMAL_MN,
-  BYPRODUCT_MN,
-  BYPRODUCT_TYPES,
-  PRODUCT_TYPE_MN,
-} from '@/lib/format/enum';
-import { useAnimalCatalog } from '@/lib/hooks/useAnimalCatalog';
-import { formatMNT } from '@/lib/format/money';
+} from "@/components/ui/select";
+import { CustomerListDoc } from "@/lib/queries/customer";
+import { CreateSalesTransactionDoc } from "@/lib/queries/sales";
+import { unwrap } from "@/lib/unwrap";
+import { compact } from "@/lib/compact";
+import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
+import { formatMNT } from "@/lib/format/money";
+import { ByproductNamePicker } from "@/components/common/ByproductNamePicker";
 
 type LineRow = {
-  productType: 'MEAT' | 'BYPRODUCT';
+  productType: "MEAT" | "BYPRODUCT";
   animalType: string;
-  byproductType: string;
+  byproductName: string;
   quantityKg: string;
   unitPrice: string;
 };
 
 export function NewSaleForm() {
   const router = useRouter();
-  const { animalTypes } = useAnimalCatalog();
+  const { animalTypes, animalName } = useAnimalCatalog();
   const { data, loading: fetching } = useQuery(CustomerListDoc, {
     variables: {
       isActive: true,
@@ -52,16 +48,16 @@ export function NewSaleForm() {
   const [createSale] = useMutation(CreateSalesTransactionDoc);
   const customers = compact(data?.customers?.customers);
 
-  const [customerId, setCustomerId] = useState('');
+  const [customerId, setCustomerId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineRow[]>([
     {
-      productType: 'MEAT',
-      animalType: 'COW',
-      byproductType: '',
-      quantityKg: '',
-      unitPrice: '',
+      productType: "MEAT",
+      animalType: "COW",
+      byproductName: "",
+      quantityKg: "",
+      unitPrice: "",
     },
   ]);
   const [busy, setBusy] = useState(false);
@@ -86,11 +82,11 @@ export function NewSaleForm() {
     setLines((s) => [
       ...s,
       {
-        productType: 'MEAT',
-        animalType: 'COW',
-        byproductType: '',
-        quantityKg: '',
-        unitPrice: '',
+        productType: "MEAT",
+        animalType: "COW",
+        byproductName: "",
+        quantityKg: "",
+        unitPrice: "",
       },
     ]);
   }
@@ -101,26 +97,30 @@ export function NewSaleForm() {
 
   async function onSubmit() {
     if (!customerId) {
-      toast.error('Харилцагч сонгоно уу');
+      toast.error("Харилцагч сонгоно уу");
+      return;
+    }
+    if (lines.some((l) => l.productType === "BYPRODUCT" && !l.byproductName)) {
+      toast.error("Дайвар сонгоно уу");
       return;
     }
     const lineItems = lines.map((l) => {
-      const isMeat = l.productType === 'MEAT';
+      const isMeat = l.productType === "MEAT";
       return {
         productType: l.productType as never,
         animalType: isMeat ? (l.animalType as never) : null,
-        byproductType: !isMeat ? (l.byproductType as never) : null,
+        byproductName: !isMeat ? l.byproductName || null : null,
         quantityKg: Number(l.quantityKg) || 0,
         unitPrice: Number(l.unitPrice) || 0,
       };
     });
     for (const li of lineItems) {
       if (li.quantityKg <= 0) {
-        toast.error('Жин эерэг тоо байх ёстой');
+        toast.error("Жин эерэг тоо байх ёстой");
         return;
       }
       if (li.unitPrice < 0) {
-        toast.error('Үнэ сөрөг байж болохгүй');
+        toast.error("Үнэ сөрөг байж болохгүй");
         return;
       }
     }
@@ -136,7 +136,7 @@ export function NewSaleForm() {
         },
       });
       const tx = unwrap(r.data?.createSalesTransaction).salesTransaction;
-      if (!tx?.id) throw new Error('Хариу буцаасангүй');
+      if (!tx?.id) throw new Error("Хариу буцаасангүй");
       toast.success(`Гүйлгээ ${tx.transactionCode} үүсгэгдлээ`);
       router.push(`/sales/${tx.id}`);
     } catch (e) {
@@ -155,7 +155,7 @@ export function NewSaleForm() {
               <div className="mb-1 text-sm font-medium">Харилцагч</div>
               <Select
                 value={customerId || undefined}
-                onValueChange={(v) => setCustomerId(v ?? '')}
+                onValueChange={(v) => setCustomerId(v ?? "")}
               >
                 <SelectTrigger className="w-full">
                   {/* Explicit text — base-ui Select's auto-match shows the
@@ -164,11 +164,11 @@ export function NewSaleForm() {
                   {customerId ? (
                     <span>
                       {customers.find((c) => c.id === customerId)?.name ??
-                        'Сонгосон'}
+                        "Сонгосон"}
                     </span>
                   ) : (
                     <SelectValue
-                      placeholder={fetching ? 'Уншиж байна…' : 'Сонгох'}
+                      placeholder={fetching ? "Уншиж байна…" : "Сонгох"}
                     />
                   )}
                 </SelectTrigger>
@@ -225,11 +225,11 @@ export function NewSaleForm() {
                       <Select
                         value={l.productType}
                         onValueChange={(raw) => {
-                          const v = (raw ?? 'MEAT') as 'MEAT' | 'BYPRODUCT';
+                          const v = (raw ?? "MEAT") as "MEAT" | "BYPRODUCT";
                           set(i, {
                             productType: v,
-                            animalType: v === 'MEAT' ? 'COW' : '',
-                            byproductType: v === 'BYPRODUCT' ? 'LIVER' : '',
+                            animalType: v === "MEAT" ? "COW" : "",
+                            byproductName: "",
                           });
                         }}
                       >
@@ -249,10 +249,10 @@ export function NewSaleForm() {
                       </Select>
                     </td>
                     <td className="py-2">
-                      {l.productType === 'MEAT' ? (
+                      {l.productType === "MEAT" ? (
                         <Select
                           value={l.animalType || undefined}
-                          onValueChange={(v) => set(i, { animalType: v ?? '' })}
+                          onValueChange={(v) => set(i, { animalType: v ?? "" })}
                         >
                           <SelectTrigger className="h-8 w-32">
                             {/* Resolve label manually so the trigger always
@@ -260,7 +260,7 @@ export function NewSaleForm() {
                                 catalogue items mount. */}
                             {l.animalType ? (
                               <span>
-                                {ANIMAL_MN[l.animalType] ?? l.animalType}
+                                {animalName.get(l.animalType) ?? l.animalType}
                               </span>
                             ) : (
                               <SelectValue placeholder="Сонгох" />
@@ -269,43 +269,23 @@ export function NewSaleForm() {
                           <SelectContent>
                             {animalTypes.map((t) => (
                               <SelectItem key={t} value={t}>
-                                {ANIMAL_MN[t]}
+                                {animalName.get(t) ?? t}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Select
-                          value={l.byproductType || undefined}
-                          onValueChange={(v) => set(i, { byproductType: v ?? '' })}
-                        >
-                          <SelectTrigger className="h-8 w-32">
-                            {l.byproductType ? (
-                              <span>
-                                {BYPRODUCT_MN[l.byproductType] ??
-                                  l.byproductType}
-                              </span>
-                            ) : (
-                              <SelectValue placeholder="Сонгох" />
-                            )}
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BYPRODUCT_TYPES.map((t) => (
-                              <SelectItem key={t} value={t}>
-                                {BYPRODUCT_MN[t]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <ByproductNamePicker
+                          value={l.byproductName}
+                          onChange={(name) => set(i, { byproductName: name })}
+                        />
                       )}
                     </td>
                     <td className="py-2">
                       <Input
                         inputMode="decimal"
                         value={l.quantityKg}
-                        onChange={(e) =>
-                          set(i, { quantityKg: e.target.value })
-                        }
+                        onChange={(e) => set(i, { quantityKg: e.target.value })}
                         className="h-8"
                       />
                     </td>
@@ -338,8 +318,7 @@ export function NewSaleForm() {
               + Мөр нэмэх
             </Button>
             <div className="text-sm">
-              Нийт: <b>{totals.kg}</b> кг ·{' '}
-              <b>{formatMNT(totals.amt)}</b>
+              Нийт: <b>{totals.kg}</b> кг · <b>{formatMNT(totals.amt)}</b>
             </div>
           </div>
         </CardContent>
@@ -347,7 +326,7 @@ export function NewSaleForm() {
 
       <div className="flex justify-end">
         <Button onClick={onSubmit} disabled={busy}>
-          {busy ? '...' : 'Үүсгэх'}
+          {busy ? "..." : "Үүсгэх"}
         </Button>
       </div>
     </div>

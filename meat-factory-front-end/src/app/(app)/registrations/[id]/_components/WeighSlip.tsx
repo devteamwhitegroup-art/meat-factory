@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { ANIMAL_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
@@ -39,6 +39,7 @@ export function WeighSlip({
   covered?: boolean;
   coverByType?: Record<string, boolean>;
 }) {
+  const { animalName } = useAnimalCatalog();
   const entries = compact(reg.weighingEntries);
 
   // Meat income per type from per-entry negotiated price.
@@ -103,9 +104,7 @@ export function WeighSlip({
             <div className="text-muted-foreground">Малчин</div>
             <div>{reg.herder?.name ?? "—"}</div>
             <div className="text-muted-foreground">Бүртгэлийн код</div>
-            <div className="font-mono">
-              {reg.registrationCode ?? "—"} · #{reg.registrationNumber}
-            </div>
+            <div className="font-mono">{reg.registrationCode ?? "—"}</div>
             <div className="text-muted-foreground">Огноо</div>
             <div>{fmtDate(reg.intakeDate)}</div>
             <div className="text-muted-foreground">Машин</div>
@@ -128,7 +127,7 @@ export function WeighSlip({
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.type}>
-                  <TableCell>{ANIMAL_MN[r.type] ?? r.type}</TableCell>
+                  <TableCell>{animalName.get(r.type) ?? r.type}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatNumber(r.weight)}
                   </TableCell>

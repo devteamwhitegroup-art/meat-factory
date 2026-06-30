@@ -6,6 +6,7 @@ import { ByproductWrapperModel } from "./byproduct-wrapper.model";
 export class AnimalModel extends Model implements TAnimal {
   public id!: string;
   public animalType!: ANIMAL_TYPE;
+  public name!: string;
   public pricePerAnimal!: number;
   public canCoverSlaughterCost!: boolean;
   // Carcass-to-saleable yield (%); horse seeds at 70 (bone-out), others 100.
@@ -36,6 +37,10 @@ export const createAnimalModel = (sequelize: Sequelize) => {
       animalType: {
         type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
         allowNull: false,
+      },
+      name: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       pricePerAnimal: {
         type: DataTypes.DECIMAL(12, 2),

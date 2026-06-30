@@ -15,10 +15,7 @@ import {
   TStockLine,
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
-import {
-  ANIMAL_TYPE,
-  BYPRODUCT_TYPE,
-} from "../../types/livestock/registration.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 // Type-only import (erased at runtime — no module cycle).
 import type { TRegistrationIngestDTO } from "../../types/livestock/settlement.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
@@ -43,31 +40,16 @@ export class InventoryController {
     if (line.productType === PRODUCT_TYPE.MEAT) {
       if (!line.animalType)
         throw new Error("MEAT inventory line requires an animalType");
-      if (line.byproductType || line.byproductName)
-        throw new Error("MEAT inventory line cannot have a byproductType/Name");
+      if (line.byproductName)
+        throw new Error("MEAT inventory line cannot have a byproductName");
       return `MEAT:${line.animalType}`;
     }
     if (line.animalType)
       throw new Error("BYPRODUCT inventory line cannot have an animalType");
-    // Two byproduct flavours:
-    //  • legacy ENUM (HEART/LIVER/…) — used by manual adjust + sales SKUs.
-    //  • named (Адууны хэл / Хацар мах) — used by livestock auto-ingest
-    //    after the Phase-3 catalogue redesign.
-    // Distinct SKU prefixes prevent the two paths from colliding even if
-    // someone names a free-form byproduct "LIVER".
-    if (line.byproductType) {
-      if (line.byproductName)
-        throw new Error(
-          "BYPRODUCT line must use either byproductType OR byproductName",
-        );
-      return `BYPRODUCT:${line.byproductType}`;
-    }
-    if (line.byproductName) {
-      const name = line.byproductName.trim();
-      if (!name) throw new Error("byproductName cannot be empty");
-      return `BYPN:${name}`;
-    }
-    throw new Error("BYPRODUCT line requires byproductType or byproductName");
+    // Byproducts are identified by their free-form catalogue name (BYPN:<name>).
+    const name = line.byproductName?.trim();
+    if (!name) throw new Error("BYPRODUCT line requires a byproductName");
+    return `BYPN:${name}`;
   }
 
   private static async _getOrCreateItem(
@@ -81,7 +63,6 @@ export class InventoryController {
         sku,
         productType: line.productType,
         animalType: line.animalType ?? null,
-        byproductType: line.byproductType ?? null,
         byproductName: line.byproductName?.trim() || null,
         quantityKg: 0,
       },
@@ -178,7 +159,6 @@ export class InventoryController {
         const line: TStockLine = {
           productType: isMeat ? PRODUCT_TYPE.MEAT : PRODUCT_TYPE.BYPRODUCT,
           animalType: (l.animalType as ANIMAL_TYPE | null) ?? null,
-          byproductType: (l.byproductType as BYPRODUCT_TYPE | null) ?? null,
           byproductName: l.byproductName ?? null,
           quantityKg: adjustedQty,
         };
@@ -328,7 +308,7 @@ export class InventoryController {
     const line: TStockLine = {
       productType: input.productType,
       animalType: input.animalType ?? null,
-      byproductType: input.byproductType ?? null,
+      byproductName: input.byproductName ?? null,
       quantityKg: input.quantityKg,
     };
     const sku = this._buildSku(line);
@@ -363,8 +343,8 @@ export class InventoryController {
     const where: WhereOptions = {};
     if (doc.productType) Object.assign(where, { productType: doc.productType });
     if (doc.animalType) Object.assign(where, { animalType: doc.animalType });
-    if (doc.byproductType)
-      Object.assign(where, { byproductType: doc.byproductType });
+    if (doc.byproductName)
+      Object.assign(where, { byproductName: doc.byproductName });
 
     return await InventoryItemModel.findAndCountAll({
       where,

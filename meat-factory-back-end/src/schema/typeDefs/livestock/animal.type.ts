@@ -3,6 +3,8 @@ export default `#graphql
     type Animal {
         id: ID
         animalType: ANIMAL_TYPE
+        # Mongolian display name (Үхэр, Хонь, …). Catalogue source of truth.
+        name: String
         pricePerAnimal: Float
         canCoverSlaughterCost: Boolean
         # Carcass-to-saleable yield (%) applied when meat is ingested into
@@ -35,6 +37,7 @@ export default `#graphql
     extend type Mutation {
         upsertAnimal(
             animalType: ANIMAL_TYPE!
+            name: String
             pricePerAnimal: Float
             canCoverSlaughterCost: Boolean
             yieldPercent: Float

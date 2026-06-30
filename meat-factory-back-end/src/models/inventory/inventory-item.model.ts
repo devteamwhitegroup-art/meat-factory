@@ -1,10 +1,7 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { TInventoryItem } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
-import {
-  ANIMAL_TYPE,
-  BYPRODUCT_TYPE,
-} from "../../types/livestock/registration.type";
+import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { InventoryMovementModel } from "./inventory-movement.model";
 
 export class InventoryItemModel extends Model implements TInventoryItem {
@@ -12,7 +9,6 @@ export class InventoryItemModel extends Model implements TInventoryItem {
   public sku!: string;
   public productType!: PRODUCT_TYPE;
   public animalType!: ANIMAL_TYPE | null;
-  public byproductType!: BYPRODUCT_TYPE | null;
   public byproductName!: string | null;
   public quantityKg!: number;
   public createdAt!: Date;
@@ -48,11 +44,6 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
       },
       animalType: {
         type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
-        allowNull: true,
-        defaultValue: null,
-      },
-      byproductType: {
-        type: DataTypes.ENUM(...Object.values(BYPRODUCT_TYPE)),
         allowNull: true,
         defaultValue: null,
       },

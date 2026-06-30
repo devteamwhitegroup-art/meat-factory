@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useId, useState } from 'react';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
 
 export type { UploadFolder };
@@ -27,8 +27,11 @@ export function PhotoUpload({
 }: Props) {
   const { upload, uploading } = useFileUpload(type);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const inputId = useId();
 
   async function handleFile(file: File) {
+    setFileName(file.name);
     setPreviewUrl(URL.createObjectURL(file));
     try {
       onChange(await upload(file));
@@ -43,7 +46,10 @@ export function PhotoUpload({
     <div className="space-y-2">
       <div className="text-sm font-medium">{label}</div>
       <div className="flex items-center gap-3">
-        <Input
+        {/* Native input hidden — its "Choose File / No file chosen" chrome is
+            browser-locale and can't be translated, so we drive it via a label. */}
+        <input
+          id={inputId}
           type="file"
           accept="image/jpeg,image/png,image/gif,video/mp4"
           {...(capture ? { capture } : {})}
@@ -52,8 +58,20 @@ export function PhotoUpload({
             const f = e.target.files?.[0];
             if (f) handleFile(f);
           }}
-          className="max-w-sm"
+          className="sr-only"
         />
+        <label
+          htmlFor={inputId}
+          className={cn(
+            buttonVariants({ variant: 'outline' }),
+            uploading && 'pointer-events-none opacity-50',
+          )}
+        >
+          Зураг оруулах
+        </label>
+        <span className="max-w-[12rem] truncate text-sm text-muted-foreground">
+          {fileName ?? 'Зураг оруулаагүй байна.'}
+        </span>
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -70,6 +88,7 @@ export function PhotoUpload({
             onClick={() => {
               onChange(null);
               setPreviewUrl(null);
+              setFileName(null);
             }}
           >
             Арилгах

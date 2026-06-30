@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const HerderListDoc = graphql(/* GraphQL */ `
   query Herders($search: String, $limit: Int, $page: Int) {
@@ -48,7 +48,7 @@ export const HerderDoc = graphql(/* GraphQL */ `
         createdAt
         registrations {
           id
-          registrationNumber
+          registrationCode
           status
           intakeDate
         }

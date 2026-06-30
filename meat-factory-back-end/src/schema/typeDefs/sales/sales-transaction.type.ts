@@ -18,7 +18,7 @@ export default `#graphql
         salesTransactionId: ID
         productType: PRODUCT_TYPE
         animalType: ANIMAL_TYPE
-        byproductType: BYPRODUCT_TYPE
+        byproductName: String
         quantityKg: Float
         unitPrice: Float
         lineAmount: Float
@@ -81,7 +81,7 @@ export default `#graphql
     input SalesLineItemInput {
         productType: PRODUCT_TYPE!
         animalType: ANIMAL_TYPE
-        byproductType: BYPRODUCT_TYPE
+        byproductName: String
         quantityKg: Float!
         unitPrice: Float!
     }

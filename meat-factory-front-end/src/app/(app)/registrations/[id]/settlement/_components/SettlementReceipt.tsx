@@ -18,7 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { ANIMAL_MN, PAYMENT_STATUS_MN } from "@/lib/format/enum";
+import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
@@ -55,6 +56,7 @@ export function SettlementReceipt({
   onReleaseHold: () => void;
   onApproveMedical: (medicalNumber: string | null) => void;
 }) {
+  const { animalName } = useAnimalCatalog();
   return (
     <section data-print="settlement">
       <div className="mb-3 flex justify-end print-hide">
@@ -64,7 +66,7 @@ export function SettlementReceipt({
       </div>
       <div className="hidden print:mb-4 print:block">
         <div className="text-2xl font-semibold">
-          Тооцооны баримт — Бүртгэл #{reg.registrationNumber}
+          Тооцооны баримт — Бүртгэл {reg.registrationCode ?? "—"}
         </div>
         <div className="text-xs text-muted-foreground">
           Малчин: {reg.herder?.name ?? "—"} · Регистр:{" "}
@@ -101,7 +103,7 @@ export function SettlementReceipt({
               {compact(existing.lines).map((l) => (
                 <TableRow key={l.id!}>
                   <TableCell>
-                    {ANIMAL_MN[l.animalType ?? ""] ?? l.animalType}
+                    {animalName.get(l.animalType ?? "") ?? l.animalType}
                   </TableCell>
                   <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                   <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
@@ -248,7 +250,7 @@ export function SettlementReceipt({
                   return (
                     <div key={t} className="rounded-md border">
                       <div className="border-b bg-muted/30 px-3 py-1.5 text-xs font-medium">
-                        {ANIMAL_MN[t] ?? t}
+                        {animalName.get(t) ?? t}
                       </div>
                       <Table>
                         <TableHeader>
@@ -291,7 +293,7 @@ export function SettlementReceipt({
                         </TableBody>
                       </Table>
                       <div className="flex justify-between border-t px-3 py-1.5 text-xs font-medium">
-                        <span>{ANIMAL_MN[t] ?? t} нийт</span>
+                        <span>{animalName.get(t) ?? t} нийт</span>
                         <span className="tabular-nums">{formatMNT(sub)}</span>
                       </div>
                     </div>
@@ -301,45 +303,9 @@ export function SettlementReceipt({
             );
           })()}
 
-          {/* Payment proofs — the money trail (initial payment + released
-              held). Prints on the settled record. */}
-          {(() => {
-            const proofs = [...compact(existing.paymentProofs)].sort(
-              (a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0),
-            );
-            if (proofs.length === 0) return null;
-            return (
-              <div className="space-y-2">
-                <div className="text-sm font-semibold">Гүйлгээний баримт</div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {proofs.map((p) => (
-                    <div
-                      key={p.id!}
-                      className="overflow-hidden rounded-md border bg-muted/20"
-                    >
-                      {p.file?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.file.url}
-                          alt={`Баримт #${p.sequenceNo}`}
-                          className="aspect-square w-full object-cover"
-                        />
-                      ) : null}
-                      <div className="space-y-0.5 px-2 py-1 text-xs">
-                        {p.note ? (
-                          <div className="font-medium">{p.note}</div>
-                        ) : null}
-                        <div className="text-muted-foreground">
-                          {p.createdBy?.param ?? "—"}
-                          {p.createdAt ? ` · ${fmtDateTime(p.createdAt)}` : ""}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Payment-proof images are managed in the on-screen gallery; they're
+              omitted from the printed receipt (thermal printers can't render
+              the photos legibly). */}
 
           {/* ── Actions (never printed) ── */}
           <div className="print-hide space-y-3">

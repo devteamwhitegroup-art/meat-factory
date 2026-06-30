@@ -1,6 +1,10 @@
 import { Op } from "sequelize";
 import { AnimalModel } from "../../models/livestock/animal.model";
-import { TAnimal, TUpsertAnimal } from "../../types/livestock/animal.type";
+import {
+  ANIMAL_TYPE_LABEL,
+  TAnimal,
+  TUpsertAnimal,
+} from "../../types/livestock/animal.type";
 import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 
 export class AnimalController {
@@ -26,6 +30,7 @@ export class AnimalController {
       where: { animalType },
       defaults: {
         animalType,
+        name: ANIMAL_TYPE_LABEL[animalType],
         pricePerAnimal: 0,
         canCoverSlaughterCost: false,
         yieldPercent: animalType === ANIMAL_TYPE.HORSE ? 70 : 100,
@@ -85,6 +90,8 @@ export class AnimalController {
       where: { animalType: doc.animalType },
     });
     if (existing) {
+      if (doc.name !== undefined && doc.name.trim())
+        existing.name = doc.name.trim();
       if (doc.pricePerAnimal !== undefined)
         existing.pricePerAnimal = Number(doc.pricePerAnimal);
       if (typeof doc.canCoverSlaughterCost === "boolean")
@@ -97,6 +104,7 @@ export class AnimalController {
     }
     return await AnimalModel.create({
       animalType: doc.animalType,
+      name: doc.name?.trim() || ANIMAL_TYPE_LABEL[doc.animalType],
       pricePerAnimal:
         doc.pricePerAnimal !== undefined ? Number(doc.pricePerAnimal) : 0,
       canCoverSlaughterCost: !!doc.canCoverSlaughterCost,

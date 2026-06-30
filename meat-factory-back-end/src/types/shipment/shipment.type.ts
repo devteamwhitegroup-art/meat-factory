@@ -35,7 +35,7 @@ export type TShipment = {
   shippedAt: Date | null;
   loadedById: string;
   // Truck / vehicle identifier copied from the storekeeper's notebook
-  // (e.g. "Лиаз 134467"). Optional — older shipments stay null.
+  // (e.g. "УНО0223"). Optional — older shipments stay null.
   vehiclePlate: string | null;
   driverName: string | null;
   driverPhone: string | null;

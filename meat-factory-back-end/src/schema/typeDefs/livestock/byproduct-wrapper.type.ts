@@ -1,4 +1,4 @@
-import { PaginationSchema } from '../global/global.type';
+import { PaginationSchema } from "../global/global.type";
 
 // ANIMAL_TYPE declared once in registration.type.ts; ByproductConstant +
 // Animal declared in their own typedefs — referenced here, not redeclared.
@@ -34,8 +34,8 @@ export default `#graphql
             search: String
             isActive: Boolean
             ${PaginationSchema}
-        ): ByproductWrappersResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        byproductWrapper(id: ID!): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): ByproductWrappersResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN", "STOREKEEPER"])
+        byproductWrapper(id: ID!): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN", "STOREKEEPER"])
     }
 
     extend type Mutation {

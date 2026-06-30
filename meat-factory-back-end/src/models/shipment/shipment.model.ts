@@ -26,7 +26,7 @@ export class ShipmentModel extends Model implements TShipment {
   public status!: SHIPMENT_STATUS;
   public shippedAt!: Date | null;
   public loadedById!: string;
-  // e.g. "Лиаз 134467" — the truck identifier copied from the notebook.
+  // e.g. "УНО0223" — the truck identifier copied from the notebook.
   public vehiclePlate!: string | null;
   // Driver-side info captured at loading.
   public driverName!: string | null;

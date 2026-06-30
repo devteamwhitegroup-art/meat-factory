@@ -1,26 +1,25 @@
-import Link from 'next/link';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { getClient } from '@/lib/apollo/server';
-import { InventoryTabs } from '@/components/inventory/InventoryTabs';
-import { StockSplit } from '@/components/inventory/StockSplit';
-import {
-  InventoryStatsDoc,
-  InventoryStockDoc,
-} from '@/lib/queries/inventory';
-import { unwrapList } from '@/lib/unwrap';
-import { formatNumber } from '@/lib/format/money';
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { getClient } from "@/lib/apollo/server";
+import { InventoryTabs } from "@/components/inventory/InventoryTabs";
+import { StockSplit } from "@/components/inventory/StockSplit";
+import { InventoryStatsDoc, InventoryStockDoc } from "@/lib/queries/inventory";
+import { unwrapList } from "@/lib/unwrap";
+import { formatNumber } from "@/lib/format/money";
+import { getAnimalNames } from "@/lib/animalNames";
 
-import { requireCap } from '@/lib/auth/server';
+import { requireCap } from "@/lib/auth/server";
 
 export default async function InventoryPage() {
-  await requireCap('inventory');
+  await requireCap("inventory");
   const client = getClient();
+  const animalNames = Object.fromEntries(await getAnimalNames());
   const [stockResp, statsResp] = await Promise.all([
     client.query({
       query: InventoryStockDoc,
-      variables: { productType: null, animalType: null, byproductType: null },
+      variables: { productType: null, animalType: null, byproductName: null },
     }),
     client.query({ query: InventoryStatsDoc }),
   ]);
@@ -72,9 +71,11 @@ export default async function InventoryPage() {
                 {formatNumber(meatStock)} кг
               </div>
               <div className="text-xs text-muted-foreground">
-                Багтаамж:{' '}
+                Багтаамж:{" "}
                 <span className="font-medium">
-                  {meatCap > 0 ? `${formatNumber(meatCap)} кг` : '— тохируулаагүй'}
+                  {meatCap > 0
+                    ? `${formatNumber(meatCap)} кг`
+                    : "— тохируулаагүй"}
                 </span>
               </div>
             </div>
@@ -83,12 +84,12 @@ export default async function InventoryPage() {
               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={
-                    'h-full ' +
+                    "h-full " +
                     (alertActive
-                      ? 'bg-amber-500'
+                      ? "bg-amber-500"
                       : pct >= 80
-                        ? 'bg-amber-400'
-                        : 'bg-emerald-500')
+                        ? "bg-amber-400"
+                        : "bg-emerald-500")
                   }
                   style={{ width: `${pct}%` }}
                 />
@@ -102,28 +103,26 @@ export default async function InventoryPage() {
               </div>
             ) : (
               <div className="text-xs text-muted-foreground">
-                Багтаамж тохируулаагүй —{' '}
+                Багтаамж тохируулаагүй —{" "}
                 <Link href="/settings" className="underline">
                   Систем тохиргоо
-                </Link>{' '}
+                </Link>{" "}
                 руу орно уу.
               </div>
             )}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <span>
-                Босго:{' '}
+                Босго:{" "}
                 <span className="font-medium text-foreground">
-                  {threshold > 0
-                    ? `${formatNumber(threshold)} кг`
-                    : 'идэвхгүй'}
+                  {threshold > 0 ? `${formatNumber(threshold)} кг` : "идэвхгүй"}
                 </span>
               </span>
               <span>
-                1 ачаа:{' '}
+                1 ачаа:{" "}
                 <span className="font-medium text-foreground">
                   {cargoCap > 0
                     ? `${formatNumber(cargoCap)} кг`
-                    : 'тохируулаагүй'}
+                    : "тохируулаагүй"}
                 </span>
               </span>
             </div>
@@ -141,7 +140,7 @@ export default async function InventoryPage() {
             <div className="text-xs text-muted-foreground">
               {cargoCap > 0 && cargosToClear > 0
                 ? `Багтаамжийг чөлөөлөхөд ойролцоогоор ${cargosToClear} ачаа явуулна (1 ачаа ≈ ${formatNumber(cargoCap)} кг).`
-                : 'Ачааны багтаамж тохируулаагүй эсвэл нөөц багатай.'}
+                : "Ачааны багтаамж тохируулаагүй эсвэл нөөц багатай."}
             </div>
             <Link href="/shipments/export/new" className="block">
               <Button className="w-full" disabled={meatStock <= 0}>
@@ -163,12 +162,12 @@ export default async function InventoryPage() {
         </div>
       ) : (
         <StockSplit
+          animalNames={animalNames}
           items={items.map((i) => ({
             id: i.id!,
-            sku: i.sku ?? '',
-            productType: (i.productType ?? 'MEAT') as 'MEAT' | 'BYPRODUCT',
+            sku: i.sku ?? "",
+            productType: (i.productType ?? "MEAT") as "MEAT" | "BYPRODUCT",
             animalType: i.animalType ?? null,
-            byproductType: i.byproductType ?? null,
             byproductName: i.byproductName ?? null,
             quantityKg: Number(i.quantityKg ?? 0),
           }))}

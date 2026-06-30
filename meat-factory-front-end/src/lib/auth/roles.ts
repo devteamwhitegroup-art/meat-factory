@@ -40,7 +40,7 @@ export const CAPS = {
   sales: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   shipments: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"],
   inventory: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"],
-  inventoryAdjust: ["MANAGER", "SUPER_ADMIN"],
+  inventoryAdjust: ["MANAGER", "STOREKEEPER", "SUPER_ADMIN"],
   byproductConstants: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   animals: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   // System-wide thresholds: storage capacity, alert threshold, cargo capacity.

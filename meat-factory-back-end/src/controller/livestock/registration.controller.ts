@@ -1,6 +1,5 @@
 import {
   Op,
-  Transaction,
   UniqueConstraintError,
   WhereOptions,
 } from "sequelize";
@@ -20,7 +19,6 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import { AnimalController } from "./animal.controller";
 import {
   ANIMAL_TYPE,
-  REGISTRATION_NUMBER_START,
   REGISTRATION_STATUS,
   TCreateRegistration,
   TGetRegistrations,
@@ -139,34 +137,6 @@ export class RegistrationController {
     }
   }
 
-  private static async _nextRegistrationNumber(
-    t: Transaction,
-  ): Promise<number> {
-    const [rows] = await sequelize.query(
-      "SELECT nextval('registration_number_seq') AS n",
-      { transaction: t },
-    );
-    return Number((rows as Array<{ n: string }>)[0].n);
-  }
-
-  // Preview the next Бүртгэлийн дугаар WITHOUT consuming the sequence.
-  // Informational only (racy); the real number is assigned at create time.
-  static async previewNextRegistrationNumber(): Promise<number> {
-    try {
-      const [rows] = await sequelize.query(
-        "SELECT last_value, is_called FROM registration_number_seq",
-      );
-      const row = (
-        rows as Array<{ last_value: string; is_called: boolean }>
-      )[0];
-      if (!row) return REGISTRATION_NUMBER_START;
-      const last = Number(row.last_value);
-      return row.is_called ? last + 1 : last;
-    } catch {
-      return REGISTRATION_NUMBER_START;
-    }
-  }
-
   // ─── Intake (Харуулын бүртгэл) ────────────────────────────────────
 
   static async create(
@@ -225,9 +195,8 @@ export class RegistrationController {
       ? {}
       : await AnimalController.defaultsForCounts(counts);
 
-    // Human-readable code REG-YYYYMMDD-N (N = per-day counter). The numeric
-    // registrationNumber (8821+) is kept separately. On a same-day code
-    // collision, bump N and retry the whole insert.
+    // Human-readable key REG-YYYYMMDD-N (N = per-day counter). On a same-day
+    // code collision, bump N and retry the whole insert.
     const codePrefix = `REG-${dateStampUTC8()}-`;
     let counter = await nextDailyCounter(
       RegistrationModel,
@@ -238,11 +207,8 @@ export class RegistrationController {
     for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt++) {
       try {
         const registration = await sequelize.transaction(async (t) => {
-          const registrationNumber = await this._nextRegistrationNumber(t);
-
           const reg = await RegistrationModel.create(
             {
-              registrationNumber,
               registrationCode: `${codePrefix}${counter}`,
               herderId,
               vehicleNumber: vehicleNumber.trim(),
@@ -304,8 +270,8 @@ export class RegistrationController {
       Object.assign(where, { status: doc.status });
     }
     if (doc.herderId) Object.assign(where, { herderId: doc.herderId });
-    if (doc.registrationNumber)
-      Object.assign(where, { registrationNumber: doc.registrationNumber });
+    if (doc.registrationCode)
+      Object.assign(where, { registrationCode: doc.registrationCode });
     if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
       const range: Record<symbol, Date> = {};
       if (doc.dateRange.startDate)
