@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatNumber } from "@/lib/format/money";
 import {
   DerivedByproductsDoc,
@@ -35,7 +34,6 @@ type Row = {
 
 export function ByproductClient({ id }: { id: string }) {
   const router = useRouter();
-  const { animalName } = useAnimalCatalog();
   const {
     data,
     loading: fetching,
@@ -155,7 +153,7 @@ export function ByproductClient({ id }: { id: string }) {
             : null;
         return {
           name: r.name,
-          animalType: (r.animalType || null) as never,
+          animalType: r.animalType || null,
           quantity,
           weightKg,
           canCoverSlaughterCost: r.canCoverSlaughterCost,
@@ -226,8 +224,7 @@ export function ByproductClient({ id }: { id: string }) {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <CardTitle className="text-lg">
-                          {animalName.get(animalGroup.animalType) ??
-                            animalGroup.animalType}
+                          {animalGroup.animalType}
                         </CardTitle>
                         {coverable ? (
                           <Badge

@@ -12,7 +12,6 @@ import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { parseRange, thisMonth } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
-import { getAnimalNames } from "@/lib/animalNames";
 
 import { requireCap } from "@/lib/auth/server";
 
@@ -24,15 +23,10 @@ export default async function DashboardPage({
   await requireCap("dashboard");
   const sp = await searchParams;
   const def = thisMonth();
-  const [{ data }, animalNames] = await Promise.all([
-    getClient().query({
-      query: DashboardDoc,
-      variables: {
-        dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to),
-      },
-    }),
-    getAnimalNames(),
-  ]);
+  const { data } = await getClient().query({
+    query: DashboardDoc,
+    variables: { dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to) },
+  });
   const wrap = data?.dashboard;
   if (!wrap?.success || !wrap.dashboard) {
     return (
@@ -43,7 +37,7 @@ export default async function DashboardPage({
   }
   const d = wrap.dashboard;
   const animalSlices = compact(d.animalBreakdown).map((a) => ({
-    name: animalNames.get(a.animalType ?? "") ?? a.animalType ?? "",
+    name: a.animalType ?? "",
     value: Number(a.totalKg ?? 0),
   }));
   const byprodSlices = compact(d.byproductBreakdown).map((b) => ({

@@ -1,6 +1,5 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { TShipmentSaleLine } from "../../types/shipment/shipment-sale-line.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { ShipmentModel } from "./shipment.model";
 
@@ -8,7 +7,7 @@ export class ShipmentSaleLineModel extends Model implements TShipmentSaleLine {
   public id!: string;
   public shipmentId!: string;
   public productType!: PRODUCT_TYPE;
-  public animalType!: ANIMAL_TYPE | null;
+  public animalType!: string | null;
   public byproductName!: string | null;
   public groupKey!: string;
   public totalWeightKg!: number;
@@ -40,7 +39,7 @@ export const createShipmentSaleLineModel = (sequelize: Sequelize) => {
         allowNull: false,
       },
       animalType: {
-        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
+        type: DataTypes.STRING,
         allowNull: true,
       },
       byproductName: {

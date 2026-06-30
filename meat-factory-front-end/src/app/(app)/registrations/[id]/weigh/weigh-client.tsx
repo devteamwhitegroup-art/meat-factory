@@ -14,7 +14,6 @@ import { NumericKeypad } from "@/components/forms/NumericKeypad";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatNumber } from "@/lib/format/money";
 import {
   AddWeighingEntryDoc,
@@ -59,7 +58,6 @@ function canEditEntries(status: string, role: string | null): boolean {
 
 export function WeighClient({ id }: { id: string }) {
   const router = useRouter();
-  const { animalName } = useAnimalCatalog();
   const {
     data,
     loading: fetching,
@@ -129,7 +127,7 @@ export function WeighClient({ id }: { id: string }) {
           await addWeighing({
             variables: {
               registrationId: id,
-              animalType: activeTab as never,
+              animalType: activeTab,
               weightKg: w,
               pricePerKg: p,
               photoFileId: photoFileId ?? null,
@@ -272,7 +270,7 @@ export function WeighClient({ id }: { id: string }) {
         <TabsList>
           {types.map((t) => (
             <TabsTrigger key={t} value={t}>
-              {animalName.get(t) ?? t}
+              {t}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -281,7 +279,7 @@ export function WeighClient({ id }: { id: string }) {
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <Card>
                 <CardHeader>
-                  <CardTitle>Жин бүртгэл — {animalName.get(t) ?? t}</CardTitle>
+                  <CardTitle>Жин бүртгэл — {t}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <NumericKeypad

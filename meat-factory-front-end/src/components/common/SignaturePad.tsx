@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useFileUpload, type UploadFolder } from "@/lib/hooks/useFileUpload";
 
 type Props = {
   value: string | null;
@@ -17,8 +17,8 @@ type Props = {
 export function SignaturePad({
   value,
   onChange,
-  type = 'register',
-  label = 'Гарын үсэг',
+  type = "register",
+  label = "Гарын үсэг",
   big = false,
   hideLabel = false,
 }: Props) {
@@ -33,14 +33,14 @@ export function SignaturePad({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#111111';
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#111111";
   }, []);
 
   function pos(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -53,7 +53,7 @@ export function SignaturePad({
   }
 
   function start(e: React.PointerEvent<HTMLCanvasElement>) {
-    const ctx = canvasRef.current?.getContext('2d');
+    const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     drawing.current = true;
     dirty.current = true;
@@ -69,7 +69,7 @@ export function SignaturePad({
 
   function move(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
+    const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     const { x, y } = pos(e);
     ctx.lineTo(x, y);
@@ -82,9 +82,9 @@ export function SignaturePad({
 
   function clear() {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     dirty.current = false;
     setSaved(false);
@@ -95,22 +95,22 @@ export function SignaturePad({
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!dirty.current) {
-      toast.error('Эхлээд зурна уу');
+      toast.error("Эхлээд зурна уу");
       return;
     }
     try {
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), 'image/png'),
+        canvas.toBlob((b) => resolve(b), "image/png"),
       );
-      if (!blob) throw new Error('Зураг үүсгэж чадсангүй');
+      if (!blob) throw new Error("Зураг үүсгэж чадсангүй");
       const file = new File([blob], `signature-${Date.now()}.png`, {
-        type: 'image/png',
+        type: "image/png",
       });
       onChange(await upload(file));
       setSaved(true);
-      toast.success('Хадгаллаа');
+      toast.success("Хадгаллаа");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Хадгалах амжилтгүй');
+      toast.error(e instanceof Error ? e.message : "Хадгалах амжилтгүй");
       onChange(null);
       setSaved(false);
     }
@@ -127,7 +127,7 @@ export function SignaturePad({
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
-        className={`w-full touch-none rounded-lg border bg-white ${big ? '' : 'max-w-md'}`}
+        className={`w-full touch-none rounded-lg border bg-white ${big ? "" : "max-w-md"}`}
         style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}
       />
       <div className="flex items-center gap-2">
@@ -139,10 +139,10 @@ export function SignaturePad({
           disabled={uploading}
         >
           {uploading
-            ? 'Хадгалж байна…'
+            ? "Хадгалж байна…"
             : value && saved
-              ? 'Дахин хадгалах'
-              : 'Хадгалах'}
+              ? "Дахин хадгалах"
+              : "Хадгалах"}
         </Button>
         <Button
           type="button"

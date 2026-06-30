@@ -1,11 +1,11 @@
-import 'server-only';
-import { cookies } from 'next/headers';
-import { env } from '@/lib/env';
+import "server-only";
+import { cookies } from "next/headers";
+import { env } from "@/lib/env";
 
 // Read the session JWT from the httpOnly cookie. Server-only.
 export async function getSessionToken(): Promise<string> {
   const jar = await cookies();
-  return jar.get(env.AUTH_COOKIE_NAME)?.value ?? '';
+  return jar.get(env.AUTH_COOKIE_NAME)?.value ?? "";
 }
 
 // Forward a request to the back-end and relay its body + content-type. A
@@ -16,12 +16,12 @@ export async function proxyUpstream(
   url: string,
   init: RequestInit,
   errorBody: unknown = {
-    errors: [{ message: 'Серверт хандах боломжгүй байна' }],
+    errors: [{ message: "Серверт хандах боломжгүй байна" }],
   },
 ): Promise<Response> {
   let upstream: Response;
   try {
-    upstream = await fetch(url, { cache: 'no-store', ...init });
+    upstream = await fetch(url, { cache: "no-store", ...init });
   } catch {
     return Response.json(errorBody, { status: 502 });
   }
@@ -30,8 +30,8 @@ export async function proxyUpstream(
   return new Response(body, {
     status: upstream.status,
     headers: {
-      'content-type':
-        upstream.headers.get('content-type') ?? 'application/json',
+      "content-type":
+        upstream.headers.get("content-type") ?? "application/json",
     },
   });
 }

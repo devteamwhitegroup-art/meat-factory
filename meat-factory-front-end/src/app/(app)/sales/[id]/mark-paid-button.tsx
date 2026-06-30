@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation } from '@apollo/client/react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { MarkSalesTransactionPaidDoc } from '@/lib/queries/sales';
-import { unwrap } from '@/lib/unwrap';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation } from "@apollo/client/react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { MarkSalesTransactionPaidDoc } from "@/lib/queries/sales";
+import { unwrap } from "@/lib/unwrap";
 
 export function MarkPaidButton({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
@@ -17,7 +17,7 @@ export function MarkPaidButton({ id }: { id: string }) {
     try {
       const r = await markPaid({ variables: { id } });
       unwrap(r.data?.markSalesTransactionPaid);
-      toast.success('Төлбөр тэмдэглэгдлээ');
+      toast.success("Төлбөр тэмдэглэгдлээ");
       router.refresh();
     } catch (e) {
       toast.error((e as Error).message);
@@ -27,7 +27,7 @@ export function MarkPaidButton({ id }: { id: string }) {
   }
   return (
     <Button onClick={onClick} disabled={busy}>
-      {busy ? '...' : 'Төлбөр төлсөнд тэмдэглэх'}
+      {busy ? "..." : "Төлбөр төлсөнд тэмдэглэх"}
     </Button>
   );
 }

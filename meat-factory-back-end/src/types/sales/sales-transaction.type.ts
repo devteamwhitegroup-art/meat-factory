@@ -1,5 +1,4 @@
 import { TPagination } from '../global/global.type';
-import { ANIMAL_TYPE } from '../livestock/registration.type';
 
 export enum PAYMENT_STATUS {
   PAID = 'PAID', // ТӨЛБӨР ХИЙСЭН
@@ -15,7 +14,7 @@ export type TSalesLineItem = {
   id: string;
   salesTransactionId: string;
   productType: PRODUCT_TYPE;
-  animalType: ANIMAL_TYPE | null;
+  animalType: string | null;
   // Free-form byproduct name from the byproduct catalogue (BYPRODUCT lines).
   byproductName: string | null;
   quantityKg: number;
@@ -27,7 +26,7 @@ export type TSalesLineItem = {
 
 export type TCreateLineItemInput = {
   productType: PRODUCT_TYPE;
-  animalType?: ANIMAL_TYPE | null;
+  animalType?: string | null;
   byproductName?: string | null;
   quantityKg: number;
   unitPrice: number;

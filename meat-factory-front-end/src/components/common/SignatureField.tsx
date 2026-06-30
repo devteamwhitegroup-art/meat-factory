@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { PencilIcon, CheckIcon } from 'lucide-react';
+import { useState } from "react";
+import { PencilIcon, CheckIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { SignaturePad } from '@/components/common/SignaturePad';
-import type { UploadFolder } from '@/components/common/PhotoUpload';
+} from "@/components/ui/dialog";
+import { SignaturePad } from "@/components/common/SignaturePad";
+import type { UploadFolder } from "@/components/common/PhotoUpload";
 
 type Props = {
   value: string | null;
@@ -22,7 +22,7 @@ export function SignatureField({
   value,
   onChange,
   label,
-  type = 'register',
+  type = "register",
 }: Props) {
   const [open, setOpen] = useState(false);
   const done = !!value;
@@ -35,8 +35,8 @@ export function SignatureField({
         onClick={() => setOpen(true)}
         className={`flex h-28 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed text-base transition-colors ${
           done
-            ? 'border-primary bg-primary/5 text-primary'
-            : 'border-input bg-muted/30 text-muted-foreground hover:bg-muted/60'
+            ? "border-primary bg-primary/5 text-primary"
+            : "border-input bg-muted/30 text-muted-foreground hover:bg-muted/60"
         }`}
       >
         {done ? (

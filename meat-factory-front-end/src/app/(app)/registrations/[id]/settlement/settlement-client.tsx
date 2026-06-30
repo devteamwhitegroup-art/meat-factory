@@ -103,7 +103,7 @@ export function SettlementClient({ id }: { id: string }) {
   const butcherMap = useMemo(() => {
     const m: Record<string, number> = {};
     for (const c of compact(bcData?.animals?.animals)) {
-      if (c.animalType) m[c.animalType] = Number(c.pricePerAnimal ?? 0);
+      if (c.name) m[c.name] = Number(c.pricePerAnimal ?? 0);
     }
     return m;
   }, [bcData]);
@@ -112,7 +112,7 @@ export function SettlementClient({ id }: { id: string }) {
   const coverByType = useMemo(() => {
     const m: Record<string, boolean> = {};
     for (const c of compact(bcData?.animals?.animals)) {
-      if (c.animalType) m[c.animalType] = !!c.canCoverSlaughterCost;
+      if (c.name) m[c.name] = !!c.canCoverSlaughterCost;
     }
     return m;
   }, [bcData]);
@@ -217,7 +217,7 @@ export function SettlementClient({ id }: { id: string }) {
               notes: notes.trim() || null,
               photoFileId: photoFileId ?? null,
               lines: lines.map((l) => ({
-                animalType: l.animalType as never,
+                animalType: l.animalType,
                 slaughterCost: l.slaughterCost ? Number(l.slaughterCost) : 0,
               })),
               // Only send override fields when the storekeeper toggled it on.

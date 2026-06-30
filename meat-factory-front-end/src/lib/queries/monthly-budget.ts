@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const MonthlyBudgetsDoc = graphql(/* GraphQL */ `
   query MonthlyBudgets {
@@ -48,13 +48,21 @@ export const UpsertMonthlyBudgetDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      budget { id year month amountMnt }
+      budget {
+        id
+        year
+        month
+        amountMnt
+      }
     }
   }
 `);
 
 export const DeleteMonthlyBudgetDoc = graphql(/* GraphQL */ `
   mutation DeleteMonthlyBudget($id: ID!) {
-    deleteMonthlyBudget(id: $id) { success message }
+    deleteMonthlyBudget(id: $id) {
+      success
+      message
+    }
   }
 `);

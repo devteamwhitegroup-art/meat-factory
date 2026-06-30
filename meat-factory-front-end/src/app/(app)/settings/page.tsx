@@ -1,8 +1,8 @@
-import { requireCap } from '@/lib/auth/server';
-import { SettingsClient } from './settings-client';
+import { requireCap } from "@/lib/auth/server";
+import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
-  await requireCap('settings');
+  await requireCap("settings");
   return (
     <div className="space-y-6">
       <div>

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 
 type Props = {
   value: string;
@@ -9,26 +9,21 @@ type Props = {
   disabled?: boolean;
 };
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '←'];
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "←"];
 
-export function NumericKeypad({
-  value,
-  onChange,
-  onSubmit,
-  disabled,
-}: Props) {
+export function NumericKeypad({ value, onChange, onSubmit, disabled }: Props) {
   function press(k: string) {
     if (disabled) return;
-    if (k === '←') {
-      onChange(value.length > 1 ? value.slice(0, -1) : '');
+    if (k === "←") {
+      onChange(value.length > 1 ? value.slice(0, -1) : "");
       return;
     }
-    if (k === '.' && value.includes('.')) return;
-    if (k === '.' && value === '') {
-      onChange('0.');
+    if (k === "." && value.includes(".")) return;
+    if (k === "." && value === "") {
+      onChange("0.");
       return;
     }
-    if (value === '0' && k !== '.') {
+    if (value === "0" && k !== ".") {
       onChange(k);
       return;
     }
@@ -38,7 +33,7 @@ export function NumericKeypad({
   return (
     <div className="space-y-3">
       <div className="rounded-lg bg-black p-6 text-center font-mono text-4xl text-emerald-400">
-        {value || '0'}
+        {value || "0"}
       </div>
       <div className="grid grid-cols-3 gap-2">
         {KEYS.map((k) => (
@@ -59,7 +54,7 @@ export function NumericKeypad({
           type="button"
           variant="ghost"
           className="h-12"
-          onClick={() => onChange('')}
+          onClick={() => onChange("")}
           disabled={disabled}
         >
           Цэвэрлэх

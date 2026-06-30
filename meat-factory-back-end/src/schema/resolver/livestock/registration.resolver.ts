@@ -23,17 +23,17 @@ import { TCreateSettlement } from "../../../types/livestock/settlement.type";
 import { TDateRange } from "../../../types/dashboard/dashboard.type";
 import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
-// animalType is no longer a column on these four tables — it's reached via
-// the FK to Animals. The field resolvers keep the existing GraphQL surface
-// (`animalType` field) by reading from the (eager-loaded) joined `animal`.
+// animalType is reached via the FK to Animals. The field resolvers keep the
+// existing GraphQL `animalType` field, now returning the animal catalogue
+// NAME (the ANIMAL_TYPE enum was removed) from the joined `animal`.
 async function resolveAnimalType(row: {
   animal?: AnimalModel;
   animalId?: string | null;
 }): Promise<string | null> {
-  if (row.animal?.animalType) return row.animal.animalType;
+  if (row.animal?.name) return row.animal.name;
   if (!row.animalId) return null;
   const a = await AnimalModel.findByPk(row.animalId);
-  return a?.animalType ?? null;
+  return a?.name ?? null;
 }
 
 export default {

@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -17,14 +17,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   AddSalesInstallmentDoc,
   RemoveSalesInstallmentDoc,
-} from '@/lib/queries/sales';
-import { unwrap } from '@/lib/unwrap';
-import { formatMNT } from '@/lib/format/money';
-import { fmtDate } from '@/lib/format/date';
+} from "@/lib/queries/sales";
+import { unwrap } from "@/lib/unwrap";
+import { formatMNT } from "@/lib/format/money";
+import { fmtDate } from "@/lib/format/date";
 
 export type InstallmentRow = {
   id: string;
@@ -51,11 +51,9 @@ export function InstallmentsCard({
     AddSalesInstallmentDoc,
   );
   const [removeInstallment] = useMutation(RemoveSalesInstallmentDoc);
-  const [amt, setAmt] = useState('');
-  const [paidAt, setPaidAt] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
-  const [notes, setNotes] = useState('');
+  const [amt, setAmt] = useState("");
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
 
   const paidSum = installments.reduce((s, r) => s + r.amountMnt, 0);
   const outstanding = Math.max(0, amount - paidSum);
@@ -63,11 +61,11 @@ export function InstallmentsCard({
   async function onAdd() {
     const n = Number(amt);
     if (!Number.isFinite(n) || n <= 0) {
-      toast.error('Дүн эерэг тоо байх ёстой');
+      toast.error("Дүн эерэг тоо байх ёстой");
       return;
     }
     if (n > outstanding + 0.01) {
-      toast.error('Үлдэгдэлээс илүү дүн оруулсан байна');
+      toast.error("Үлдэгдэлээс илүү дүн оруулсан байна");
       return;
     }
     try {
@@ -80,9 +78,9 @@ export function InstallmentsCard({
         },
       });
       unwrap(r.data?.addSalesInstallment);
-      toast.success('Хадгалагдлаа');
-      setAmt('');
-      setNotes('');
+      toast.success("Хадгалагдлаа");
+      setAmt("");
+      setNotes("");
       startTransition(() => router.refresh());
     } catch (e) {
       toast.error((e as Error).message);
@@ -90,7 +88,7 @@ export function InstallmentsCard({
   }
 
   async function onRemove(id: string) {
-    if (!confirm('Энэ төлбөрийг устгах уу?')) return;
+    if (!confirm("Энэ төлбөрийг устгах уу?")) return;
     try {
       const r = await removeInstallment({ variables: { id } });
       unwrap(r.data?.removeSalesInstallment);
@@ -111,8 +109,8 @@ export function InstallmentsCard({
           <Badge
             className={
               outstanding > 0
-                ? 'border-0 bg-amber-100 text-amber-800 tabular-nums'
-                : 'border-0 bg-emerald-100 text-emerald-800 tabular-nums'
+                ? "border-0 bg-amber-100 text-amber-800 tabular-nums"
+                : "border-0 bg-emerald-100 text-emerald-800 tabular-nums"
             }
           >
             Үлдэгдэл: {formatMNT(outstanding)}
@@ -155,7 +153,7 @@ export function InstallmentsCard({
                 disabled={adding || pending}
                 className="h-11"
               >
-                {adding ? '...' : 'Нэмэх'}
+                {adding ? "..." : "Нэмэх"}
               </Button>
             </div>
           </div>
@@ -190,10 +188,10 @@ export function InstallmentsCard({
                     {formatMNT(r.amountMnt)}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {r.notes ?? '—'}
+                    {r.notes ?? "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {r.createdBy ?? '—'}
+                    {r.createdBy ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

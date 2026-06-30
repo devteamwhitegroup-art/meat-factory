@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const DashboardDoc = graphql(/* GraphQL */ `
   query Dashboard($dateRange: DateRangeInput) {
@@ -35,7 +35,10 @@ export const DashboardDoc = graphql(/* GraphQL */ `
           totalWeightKg
           paymentStatus
           transactionDate
-          customer { id name }
+          customer {
+            id
+            name
+          }
         }
         recentShipments {
           id
@@ -44,7 +47,10 @@ export const DashboardDoc = graphql(/* GraphQL */ `
           weightKg
           shippedAt
           createdAt
-          customer { id name }
+          customer {
+            id
+            name
+          }
         }
       }
     }

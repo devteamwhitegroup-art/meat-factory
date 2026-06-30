@@ -15,7 +15,6 @@ import {
   TStockLine,
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 // Type-only import (erased at runtime — no module cycle).
 import type { TRegistrationIngestDTO } from "../../types/livestock/settlement.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
@@ -39,17 +38,17 @@ export class InventoryController {
   private static _buildSku(line: TStockLine): string {
     if (line.productType === PRODUCT_TYPE.MEAT) {
       if (!line.animalType)
-        throw new Error("MEAT inventory line requires an animalType");
+        throw new Error("Мах inventory line requires an animalType");
       if (line.byproductName)
-        throw new Error("MEAT inventory line cannot have a byproductName");
-      return `MEAT:${line.animalType}`;
+        throw new Error("Мах inventory line cannot have a byproductName");
+      return `Мах:${line.animalType}`;
     }
     if (line.animalType)
-      throw new Error("BYPRODUCT inventory line cannot have an animalType");
-    // Byproducts are identified by their free-form catalogue name (BYPN:<name>).
+      throw new Error("Дайвар inventory line cannot have an animalType");
+    // Byproducts are identified by their free-form catalogue name (Дайвар:<name>).
     const name = line.byproductName?.trim();
-    if (!name) throw new Error("BYPRODUCT line requires a byproductName");
-    return `BYPN:${name}`;
+    if (!name) throw new Error("Дайвар line requires a byproductName");
+    return `Дайвар:${name}`;
   }
 
   private static async _getOrCreateItem(
@@ -135,15 +134,15 @@ export class InventoryController {
       new Set(
         payload.lines
           .filter((l) => l.productType === "MEAT" && l.animalType)
-          .map((l) => l.animalType as ANIMAL_TYPE),
+          .map((l) => l.animalType as string),
       ),
     );
     const yieldByType: Record<string, number> = {};
     if (meatTypes.length > 0) {
       const rows = await AnimalModel.findAll({
-        where: { animalType: { [Op.in]: meatTypes } },
+        where: { name: { [Op.in]: meatTypes } },
       });
-      for (const r of rows) yieldByType[r.animalType] = Number(r.yieldPercent);
+      for (const r of rows) yieldByType[r.name] = Number(r.yieldPercent);
     }
 
     await sequelize.transaction(async (t) => {
@@ -158,7 +157,7 @@ export class InventoryController {
             : Number(((l.quantityKg * yieldPct) / 100).toFixed(2));
         const line: TStockLine = {
           productType: isMeat ? PRODUCT_TYPE.MEAT : PRODUCT_TYPE.BYPRODUCT,
-          animalType: (l.animalType as ANIMAL_TYPE | null) ?? null,
+          animalType: l.animalType ?? null,
           byproductName: l.byproductName ?? null,
           quantityKg: adjustedQty,
         };

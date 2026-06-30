@@ -1,4 +1,3 @@
-import { ANIMAL_TYPE } from '../livestock/registration.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 // One priced product group on a shipment. Auto-derived from the cargo manifest:
@@ -10,7 +9,7 @@ export type TShipmentSaleLine = {
   shipmentId: string;
   productType: PRODUCT_TYPE;
   // Set for MEAT groups (HORSE/COW/…); null for byproducts.
-  animalType: ANIMAL_TYPE | null;
+  animalType: string | null;
   // Set for BYPRODUCT groups (free-form name, e.g. "Адууны хэл"); null for meat.
   byproductName: string | null;
   // Dedup key within the shipment — "MEAT:<animalType>" or "BYPN:<name>".

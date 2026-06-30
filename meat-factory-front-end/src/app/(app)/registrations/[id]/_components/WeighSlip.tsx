@@ -14,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
@@ -39,7 +38,6 @@ export function WeighSlip({
   covered?: boolean;
   coverByType?: Record<string, boolean>;
 }) {
-  const { animalName } = useAnimalCatalog();
   const entries = compact(reg.weighingEntries);
 
   // Meat income per type from per-entry negotiated price.
@@ -127,7 +125,7 @@ export function WeighSlip({
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.type}>
-                  <TableCell>{animalName.get(r.type) ?? r.type}</TableCell>
+                  <TableCell>{r.type}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatNumber(r.weight)}
                   </TableCell>

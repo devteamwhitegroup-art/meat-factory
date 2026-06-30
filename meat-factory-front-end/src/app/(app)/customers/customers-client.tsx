@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -17,13 +17,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -31,35 +31,31 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CreateCustomerDoc,
   CustomerListDoc,
   DeleteCustomerDoc,
   UpdateCustomerDoc,
-} from '@/lib/queries/customer';
-import { Customer_Kind } from '@/lib/gql/graphql';
-import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from '@/lib/format/enum';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
+} from "@/lib/queries/customer";
+import { Customer_Kind } from "@/lib/gql/graphql";
+import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from "@/lib/format/enum";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
 
-const KIND_VALUES = ['LOCAL_BROKER', 'ULAANBAATAR_BROKER', 'FACTORY'] as const;
+const KIND_VALUES = ["LOCAL_BROKER", "ULAANBAATAR_BROKER", "FACTORY"] as const;
 type Kind = (typeof KIND_VALUES)[number];
 
 const schema = z.object({
-  name: z.string().min(1, 'Нэр шаардлагатай'),
+  name: z.string().min(1, "Нэр шаардлагатай"),
   kind: z.enum(KIND_VALUES),
   contactPhone: z.string().optional(),
   address: z.string().optional(),
@@ -82,18 +78,22 @@ type EditTarget = {
 } | null;
 
 export function CustomersClient() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [kindFilter, setKindFilter] = useState<'ALL' | Kind>('ALL');
-  const { data, loading: fetching, refetch } = useQuery(CustomerListDoc, {
+  const [kindFilter, setKindFilter] = useState<"ALL" | Kind>("ALL");
+  const {
+    data,
+    loading: fetching,
+    refetch,
+  } = useQuery(CustomerListDoc, {
     variables: {
       search: search || null,
       isActive: null,
-      kind: kindFilter === 'ALL' ? null : (kindFilter as Customer_Kind),
+      kind: kindFilter === "ALL" ? null : (kindFilter as Customer_Kind),
       limit: 20,
       page,
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [createCustomer] = useMutation(CreateCustomerDoc);
   const [updateCustomer] = useMutation(UpdateCustomerDoc);
@@ -104,41 +104,41 @@ export function CustomersClient() {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: '',
-      kind: 'LOCAL_BROKER',
-      contactPhone: '',
-      address: '',
-      bankAccount: '',
-      registrationNumber: '',
-      taxId: '',
+      name: "",
+      kind: "LOCAL_BROKER",
+      contactPhone: "",
+      address: "",
+      bankAccount: "",
+      registrationNumber: "",
+      taxId: "",
     },
   });
 
   function openCreate() {
     setEditing(null);
     form.reset({
-      name: '',
-      kind: 'LOCAL_BROKER',
-      contactPhone: '',
-      address: '',
-      bankAccount: '',
-      registrationNumber: '',
-      taxId: '',
+      name: "",
+      kind: "LOCAL_BROKER",
+      contactPhone: "",
+      address: "",
+      bankAccount: "",
+      registrationNumber: "",
+      taxId: "",
     });
     setOpen(true);
   }
 
   function openEdit(c: NonNullable<EditTarget>) {
     setEditing(c);
-    const k = (c.kind as Kind | null) ?? 'LOCAL_BROKER';
+    const k = (c.kind as Kind | null) ?? "LOCAL_BROKER";
     form.reset({
-      name: c.name ?? '',
+      name: c.name ?? "",
       kind: k,
-      contactPhone: c.contactPhone ?? '',
-      address: c.address ?? '',
-      bankAccount: c.bankAccount ?? '',
-      registrationNumber: c.registrationNumber ?? '',
-      taxId: c.taxId ?? '',
+      contactPhone: c.contactPhone ?? "",
+      address: c.address ?? "",
+      bankAccount: c.bankAccount ?? "",
+      registrationNumber: c.registrationNumber ?? "",
+      taxId: c.taxId ?? "",
     });
     setOpen(true);
   }
@@ -176,7 +176,7 @@ export function CustomersClient() {
         return r.data?.createCustomer;
       },
       {
-        success: editing?.id ? 'Шинэчлэгдлээ' : 'Харилцагч нэмэгдлээ',
+        success: editing?.id ? "Шинэчлэгдлээ" : "Харилцагч нэмэгдлээ",
         onSuccess: () => {
           setOpen(false);
           refetch();
@@ -195,11 +195,11 @@ export function CustomersClient() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Устгах уу?')) return;
+    if (!confirm("Устгах уу?")) return;
     await runMutation(
       async () =>
         (await deleteCustomer({ variables: { id } })).data?.deleteCustomer,
-      { success: 'Устгагдлаа', onSuccess: refetch },
+      { success: "Устгагдлаа", onSuccess: refetch },
     );
   }
 
@@ -222,7 +222,7 @@ export function CustomersClient() {
           <Tabs
             value={kindFilter}
             onValueChange={(v) => {
-              setKindFilter(v as 'ALL' | Kind);
+              setKindFilter(v as "ALL" | Kind);
               setPage(1);
             }}
           >
@@ -241,7 +241,7 @@ export function CustomersClient() {
           <SheetContent className="w-full sm:max-w-md">
             <SheetHeader>
               <SheetTitle>
-                {editing ? 'Харилцагч засах' : 'Шинэ харилцагч'}
+                {editing ? "Харилцагч засах" : "Шинэ харилцагч"}
               </SheetTitle>
             </SheetHeader>
             <Form {...form}>
@@ -395,17 +395,17 @@ export function CustomersClient() {
                   <TableCell>
                     <Badge
                       className={
-                        CUSTOMER_KIND_COLOR[c.kind ?? ''] ?? 'border-0 bg-muted'
+                        CUSTOMER_KIND_COLOR[c.kind ?? ""] ?? "border-0 bg-muted"
                       }
                     >
-                      {CUSTOMER_KIND_MN[c.kind ?? ''] ?? '—'}
+                      {CUSTOMER_KIND_MN[c.kind ?? ""] ?? "—"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{c.contactPhone ?? '—'}</TableCell>
+                  <TableCell>{c.contactPhone ?? "—"}</TableCell>
                   <TableCell>
                     {[c.registrationNumber, c.taxId]
                       .filter(Boolean)
-                      .join(' / ') || '—'}
+                      .join(" / ") || "—"}
                   </TableCell>
                   <TableCell>
                     <button
@@ -416,11 +416,11 @@ export function CustomersClient() {
                       <Badge
                         className={
                           c.isActive
-                            ? 'border-0 bg-emerald-100 text-emerald-800'
-                            : 'border-0 bg-rose-100 text-rose-800'
+                            ? "border-0 bg-emerald-100 text-emerald-800"
+                            : "border-0 bg-rose-100 text-rose-800"
                         }
                       >
-                        {c.isActive ? 'Тийм' : 'Үгүй'}
+                        {c.isActive ? "Тийм" : "Үгүй"}
                       </Badge>
                     </button>
                   </TableCell>

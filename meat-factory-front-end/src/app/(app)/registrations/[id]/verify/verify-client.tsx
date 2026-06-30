@@ -77,11 +77,8 @@ export function VerifyClient({ id }: { id: string }) {
   // (Animal.canCoverSlaughterCost). Shared with the slip so its бой total
   // tracks the cover toggle, same as the summary below.
   const coverByType: Record<string, boolean> = {};
-  // animalType → display name, reused from the already-fetched Animals config.
-  const animalName = new Map<string, string>();
   for (const c of compact(bcData?.animals?.animals)) {
-    if (c.animalType) coverByType[c.animalType] = !!c.canCoverSlaughterCost;
-    if (c.animalType && c.name) animalName.set(c.animalType, c.name);
+    if (c.name) coverByType[c.name] = !!c.canCoverSlaughterCost;
   }
 
   async function toggleCover() {
@@ -210,9 +207,9 @@ export function VerifyClient({ id }: { id: string }) {
             // flagged here are offset when the verifier toggles cover.
             const coverByType: Record<string, boolean> = {};
             for (const c of compact(bcData?.animals?.animals)) {
-              if (c.animalType) {
-                butcherMap[c.animalType] = Number(c.pricePerAnimal ?? 0);
-                coverByType[c.animalType] = !!c.canCoverSlaughterCost;
+              if (c.name) {
+                butcherMap[c.name] = Number(c.pricePerAnimal ?? 0);
+                coverByType[c.name] = !!c.canCoverSlaughterCost;
               }
             }
             const slaughterTypes = Object.keys(counts);
@@ -261,7 +258,7 @@ export function VerifyClient({ id }: { id: string }) {
                     <TableBody>
                       {Object.entries(byType).map(([t, x]) => (
                         <TableRow key={t}>
-                          <TableCell>{animalName.get(t) ?? t}</TableCell>
+                          <TableCell>{t}</TableCell>
                           <TableCell>{formatNumber(x.received)}</TableCell>
                           <TableCell>
                             {formatMNT(
@@ -297,7 +294,7 @@ export function VerifyClient({ id }: { id: string }) {
                         const offset = covered && slaughter[t].coverable;
                         return (
                           <TableRow key={t}>
-                            <TableCell>{animalName.get(t) ?? t}</TableCell>
+                            <TableCell>{t}</TableCell>
                             <TableCell>{slaughter[t].count}</TableCell>
                             <TableCell>
                               {slaughter[t].price > 0

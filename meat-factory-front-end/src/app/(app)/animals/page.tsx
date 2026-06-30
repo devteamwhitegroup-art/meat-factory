@@ -1,8 +1,8 @@
-import { AnimalsClient } from './animals-client';
-import { requireCap } from '@/lib/auth/server';
+import { AnimalsClient } from "./animals-client";
+import { requireCap } from "@/lib/auth/server";
 
 export default async function AnimalsPage() {
-  await requireCap('animals');
+  await requireCap("animals");
   return (
     <div className="space-y-6">
       <div>

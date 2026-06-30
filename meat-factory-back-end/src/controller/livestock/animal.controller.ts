@@ -1,97 +1,85 @@
 import { Op } from "sequelize";
 import { AnimalModel } from "../../models/livestock/animal.model";
-import {
-  ANIMAL_TYPE_LABEL,
-  TAnimal,
-  TUpsertAnimal,
-} from "../../types/livestock/animal.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
+import { TAnimal, TUpsertAnimal } from "../../types/livestock/animal.type";
 
+// Animal catalogue (admin-managed). Identity is the unique `name` — the
+// ANIMAL_TYPE enum was removed. Workflow rows store animalId (resolved from
+// the name); the 4 value tables (inventory/cargo/sale/sales) store the name.
 export class AnimalController {
   static async list(): Promise<TAnimal[]> {
-    return await AnimalModel.findAll({ order: [["animalType", "ASC"]] });
+    return await AnimalModel.findAll({ order: [["name", "ASC"]] });
   }
 
-  static async findByType(
-    animalType: ANIMAL_TYPE,
-  ): Promise<AnimalModel | null> {
-    return await AnimalModel.findOne({ where: { animalType } });
+  static async findByName(name: string): Promise<AnimalModel | null> {
+    return await AnimalModel.findOne({ where: { name: name.trim() } });
   }
 
-  // Resolve an Animal row by enum type, auto-creating it if missing (price 0
-  // / cover false defaults). Used wherever a workflow row (registration line,
-  // weighing entry, byproduct log, settlement line) needs to store animalId.
-  // The catalog seed at boot pre-creates one per ANIMAL_TYPE so the create
-  // branch is normally inert — it just guards against a deleted row.
-  static async resolveByType(animalType: ANIMAL_TYPE): Promise<AnimalModel> {
-    if (!Object.values(ANIMAL_TYPE).includes(animalType))
-      throw new Error(`Invalid animal type: ${animalType}`);
-    const [row] = await AnimalModel.findOrCreate({
-      where: { animalType },
-      defaults: {
-        animalType,
-        name: ANIMAL_TYPE_LABEL[animalType],
-        pricePerAnimal: 0,
-        canCoverSlaughterCost: false,
-        yieldPercent: animalType === ANIMAL_TYPE.HORSE ? 70 : 100,
-        isActive: true,
-      },
-    });
+  // Resolve an Animal row by name. No auto-create (catalogue is admin-managed),
+  // so an unknown name is an error — the FE only ever offers catalogue rows.
+  static async resolveByName(name: string): Promise<AnimalModel> {
+    const row = await this.findByName(name);
+    if (!row) throw new Error(`Малын төрөл олдсонгүй: ${name}`);
     return row;
   }
 
-  // Bulk lookup. Returns Record<ANIMAL_TYPE, animalId>. Useful when a
-  // controller writes many rows that each need an animalId.
-  static async mapTypesToIds(
-    types: ANIMAL_TYPE[],
+  // Bulk name → animalId. Throws if any name is missing.
+  static async mapNamesToIds(
+    names: string[],
   ): Promise<Record<string, string>> {
-    if (types.length === 0) return {};
-    // Ensure rows exist for every requested type. Catalog is tiny so the
-    // findOrCreate sweep is cheap; serial keeps the code simple.
     const out: Record<string, string> = {};
-    for (const t of types) {
-      const row = await this.resolveByType(t);
-      out[t] = row.id;
+    for (const n of names) {
+      const row = await this.resolveByName(n);
+      out[n] = row.id;
     }
     return out;
   }
 
-  // Inverse of the above — id → animalType. Helpful when reading rows that
-  // weren't loaded with the Animal include.
-  static async mapIdsToTypes(
+  // Inverse — animalId → name. For reading rows without the Animal include.
+  static async mapIdsToNames(
     ids: string[],
-  ): Promise<Record<string, ANIMAL_TYPE>> {
+  ): Promise<Record<string, string>> {
     if (ids.length === 0) return {};
-    const rows = await AnimalModel.findAll({
-      where: { id: { [Op.in]: ids } },
-    });
-    const out: Record<string, ANIMAL_TYPE> = {};
-    for (const r of rows) out[r.id] = r.animalType;
+    const rows = await AnimalModel.findAll({ where: { id: { [Op.in]: ids } } });
+    const out: Record<string, string> = {};
+    for (const r of rows) out[r.id] = r.name;
     return out;
   }
 
-  // Single row per animal type — upsert keeps the admin UX trivial.
+  // Pre-fill defaults for a settlement: defaultCost[name] = price × count.
+  static async defaultsForCounts(
+    counts: Record<string, number>,
+  ): Promise<Record<string, number>> {
+    const all = await AnimalModel.findAll({ where: { isActive: true } });
+    const map: Record<string, number> = {};
+    for (const row of all) {
+      const cnt = counts[row.name] ?? 0;
+      if (cnt > 0)
+        map[row.name] = Number((Number(row.pricePerAnimal) * cnt).toFixed(2));
+    }
+    return map;
+  }
+
+  // Create (by name) or edit (by id, incl. rename). Single admin entry point.
   static async upsert(doc: TUpsertAnimal): Promise<AnimalModel> {
-    if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
-      throw new Error(`Invalid animal type: ${doc.animalType}`);
+    const name = (doc.name ?? "").trim();
+    if (!name) throw new Error("Малын төрлийн нэр шаардлагатай");
     if (doc.pricePerAnimal !== undefined) {
       const p = Number(doc.pricePerAnimal);
       if (!Number.isFinite(p) || p < 0)
         throw new Error("Үнэ 0-ээс багагүй байх ёстой");
     }
-
     if (doc.yieldPercent !== undefined) {
       const y = Number(doc.yieldPercent);
       if (!Number.isFinite(y) || y <= 0 || y > 100)
         throw new Error("Гарц 0-100 хооронд байх ёстой");
     }
 
-    const existing = await AnimalModel.findOne({
-      where: { animalType: doc.animalType },
-    });
+    const existing = doc.id
+      ? await AnimalModel.findByPk(doc.id)
+      : await this.findByName(name);
     if (existing) {
-      if (doc.name !== undefined && doc.name.trim())
-        existing.name = doc.name.trim();
+      existing.name = name;
+      if (typeof doc.isExport === "boolean") existing.isExport = doc.isExport;
       if (doc.pricePerAnimal !== undefined)
         existing.pricePerAnimal = Number(doc.pricePerAnimal);
       if (typeof doc.canCoverSlaughterCost === "boolean")
@@ -103,34 +91,14 @@ export class AnimalController {
       return existing;
     }
     return await AnimalModel.create({
-      animalType: doc.animalType,
-      name: doc.name?.trim() || ANIMAL_TYPE_LABEL[doc.animalType],
+      name,
+      isExport: !!doc.isExport,
       pricePerAnimal:
         doc.pricePerAnimal !== undefined ? Number(doc.pricePerAnimal) : 0,
       canCoverSlaughterCost: !!doc.canCoverSlaughterCost,
       yieldPercent:
-        doc.yieldPercent !== undefined
-          ? Number(doc.yieldPercent)
-          : doc.animalType === ANIMAL_TYPE.HORSE
-            ? 70
-            : 100,
+        doc.yieldPercent !== undefined ? Number(doc.yieldPercent) : 100,
       isActive: doc.isActive ?? true,
     });
-  }
-
-  // Pre-fill defaults for a settlement: defaultCost[type] = price × count.
-  static async defaultsForCounts(
-    counts: Record<string, number>,
-  ): Promise<Record<string, number>> {
-    const all = await AnimalModel.findAll({ where: { isActive: true } });
-    const map: Record<string, number> = {};
-    for (const row of all) {
-      const cnt = counts[row.animalType] ?? 0;
-      if (cnt > 0)
-        map[row.animalType] = Number(
-          (Number(row.pricePerAnimal) * cnt).toFixed(2),
-        );
-    }
-    return map;
   }
 }

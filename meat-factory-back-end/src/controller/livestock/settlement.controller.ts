@@ -14,10 +14,7 @@ import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
 import { findOrThrow } from "../../utils";
-import {
-  ANIMAL_TYPE,
-  REGISTRATION_STATUS,
-} from "../../types/livestock/registration.type";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TCreateSettlement,
   TRegistrationIngestDTO,
@@ -55,19 +52,19 @@ export class SettlementController {
       include: [{ model: AnimalModel, as: "animal" }],
     });
     const regTypes = new Set(
-      animalLines.map((l) => l.animal?.animalType).filter(Boolean) as string[],
+      animalLines.map((l) => l.animal?.name).filter(Boolean) as string[],
     );
     // Бой зардал captured at weighing (pre-VERIFIED). Used as the default when
     // a settlement line doesn't override it.
     const storedCostByType: Record<string, number> = {};
     for (const al of animalLines)
-      if (al.animal?.animalType)
-        storedCostByType[al.animal.animalType] = Number(al.slaughterCost);
+      if (al.animal?.name)
+        storedCostByType[al.animal.name] = Number(al.slaughterCost);
 
     if (!doc.lines || doc.lines.length === 0)
       throw new Error("At least one settlement line is required");
 
-    const lineTypes = new Set<ANIMAL_TYPE>();
+    const lineTypes = new Set<string>();
     for (const l of doc.lines) {
       if (!regTypes.has(l.animalType))
         throw new Error(
@@ -80,7 +77,7 @@ export class SettlementController {
       lineTypes.add(l.animalType);
     }
     for (const t of regTypes) {
-      if (!lineTypes.has(t as ANIMAL_TYPE))
+      if (!lineTypes.has(t))
         throw new Error(`Missing settlement line for animal type ${t}`);
     }
 
@@ -95,15 +92,15 @@ export class SettlementController {
     const receivedByType: Record<string, number> = {};
     const meatByType: Record<string, number> = {};
     for (const w of weighing) {
-      const t = w.animal?.animalType ?? "";
+      const t = w.animal?.name ?? "";
       const wt = Number(w.weightKg);
       const price = w.pricePerKg != null ? Number(w.pricePerKg) : 0;
       receivedByType[t] = (receivedByType[t] ?? 0) + wt;
       meatByType[t] = (meatByType[t] ?? 0) + wt * price;
     }
 
-    // Map every line's animalType → animalId so we can persist the FK.
-    const typeToId = await AnimalController.mapTypesToIds(
+    // Map every line's animal name → animalId so we can persist the FK.
+    const typeToId = await AnimalController.mapNamesToIds(
       Array.from(lineTypes),
     );
 
@@ -275,7 +272,7 @@ export class SettlementController {
       .filter((l) => Number(l.receivedWeightKg) > 0)
       .map((l) => ({
         productType: "MEAT" as const,
-        animalType: (l.animal?.animalType ?? null) as ANIMAL_TYPE | null,
+        animalType: l.animal?.name ?? null,
         byproductType: null,
         byproductName: null,
         quantityKg: Number(l.receivedWeightKg),

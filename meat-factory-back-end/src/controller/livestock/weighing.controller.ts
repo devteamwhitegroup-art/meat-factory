@@ -5,10 +5,7 @@ import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model"
 import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { RegistrationController } from "./registration.controller";
-import {
-  ANIMAL_TYPE,
-  REGISTRATION_STATUS,
-} from "../../types/livestock/registration.type";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
@@ -35,8 +32,6 @@ export class WeighingController {
     ]);
 
     const { registrationId, animalType, weightKg, pricePerKg } = doc;
-    if (!Object.values(ANIMAL_TYPE).includes(animalType))
-      throw new Error(`Invalid animal type: ${animalType}`);
     if (!weightKg || weightKg <= 0)
       throw new Error("Weight must be a positive number");
     if (pricePerKg != null && pricePerKg < 0)
@@ -46,7 +41,8 @@ export class WeighingController {
     // Weighing happens in-place while the row is REGISTERED. No mid-state.
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
 
-    const animal = await AnimalController.resolveByType(animalType);
+    // Resolve the animal by catalogue name (throws if unknown).
+    const animal = await AnimalController.resolveByName(animalType);
 
     const line = await RegistrationAnimalLineModel.findOne({
       where: { registrationId, animalId: animal.id },
@@ -173,9 +169,7 @@ export class WeighingController {
       entry.pricePerKg = doc.pricePerKg ?? null;
     }
     if (doc.animalType !== undefined && doc.animalType !== null) {
-      if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
-        throw new Error(`Invalid animal type: ${doc.animalType}`);
-      const animal = await AnimalController.resolveByType(doc.animalType);
+      const animal = await AnimalController.resolveByName(doc.animalType);
       const line = await RegistrationAnimalLineModel.findOne({
         where: { registrationId: entry.registrationId, animalId: animal.id },
       });

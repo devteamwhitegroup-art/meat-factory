@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { DateRange } from 'react-day-picker';
-import { CalendarIcon } from 'lucide-react';
+import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { DateRange } from "react-day-picker";
+import { CalendarIcon } from "lucide-react";
 
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { SHORTCUTS, thisMonth, ymd } from '@/lib/date/range';
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { SHORTCUTS, thisMonth, ymd } from "@/lib/date/range";
 
 function parseLocal(s: string): Date | undefined {
-  const [y, m, d] = s.split('-').map(Number);
+  const [y, m, d] = s.split("-").map(Number);
   if (!y || !m || !d) return undefined;
   return new Date(y, m - 1, d);
 }
@@ -31,14 +31,14 @@ export function DateRangeFilter() {
   const [open, setOpen] = useState(false);
 
   const def = thisMonth();
-  const from = sp.get('from') ?? def.from;
-  const to = sp.get('to') ?? def.to;
+  const from = sp.get("from") ?? def.from;
+  const to = sp.get("to") ?? def.to;
 
   function apply(f: string, t: string) {
     const params = new URLSearchParams(sp.toString());
-    params.set('from', f);
-    params.set('to', t);
-    params.delete('page');
+    params.set("from", f);
+    params.set("to", t);
+    params.delete("page");
     router.replace(`${pathname}?${params.toString()}`);
     setOpen(false);
   }
@@ -59,8 +59,8 @@ export function DateRangeFilter() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          buttonVariants({ variant: 'outline' }),
-          'h-9 gap-2 font-normal',
+          buttonVariants({ variant: "outline" }),
+          "h-9 gap-2 font-normal",
         )}
       >
         <CalendarIcon className="h-4 w-4" />
@@ -75,7 +75,7 @@ export function DateRangeFilter() {
               <Button
                 key={s.key}
                 size="sm"
-                variant={active ? 'default' : 'outline'}
+                variant={active ? "default" : "outline"}
                 className="w-full font-normal"
                 onClick={() => apply(r.from, r.to)}
               >

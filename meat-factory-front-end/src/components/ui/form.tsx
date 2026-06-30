@@ -43,7 +43,8 @@ function useFormField() {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
   const { getFieldState, formState } = useFormContext();
-  if (!fieldContext) throw new Error("useFormField must be used within <FormField>");
+  if (!fieldContext)
+    throw new Error("useFormField must be used within <FormField>");
   const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
   return {
@@ -80,7 +81,8 @@ function FormLabel({
 }
 
 function FormControl(props: React.ComponentProps<"div">) {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  const { error, formItemId, formDescriptionId, formMessageId } =
+    useFormField();
   return (
     <div
       id={formItemId}
@@ -95,10 +97,7 @@ function FormControl(props: React.ComponentProps<"div">) {
   );
 }
 
-function FormDescription({
-  className,
-  ...props
-}: React.ComponentProps<"p">) {
+function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
   const { formDescriptionId } = useFormField();
   return (
     <p
@@ -109,7 +108,11 @@ function FormDescription({
   );
 }
 
-function FormMessage({ className, children, ...props }: React.ComponentProps<"p">) {
+function FormMessage({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"p">) {
   const { error, formMessageId } = useFormField();
   const body = error ? String(error?.message ?? "") : children;
   if (!body) return null;

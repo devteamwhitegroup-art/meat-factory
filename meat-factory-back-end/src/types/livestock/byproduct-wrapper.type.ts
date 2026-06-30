@@ -1,5 +1,4 @@
 import { TPagination } from '../global/global.type';
-import { ANIMAL_TYPE } from './registration.type';
 
 // A "wrapper" (өлөн гэдэс / гэдэс) is a per-animal bundle that contains the
 // individual byproduct items. The wrapper now joins to the Animal config by
@@ -18,7 +17,7 @@ export type TByproductWrapper = {
 export type TCreateByproductWrapper = {
   // Caller passes animalType for ergonomics — back-end resolves it to the
   // Animals row and stores animalId.
-  animalType: ANIMAL_TYPE;
+  animalType: string;
   name: string;
 };
 
@@ -28,7 +27,7 @@ export type TUpdateByproductWrapper = Partial<TCreateByproductWrapper> & {
 };
 
 export type TGetByproductWrappers = {
-  animalType?: ANIMAL_TYPE;
+  animalType?: string;
   search?: string;
   isActive?: boolean;
 } & TPagination;

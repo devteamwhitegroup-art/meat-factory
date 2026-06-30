@@ -15,13 +15,12 @@ export function SlaughterCostPreview({
   counts: Record<string, number>;
   isPreButchered: boolean;
 }) {
-  const { animals, animalName } = useAnimalCatalog();
+  const { animals } = useAnimalCatalog();
 
   const rows = useMemo(() => {
     const priceByType: Record<string, number> = {};
     for (const a of animals) {
-      if (a.animalType)
-        priceByType[a.animalType] = Number(a.pricePerAnimal ?? 0);
+      if (a.name) priceByType[a.name] = Number(a.pricePerAnimal ?? 0);
     }
     return Object.entries(counts)
       .filter(([, c]) => Number(c) > 0)
@@ -50,8 +49,7 @@ export function SlaughterCostPreview({
           {rows.map((r) => (
             <div key={r.animalType} className="flex justify-between">
               <span className="text-muted-foreground">
-                {animalName.get(r.animalType) ?? r.animalType} {r.count} ×{" "}
-                {formatMNT(r.price)}
+                {r.animalType} {r.count} × {formatMNT(r.price)}
               </span>
               <span className="tabular-nums">{formatMNT(r.subtotal)}</span>
             </div>

@@ -1,14 +1,5 @@
 import { TPagination } from '../global/global.type';
 
-// Canonical animal-type enum — shared across livestock/sales/inventory.
-export enum ANIMAL_TYPE {
-  COW = 'COW', // Үхэр
-  SHEEP = 'SHEEP', // Хонь
-  HORSE = 'HORSE', // Адуу
-  GOAT = 'GOAT', // Ямаа
-  CAMEL = 'CAMEL', // Тэмээ
-}
-
 export enum REGISTRATION_STATUS {
   REGISTERED = 'REGISTERED', // intake created by guard (weighing happens in-place)
   WEIGHED = 'WEIGHED', // scale operator finished weighing
@@ -20,7 +11,8 @@ export enum REGISTRATION_STATUS {
 }
 
 export type TRegistrationAnimalLineInput = {
-  animalType: ANIMAL_TYPE;
+  // Animal catalogue name (the ANIMAL_TYPE enum was removed).
+  animalType: string;
   count: number;
 };
 
@@ -85,6 +77,6 @@ export type TRegistrationAnimalLine = {
 };
 
 export type TSlaughterCostInput = {
-  animalType: ANIMAL_TYPE;
+  animalType: string;
   slaughterCost: number;
 };

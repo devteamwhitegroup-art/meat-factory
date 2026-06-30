@@ -37,22 +37,16 @@ const ANIMAL_COLORS: Record<string, string> = {
 
 // animalType → display name comes from the Animals catalogue (admin-editable),
 // passed in by the server page. Falls back to the raw type code.
-function meatLabel(i: Item, names: Record<string, string>): string {
+function meatLabel(i: Item): string {
   const t = i.animalType ?? "";
-  return t ? `${names[t] ?? t} мах` : "—";
+  return t ? `${t} мах` : "—";
 }
 
 function byproductLabel(i: Item): string {
   return i.byproductName ?? "—";
 }
 
-export function StockSplit({
-  items,
-  animalNames,
-}: {
-  items: Item[];
-  animalNames: Record<string, string>;
-}) {
+export function StockSplit({ items }: { items: Item[] }) {
   const [tab, setTab] = useState<"meat" | "byproduct">("meat");
 
   const meat = items.filter((i) => i.productType === "MEAT");
@@ -100,7 +94,7 @@ export function StockSplit({
       </div>
 
       {tab === "meat" ? (
-        <MeatPanel items={meat} total={meatTotal} animalNames={animalNames} />
+        <MeatPanel items={meat} total={meatTotal} />
       ) : (
         <ByproductPanel items={byproduct} total={byTotal} />
       )}
@@ -110,22 +104,14 @@ export function StockSplit({
 
 // ─── Meat tab ────────────────────────────────────────────────────────
 
-function MeatPanel({
-  items,
-  total,
-  animalNames,
-}: {
-  items: Item[];
-  total: number;
-  animalNames: Record<string, string>;
-}) {
+function MeatPanel({ items, total }: { items: Item[]; total: number }) {
   // Sort animals descending by kg so the largest segment is on the left
   // of the proportional bar.
   const sorted = [...items]
     .map((i) => ({
       ...i,
       kg: Number(i.quantityKg ?? 0),
-      label: meatLabel(i, animalNames),
+      label: meatLabel(i),
       color: ANIMAL_COLORS[i.animalType ?? ""] ?? "bg-slate-400",
     }))
     .sort((a, b) => b.kg - a.kg);

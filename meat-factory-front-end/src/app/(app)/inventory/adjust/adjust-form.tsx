@@ -24,10 +24,10 @@ import { ByproductNamePicker } from "@/components/common/ByproductNamePicker";
 
 export function AdjustForm() {
   const router = useRouter();
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animalTypes } = useAnimalCatalog();
   const [adjust] = useMutation(AdjustInventoryDoc);
   const [productType, setProductType] = useState<"MEAT" | "BYPRODUCT">("MEAT");
-  const [animalType, setAnimalType] = useState("COW");
+  const [animalType, setAnimalType] = useState("");
   const [byproductName, setByproductName] = useState("");
   const [quantityKg, setQuantityKg] = useState("");
   const [direction, setDirection] = useState<"IN" | "OUT" | "ADJUSTMENT">("IN");
@@ -44,12 +44,16 @@ export function AdjustForm() {
       toast.error("Дайвар сонгоно уу");
       return;
     }
+    if (productType === "MEAT" && !animalType) {
+      toast.error("Малын төрөл сонгоно уу");
+      return;
+    }
     setBusy(true);
     try {
       const r = await adjust({
         variables: {
           productType: productType as never,
-          animalType: productType === "MEAT" ? (animalType as never) : null,
+          animalType: productType === "MEAT" ? animalType : null,
           byproductName: productType === "BYPRODUCT" ? byproductName : null,
           quantityKg: q,
           direction: direction as never,
@@ -92,17 +96,15 @@ export function AdjustForm() {
             {productType === "MEAT" ? (
               <Select
                 value={animalType}
-                onValueChange={(v) => setAnimalType(v ?? "COW")}
+                onValueChange={(v) => setAnimalType(v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue>
-                    {animalName.get(animalType) ?? animalType}
-                  </SelectValue>
+                  <SelectValue>{animalType}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {animalTypes.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {animalName.get(t) ?? t}
+                      {t}
                     </SelectItem>
                   ))}
                 </SelectContent>

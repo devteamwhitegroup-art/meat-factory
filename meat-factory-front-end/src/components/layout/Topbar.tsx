@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { ROLE_MN } from '@/lib/format/enum';
-import { navIsActive, type NavItem, type StaffRole } from '@/lib/auth/roles';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ROLE_MN } from "@/lib/format/enum";
+import { navIsActive, type NavItem, type StaffRole } from "@/lib/auth/roles";
+import { cn } from "@/lib/utils";
 
 export function Topbar({
   role,
   navItems = [],
-  brand = 'FactoryOS',
+  brand = "FactoryOS",
 }: {
   role: StaffRole | null;
   navItems?: NavItem[];
@@ -20,8 +20,8 @@ export function Topbar({
   const router = useRouter();
   const pathname = usePathname();
   async function logout() {
-    await fetch('/api/logout', { method: 'POST' });
-    router.replace('/login');
+    await fetch("/api/logout", { method: "POST" });
+    router.replace("/login");
     router.refresh();
   }
   return (
@@ -37,10 +37,10 @@ export function Topbar({
                   key={i.href}
                   href={i.href}
                   className={cn(
-                    'rounded-md px-3 py-1.5 text-sm transition-colors',
+                    "rounded-md px-3 py-1.5 text-sm transition-colors",
                     active
-                      ? 'bg-primary/10 font-medium text-primary'
-                      : 'hover:bg-muted',
+                      ? "bg-primary/10 font-medium text-primary"
+                      : "hover:bg-muted",
                   )}
                 >
                   {i.label}

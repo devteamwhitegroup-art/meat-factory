@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const COLORS = [
-  '#2563eb',
-  '#16a34a',
-  '#dc2626',
-  '#f59e0b',
-  '#9333ea',
-  '#0891b2',
-  '#db2777',
-  '#65a30d',
-  '#ea580c',
-  '#0ea5e9',
+  "#2563eb",
+  "#16a34a",
+  "#dc2626",
+  "#f59e0b",
+  "#9333ea",
+  "#0891b2",
+  "#db2777",
+  "#65a30d",
+  "#ea580c",
+  "#0ea5e9",
 ];
 
 type Slice = { name: string; value: number };
@@ -49,16 +49,14 @@ export function BreakdownPie({
                 cy="50%"
                 outerRadius={90}
                 label={(p) =>
-                  `${p.name}: ${Number(p.value).toLocaleString('mn-MN')}`
+                  `${p.name}: ${Number(p.value).toLocaleString("mn-MN")}`
                 }
               >
                 {filtered.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip
-                formatter={(v) => Number(v).toLocaleString('mn-MN')}
-              />
+              <Tooltip formatter={(v) => Number(v).toLocaleString("mn-MN")} />
             </PieChart>
           </ResponsiveContainer>
         )}

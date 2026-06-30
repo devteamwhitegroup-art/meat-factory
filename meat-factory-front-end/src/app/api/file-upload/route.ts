@@ -1,22 +1,22 @@
-import { env } from '@/lib/env';
-import { getSessionToken, proxyUpstream } from '@/lib/api/proxy';
+import { env } from "@/lib/env";
+import { getSessionToken, proxyUpstream } from "@/lib/api/proxy";
 
 const ALLOWED_MIME = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'video/mp4',
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "video/mp4",
 ]);
 const ALLOWED_TYPE = new Set([
-  'register',
-  'herd',
-  'scale',
-  'byproduct',
-  'verify',
-  'settlement',
-  'shipment',
-  'staff',
-  'other',
+  "register",
+  "herd",
+  "scale",
+  "byproduct",
+  "verify",
+  "settlement",
+  "shipment",
+  "staff",
+  "other",
 ]);
 
 // Multipart proxy to the back-end POST /file/upload. The back-end returns
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const token = await getSessionToken();
   if (!token) {
     return Response.json(
-      { success: false, message: 'Not authenticated' },
+      { success: false, message: "Not authenticated" },
       { status: 401 },
     );
   }
@@ -36,23 +36,23 @@ export async function POST(request: Request) {
     form = await request.formData();
   } catch {
     return Response.json(
-      { success: false, message: 'Хүсэлт буруу байна' },
+      { success: false, message: "Хүсэлт буруу байна" },
       { status: 400 },
     );
   }
 
-  const file = form.get('file');
-  const type = String(form.get('type') ?? '');
+  const file = form.get("file");
+  const type = String(form.get("type") ?? "");
 
   if (!(file instanceof File)) {
     return Response.json(
-      { success: false, message: 'Файл оруулаагүй байна' },
+      { success: false, message: "Файл оруулаагүй байна" },
       { status: 400 },
     );
   }
   if (!ALLOWED_TYPE.has(type)) {
     return Response.json(
-      { success: false, message: 'Файлын төрөл буруу байна' },
+      { success: false, message: "Файлын төрөл буруу байна" },
       { status: 400 },
     );
   }
@@ -64,16 +64,16 @@ export async function POST(request: Request) {
   }
 
   const fd = new FormData();
-  fd.append('file', file, file.name);
-  fd.append('type', type);
+  fd.append("file", file, file.name);
+  fd.append("type", type);
 
   return proxyUpstream(
     env.FILE_UPLOAD_UPSTREAM_URL,
     {
-      method: 'POST',
+      method: "POST",
       headers: { authorization: `Bearer ${token}` }, // fetch sets multipart boundary itself
       body: fd,
     },
-    { success: false, message: 'Серверт хандах боломжгүй байна' },
+    { success: false, message: "Серверт хандах боломжгүй байна" },
   );
 }

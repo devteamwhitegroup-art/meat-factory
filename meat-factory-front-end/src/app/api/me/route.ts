@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
-import { env } from '@/lib/env';
+import { cookies } from "next/headers";
+import { env } from "@/lib/env";
 
 export async function GET() {
   const jar = await cookies();

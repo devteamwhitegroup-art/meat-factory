@@ -19,7 +19,6 @@ import {
 import { SetShipmentSalePriceDoc } from "@/lib/queries/shipment";
 import { runMutation } from "@/lib/runMutation";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
-import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatNumber, formatMNT } from "@/lib/format/money";
 
 // ─── End-of-load pricing ─────────────────────────────────────────────
@@ -38,11 +37,9 @@ export type SaleLineRow = {
   amount: number | null;
 };
 
-function lineLabel(r: SaleLineRow, animalName: Map<string, string>): string {
+function lineLabel(r: SaleLineRow): string {
   if (r.productType === "MEAT") {
-    return r.animalType
-      ? (animalName.get(r.animalType) ?? r.animalType)
-      : PRODUCT_TYPE_MN.MEAT;
+    return r.animalType ? r.animalType : PRODUCT_TYPE_MN.MEAT;
   }
   return r.byproductName ?? PRODUCT_TYPE_MN.BYPRODUCT;
 }
@@ -59,7 +56,6 @@ export function SalePricingPanel({
   onChanged: () => void;
 }) {
   const [setPrice] = useMutation(SetShipmentSalePriceDoc);
-  const { animalName } = useAnimalCatalog();
 
   async function onSave(id: string, raw: string) {
     const trimmed = raw.trim();
@@ -108,7 +104,7 @@ export function SalePricingPanel({
                 {saleLines.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
-                      {lineLabel(r, animalName)}
+                      {lineLabel(r)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatNumber(r.totalWeightKg)}

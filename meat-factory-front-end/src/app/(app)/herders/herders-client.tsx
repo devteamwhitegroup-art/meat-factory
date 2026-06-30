@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -21,8 +21,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/form";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -30,29 +30,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   CreateHerderDoc,
   DeleteHerderDoc,
   HerderListDoc,
   UpdateHerderDoc,
-} from '@/lib/queries/herder';
-import { HerderAddressListDoc } from '@/lib/queries/herder-address';
+} from "@/lib/queries/herder";
+import { HerderAddressListDoc } from "@/lib/queries/herder-address";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
-import { fmtDate } from '@/lib/format/date';
+} from "@/components/ui/select";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
+import { fmtDate } from "@/lib/format/date";
 
 const schema = z
   .object({
-    name: z.string().min(1, 'Нэр шаардлагатай'),
-    registrationNo: z.string().min(1, 'Регистр шаардлагатай'),
+    name: z.string().min(1, "Нэр шаардлагатай"),
+    registrationNo: z.string().min(1, "Регистр шаардлагатай"),
     phone: z.string().optional(),
     bankAccount: z.string().optional(),
     bankName: z.string().optional(),
@@ -65,8 +65,8 @@ const schema = z
       (v.addressId && v.addressId.length > 0) ||
       (v.address && v.address.trim().length > 0),
     {
-      path: ['addressId'],
-      message: 'Хаяг сонгох эсвэл бичих',
+      path: ["addressId"],
+      message: "Хаяг сонгох эсвэл бичих",
     },
   );
 type Values = z.infer<typeof schema>;
@@ -85,18 +85,22 @@ type EditTarget = {
 } | null;
 
 export function HerdersClient() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const { data, loading: fetching, refetch } = useQuery(HerderListDoc, {
+  const {
+    data,
+    loading: fetching,
+    refetch,
+  } = useQuery(HerderListDoc, {
     variables: { search: search || null, limit: 20, page },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [createHerder] = useMutation(CreateHerderDoc);
   const [updateHerder] = useMutation(UpdateHerderDoc);
   const [deleteHerder] = useMutation(DeleteHerderDoc);
   const { data: addrData } = useQuery(HerderAddressListDoc, {
     variables: { search: null, isActive: true },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const addresses = compact(addrData?.herderAddresses?.herderAddresses);
 
@@ -105,28 +109,28 @@ export function HerdersClient() {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: '',
-      registrationNo: '',
-      phone: '',
-      bankAccount: '',
-      bankName: '',
-      accountHolderName: '',
-      addressId: '',
-      address: '',
+      name: "",
+      registrationNo: "",
+      phone: "",
+      bankAccount: "",
+      bankName: "",
+      accountHolderName: "",
+      addressId: "",
+      address: "",
     },
   });
 
   function openCreate() {
     setEditing(null);
     form.reset({
-      name: '',
-      registrationNo: '',
-      phone: '',
-      bankAccount: '',
-      bankName: '',
-      accountHolderName: '',
-      addressId: '',
-      address: '',
+      name: "",
+      registrationNo: "",
+      phone: "",
+      bankAccount: "",
+      bankName: "",
+      accountHolderName: "",
+      addressId: "",
+      address: "",
     });
     setSheetOpen(true);
   }
@@ -134,16 +138,16 @@ export function HerdersClient() {
   function openEdit(h: NonNullable<EditTarget>) {
     setEditing(h);
     form.reset({
-      name: h.name ?? '',
-      registrationNo: h.registrationNo ?? '',
-      phone: h.phone ?? '',
-      bankAccount: h.bankAccount ?? '',
-      bankName: h.bankName ?? '',
-      accountHolderName: h.accountHolderName ?? '',
-      addressId: h.addressId ?? '',
+      name: h.name ?? "",
+      registrationNo: h.registrationNo ?? "",
+      phone: h.phone ?? "",
+      bankAccount: h.bankAccount ?? "",
+      bankName: h.bankName ?? "",
+      accountHolderName: h.accountHolderName ?? "",
+      addressId: h.addressId ?? "",
       // When an address row is linked we leave the free-form field blank
       // — it's just a fallback for ad-hoc strings.
-      address: h.addressId ? '' : h.address ?? '',
+      address: h.addressId ? "" : (h.address ?? ""),
     });
     setSheetOpen(true);
   }
@@ -157,9 +161,7 @@ export function HerdersClient() {
       bankName: values.bankName?.trim() || null,
       accountHolderName: values.accountHolderName?.trim() || null,
       addressId: values.addressId || null,
-      address: values.addressId
-        ? null
-        : values.address?.trim() || null,
+      address: values.addressId ? null : values.address?.trim() || null,
     };
     await runMutation(
       async () => {
@@ -173,7 +175,7 @@ export function HerdersClient() {
         return r.data?.createHerder;
       },
       {
-        success: editing?.id ? 'Шинэчлэгдлээ' : 'Малчин нэмэгдлээ',
+        success: editing?.id ? "Шинэчлэгдлээ" : "Малчин нэмэгдлээ",
         onSuccess: () => {
           setSheetOpen(false);
           refetch();
@@ -183,10 +185,11 @@ export function HerdersClient() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Устгах уу?')) return;
+    if (!confirm("Устгах уу?")) return;
     await runMutation(
-      async () => (await deleteHerder({ variables: { id } })).data?.deleteHerder,
-      { success: 'Устгагдлаа', onSuccess: refetch },
+      async () =>
+        (await deleteHerder({ variables: { id } })).data?.deleteHerder,
+      { success: "Устгагдлаа", onSuccess: refetch },
     );
   }
 
@@ -212,7 +215,7 @@ export function HerdersClient() {
           <SheetContent className="w-full sm:max-w-md">
             <SheetHeader>
               <SheetTitle>
-                {editing ? 'Малчин засах' : 'Шинэ малчин'}
+                {editing ? "Малчин засах" : "Шинэ малчин"}
               </SheetTitle>
             </SheetHeader>
             <Form {...form}>
@@ -279,10 +282,7 @@ export function HerdersClient() {
                     <FormItem>
                       <FormLabel>Банкны нэр</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="ж: Хаан банк"
-                          {...field}
-                        />
+                        <Input placeholder="ж: Хаан банк" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -317,15 +317,11 @@ export function HerdersClient() {
                         <FormControl>
                           <Select
                             value={field.value || undefined}
-                            onValueChange={(v) =>
-                              field.onChange(v ?? '')
-                            }
+                            onValueChange={(v) => field.onChange(v ?? "")}
                           >
                             <SelectTrigger className="h-10 w-full">
                               {field.value ? (
-                                <span>
-                                  {selected?.name ?? 'Сонгосон'}
-                                </span>
+                                <span>{selected?.name ?? "Сонгосон"}</span>
                               ) : (
                                 <SelectValue placeholder="Каталогаас сонгох" />
                               )}
@@ -406,8 +402,8 @@ export function HerdersClient() {
                 <TableRow key={h.id!}>
                   <TableCell className="font-medium">{h.name}</TableCell>
                   <TableCell>{h.registrationNo}</TableCell>
-                  <TableCell>{h.phone ?? '—'}</TableCell>
-                  <TableCell>{h.address ?? '—'}</TableCell>
+                  <TableCell>{h.phone ?? "—"}</TableCell>
+                  <TableCell>{h.address ?? "—"}</TableCell>
                   <TableCell className="text-xs">
                     {h.bankName || h.bankAccount ? (
                       <div className="space-y-0.5">
@@ -422,7 +418,7 @@ export function HerdersClient() {
                         ) : null}
                       </div>
                     ) : (
-                      '—'
+                      "—"
                     )}
                   </TableCell>
                   <TableCell>{fmtDate(h.createdAt)}</TableCell>

@@ -9,8 +9,6 @@ type Props = {
   status: string;
   herderName?: string | null;
   animalLines?: Line[] | null;
-  // animalType → display name from the Animals catalogue (passed by the page).
-  animalNames: Record<string, string>;
 };
 
 export function RegistrationCard({
@@ -19,7 +17,6 @@ export function RegistrationCard({
   status,
   herderName,
   animalLines,
-  animalNames,
 }: Props) {
   return (
     <Link href={`/registrations/${id}`} className="block h-full">
@@ -36,7 +33,7 @@ export function RegistrationCard({
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {(animalLines ?? []).map((l) => (
               <span key={l.animalType}>
-                {animalNames[l.animalType] ?? l.animalType}: <b>{l.count}</b>
+                {l.animalType}: <b>{l.count}</b>
               </span>
             ))}
           </div>

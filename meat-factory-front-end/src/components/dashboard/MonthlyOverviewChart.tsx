@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useQuery } from '@apollo/client/react';
+import { useQuery } from "@apollo/client/react";
 import {
   Bar,
   CartesianGrid,
@@ -11,25 +11,25 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MonthlyOverviewDoc } from '@/lib/queries/monthly-budget';
-import { compact } from '@/lib/compact';
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MonthlyOverviewDoc } from "@/lib/queries/monthly-budget";
+import { compact } from "@/lib/compact";
 
 const MN_MONTH = [
-  '1 сар',
-  '2 сар',
-  '3 сар',
-  '4 сар',
-  '5 сар',
-  '6 сар',
-  '7 сар',
-  '8 сар',
-  '9 сар',
-  '10 сар',
-  '11 сар',
-  '12 сар',
+  "1 сар",
+  "2 сар",
+  "3 сар",
+  "4 сар",
+  "5 сар",
+  "6 сар",
+  "7 сар",
+  "8 сар",
+  "9 сар",
+  "10 сар",
+  "11 сар",
+  "12 сар",
 ];
 
 function formatTick(n: number): string {
@@ -41,10 +41,14 @@ function formatTick(n: number): string {
 // Sa-by-month bars (income, herder cost) overlaid with the budget target line.
 // Sources: paid SalesTransactions for income, paid Settlements for herder
 // cost, MonthlyBudget table for the target.
-export function MonthlyOverviewChart({ monthsBack = 12 }: { monthsBack?: number }) {
+export function MonthlyOverviewChart({
+  monthsBack = 12,
+}: {
+  monthsBack?: number;
+}) {
   const { data, loading, error } = useQuery(MonthlyOverviewDoc, {
     variables: { monthsBack },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const rows = compact(data?.monthlyOverview?.rows);
   const chartData = rows.map((r) => ({
@@ -73,13 +77,15 @@ export function MonthlyOverviewChart({ monthsBack = 12 }: { monthsBack?: number 
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#94a3b8"
+                strokeOpacity={0.2}
+              />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={formatTick} tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v) =>
-                  `${Number(v ?? 0).toLocaleString('mn-MN')} ₮`
-                }
+                formatter={(v) => `${Number(v ?? 0).toLocaleString("mn-MN")} ₮`}
               />
               <Legend />
               <Bar dataKey="income" name="Орлого" fill="#16a34a" />

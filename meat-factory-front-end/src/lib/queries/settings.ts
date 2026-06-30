@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const SettingsDoc = graphql(/* GraphQL */ `
   query Settings {

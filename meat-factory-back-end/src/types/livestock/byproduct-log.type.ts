@@ -1,5 +1,3 @@
-import { ANIMAL_TYPE } from './registration.type';
-
 // Byproduct logs are free-form (named) and FK into Animals. The legacy
 // byproductType ENUM and sourceConstantId audit FK were both removed —
 // `name` is the canonical identifier and the constant→log audit chain was
@@ -28,7 +26,7 @@ export type TByproductLog = {
 // One derived/confirmed byproduct row (auto-derivation from constants).
 export type TByproductItemInput = {
   name: string;
-  animalType?: ANIMAL_TYPE | null;
+  animalType?: string | null;
   quantity: number;
   weightKg?: number | null;
   canCoverSlaughterCost?: boolean | null;

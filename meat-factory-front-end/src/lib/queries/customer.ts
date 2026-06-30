@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const CustomerListDoc = graphql(/* GraphQL */ `
   query Customers(
@@ -75,7 +75,11 @@ export const CreateCustomerDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      customer { id name kind }
+      customer {
+        id
+        name
+        kind
+      }
     }
   }
 `);
@@ -105,13 +109,21 @@ export const UpdateCustomerDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      customer { id name kind isActive }
+      customer {
+        id
+        name
+        kind
+        isActive
+      }
     }
   }
 `);
 
 export const DeleteCustomerDoc = graphql(/* GraphQL */ `
   mutation DeleteCustomer($id: ID!) {
-    deleteCustomer(id: $id) { success message }
+    deleteCustomer(id: $id) {
+      success
+      message
+    }
   }
 `);

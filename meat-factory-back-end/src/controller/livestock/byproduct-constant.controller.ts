@@ -9,7 +9,6 @@ import {
   TGetByproductConstants,
   TUpdateByproductConstant,
 } from "../../types/livestock/byproduct-constant.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
 import { findOrThrow, listPaginated } from "../../utils";
 
@@ -75,15 +74,13 @@ export class ByproductConstantController {
       as: "wrapper",
     };
     if (doc.animalType) {
-      if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
-        throw new Error(`Invalid animal type: ${doc.animalType}`);
       wrapperInclude.required = true;
       wrapperInclude.include = [
         {
           model: AnimalModel,
           as: "animal",
           required: true,
-          where: { animalType: doc.animalType },
+          where: { name: doc.animalType },
         },
       ];
     }
@@ -163,7 +160,7 @@ export class ByproductConstantController {
               model: AnimalModel,
               as: "animal",
               required: true,
-              where: { animalType: { [Op.in]: types } },
+              where: { name: { [Op.in]: types } },
             },
           ],
         },
@@ -174,7 +171,7 @@ export class ByproductConstantController {
     return items.map((item) => {
       const wrapper = item.wrapper as ByproductWrapperModel;
       const animal = wrapper.animal as AnimalModel;
-      const animalType = animal.animalType;
+      const animalType = animal.name;
       const animalCount = counts[animalType] ?? 0;
       const quantity = animalCount * item.quantityPerAnimal;
       const unitWeightKg =

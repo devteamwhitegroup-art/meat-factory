@@ -15,7 +15,6 @@ import { StatusBadge } from "@/components/registration/StatusBadge";
 import { ImagePreviewLink } from "@/components/common/ImagePreviewLink";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { getAnimalNames } from "@/lib/animalNames";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
@@ -29,13 +28,10 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function RegistrationDetailPage({ params }: Props) {
   const { id } = await params;
-  const [{ data }, animalNames] = await Promise.all([
-    getClient().query({
-      query: RegistrationDetailDoc,
-      variables: { id },
-    }),
-    getAnimalNames(),
-  ]);
+  const { data } = await getClient().query({
+    query: RegistrationDetailDoc,
+    variables: { id },
+  });
   const wrap = data?.registration;
   if (!wrap?.success || !wrap.registration) {
     return (
@@ -199,8 +195,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
         <CardContent className="flex flex-wrap gap-3 text-sm">
           {compact(r.animalLines).map((l) => (
             <div key={l.id!} className="rounded-md border px-3 py-1.5">
-              {animalNames.get(l.animalType ?? "") ?? l.animalType}:{" "}
-              <b>{l.count}</b>
+              {l.animalType}: <b>{l.count}</b>
             </div>
           ))}
         </CardContent>
@@ -242,9 +237,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                     .map((w) => (
                       <TableRow key={w.id!}>
                         <TableCell>{ordinal[w.id!] ?? w.sequenceNo}</TableCell>
-                        <TableCell>
-                          {animalNames.get(w.animalType ?? "") ?? w.animalType}
-                        </TableCell>
+                        <TableCell>{w.animalType}</TableCell>
                         <TableCell>{formatNumber(w.weightKg)}</TableCell>
                         <TableCell>
                           {w.pricePerKg != null
@@ -295,11 +288,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                     <TableCell className="font-medium">
                       {b.name ?? "—"}
                     </TableCell>
-                    <TableCell>
-                      {b.animalType
-                        ? (animalNames.get(b.animalType) ?? b.animalType)
-                        : "—"}
-                    </TableCell>
+                    <TableCell>{b.animalType ? b.animalType : "—"}</TableCell>
                     <TableCell>{b.count}</TableCell>
                     <TableCell>
                       {b.totalWeightKg != null
@@ -363,9 +352,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
               <TableBody>
                 {compact(r.settlement.lines).map((l) => (
                   <TableRow key={l.id!}>
-                    <TableCell>
-                      {animalNames.get(l.animalType ?? "") ?? l.animalType}
-                    </TableCell>
+                    <TableCell>{l.animalType}</TableCell>
                     <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                     <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
                     <TableCell>{formatMNT(l.meatAmount)}</TableCell>

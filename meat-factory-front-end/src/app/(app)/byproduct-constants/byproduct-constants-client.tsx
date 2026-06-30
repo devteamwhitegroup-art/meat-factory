@@ -50,10 +50,10 @@ type ItemForm = {
 };
 
 export function ByproductConstantsClient() {
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animalTypes } = useAnimalCatalog();
   const [animalType, setAnimalType] = useState<string>("COW");
   const { data, loading, refetch } = useQuery(ByproductWrapperListDoc, {
-    variables: { animalType: animalType as never, isActive: null },
+    variables: { animalType: animalType, isActive: null },
     fetchPolicy: "cache-and-network",
   });
 
@@ -108,7 +108,7 @@ export function ByproductConstantsClient() {
         }
         const r = await createWrapper({
           variables: {
-            animalType: animalType as never,
+            animalType: animalType,
             name: wrapperForm.name.trim(),
           },
         });
@@ -224,7 +224,7 @@ export function ByproductConstantsClient() {
         <TabsList>
           {animalTypes.map((t) => (
             <TabsTrigger key={t} value={t}>
-              {animalName.get(t) ?? t}
+              {t}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -232,7 +232,7 @@ export function ByproductConstantsClient() {
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          {animalName.get(animalType) ?? animalType} — дайвар багцууд
+          {animalType} — дайвар багцууд
         </div>
         <Button onClick={openCreateWrapper}>Шинэ багц</Button>
       </div>
@@ -350,8 +350,7 @@ export function ByproductConstantsClient() {
         <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>
-              {wrapperForm.id ? "Багц засах" : "Шинэ багц"} —{" "}
-              {animalName.get(animalType) ?? animalType}
+              {wrapperForm.id ? "Багц засах" : "Шинэ багц"} — {animalType}
             </SheetTitle>
           </SheetHeader>
           <div className="space-y-3 p-4">

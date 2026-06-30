@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function AnimalCountGrid({ value, onChange }: Props) {
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animalTypes } = useAnimalCatalog();
   function set(type: string, n: number) {
     onChange({ ...value, [type]: Math.max(0, Math.floor(n)) });
   }
@@ -28,9 +28,7 @@ export function AnimalCountGrid({ value, onChange }: Props) {
             className={active ? "border-primary ring-1 ring-primary/30" : ""}
           >
             <CardContent className="flex flex-col items-center gap-3 p-4">
-              <div className="text-lg font-semibold">
-                {animalName.get(t) ?? t}
-              </div>
+              <div className="text-lg font-semibold">{t}</div>
               <div className="flex w-full items-center justify-between gap-2">
                 <Button
                   type="button"

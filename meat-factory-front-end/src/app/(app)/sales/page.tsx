@@ -1,6 +1,6 @@
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -8,23 +8,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { getClient } from '@/lib/apollo/server';
-import { SalesListDoc } from '@/lib/queries/sales';
-import { compact } from '@/lib/compact';
-import { PAYMENT_STATUS_MN } from '@/lib/format/enum';
-import { formatMNT, formatNumber } from '@/lib/format/money';
-import { fmtDate } from '@/lib/format/date';
-import { parseRange, thisMonth } from '@/lib/date/range';
-import { DateRangeFilter } from '@/components/common/DateRangeFilter';
+} from "@/components/ui/table";
+import { getClient } from "@/lib/apollo/server";
+import { SalesListDoc } from "@/lib/queries/sales";
+import { compact } from "@/lib/compact";
+import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
+import { formatMNT, formatNumber } from "@/lib/format/money";
+import { fmtDate } from "@/lib/format/date";
+import { parseRange, thisMonth } from "@/lib/date/range";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 const TABS = [
-  { value: '', label: 'Бүгд' },
-  { value: 'PAID', label: 'Төлбөр хийсэн' },
-  { value: 'PENDING', label: 'Хүлээгдэж буй' },
+  { value: "", label: "Бүгд" },
+  { value: "PAID", label: "Төлбөр хийсэн" },
+  { value: "PENDING", label: "Хүлээгдэж буй" },
 ];
 
-import { requireCap } from '@/lib/auth/server';
+import { requireCap } from "@/lib/auth/server";
 
 type Props = {
   searchParams: Promise<{
@@ -36,7 +36,7 @@ type Props = {
 };
 
 export default async function SalesPage({ searchParams }: Props) {
-  await requireCap('sales');
+  await requireCap("sales");
   const sp = await searchParams;
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
@@ -45,11 +45,11 @@ export default async function SalesPage({ searchParams }: Props) {
   const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
   const tabHref = (statusVal: string) => {
     const params = new URLSearchParams();
-    if (statusVal) params.set('status', statusVal);
-    if (sp.from) params.set('from', sp.from);
-    if (sp.to) params.set('to', sp.to);
+    if (statusVal) params.set("status", statusVal);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
     const qs = params.toString();
-    return qs ? `/sales?${qs}` : '/sales';
+    return qs ? `/sales?${qs}` : "/sales";
   };
   const { data } = await getClient().query({
     query: SalesListDoc,
@@ -77,17 +77,17 @@ export default async function SalesPage({ searchParams }: Props) {
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => {
-          const active = (status ?? '') === t.value;
+          const active = (status ?? "") === t.value;
           const href = tabHref(t.value);
           return (
             <Link
               key={t.value}
               href={href}
               className={
-                'rounded-full border px-3 py-1 text-xs transition-colors ' +
+                "rounded-full border px-3 py-1 text-xs transition-colors " +
                 (active
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background hover:bg-muted')
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background hover:bg-muted")
               }
             >
               {t.label}
@@ -124,7 +124,7 @@ export default async function SalesPage({ searchParams }: Props) {
               {rows.map((r) => (
                 <TableRow key={r.id!}>
                   <TableCell className="font-medium">
-                    {r.customer?.name ?? '—'}
+                    {r.customer?.name ?? "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {r.transactionCode}
@@ -135,12 +135,13 @@ export default async function SalesPage({ searchParams }: Props) {
                   <TableCell>
                     <Badge
                       className={
-                        r.paymentStatus === 'PAID'
-                          ? 'border-0 bg-emerald-100 text-emerald-800'
-                          : 'border-0 bg-amber-100 text-amber-800'
+                        r.paymentStatus === "PAID"
+                          ? "border-0 bg-emerald-100 text-emerald-800"
+                          : "border-0 bg-amber-100 text-amber-800"
                       }
                     >
-                      {PAYMENT_STATUS_MN[r.paymentStatus ?? ''] ?? r.paymentStatus}
+                      {PAYMENT_STATUS_MN[r.paymentStatus ?? ""] ??
+                        r.paymentStatus}
                     </Badge>
                   </TableCell>
                   <TableCell>

@@ -1,4 +1,3 @@
-import { ANIMAL_TYPE } from '../livestock/registration.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 // A single load on the cargo manifest — matches the storekeeper's notebook
@@ -20,7 +19,7 @@ export type TShipmentCargoEntry = {
   productType: PRODUCT_TYPE;
   // MEAT line: the meat type. EXPORT is locked to HORSE; DOMESTIC allows any.
   // Null on BYPRODUCT lines (and on legacy rows).
-  animalType: ANIMAL_TYPE | null;
+  animalType: string | null;
   // BYPRODUCT line: free-form byproduct name (the inventory key). Null on meat.
   byproductName: string | null;
   // Optional traceability link to the byproduct catalogue entry the FE picked
@@ -41,7 +40,7 @@ export type TCreateShipmentCargoEntry = {
   shipmentId: string;
   productType: PRODUCT_TYPE;
   // Required for MEAT lines.
-  animalType?: ANIMAL_TYPE | null;
+  animalType?: string | null;
   // BYPRODUCT lines: provide sourceConstantId (preferred — name is derived) or
   // a free-form byproductName.
   byproductName?: string | null;

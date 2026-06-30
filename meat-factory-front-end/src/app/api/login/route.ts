@@ -1,7 +1,7 @@
-import { cookies } from 'next/headers';
-import { decodeJwt } from 'jose';
-import { z } from 'zod';
-import { env } from '@/lib/env';
+import { cookies } from "next/headers";
+import { decodeJwt } from "jose";
+import { z } from "zod";
+import { env } from "@/lib/env";
 
 const LOGIN_DOC = /* GraphQL */ `
   mutation LoginAdmin($param: String!, $password: String!) {
@@ -29,21 +29,21 @@ export async function POST(request: Request) {
     parsed = bodySchema.parse(json);
   } catch {
     return Response.json(
-      { ok: false, message: 'Хүсэлт буруу байна' },
+      { ok: false, message: "Хүсэлт буруу байна" },
       { status: 400 },
     );
   }
 
   const upstream = await fetch(env.GRAPHQL_UPSTREAM_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    method: "POST",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ query: LOGIN_DOC, variables: parsed }),
-    cache: 'no-store',
+    cache: "no-store",
   });
 
   if (!upstream.ok) {
     return Response.json(
-      { ok: false, message: 'Серверт хандах боломжгүй байна' },
+      { ok: false, message: "Серверт хандах боломжгүй байна" },
       { status: 502 },
     );
   }
@@ -62,13 +62,13 @@ export async function POST(request: Request) {
   const r = json?.data?.loginAdmin;
   if (!r || r.success !== true || !r.token) {
     return Response.json(
-      { ok: false, message: r?.message ?? 'Нэвтрэх амжилтгүй' },
+      { ok: false, message: r?.message ?? "Нэвтрэх амжилтгүй" },
       { status: 401 },
     );
   }
 
   // Decode (no verify — back-end re-verifies every request) to read staffRole.
-  let staffRole = r.admin?.role ?? 'ADMIN';
+  let staffRole = r.admin?.role ?? "ADMIN";
   try {
     const payload = decodeJwt(r.token) as { staffRole?: string };
     if (payload.staffRole) staffRole = payload.staffRole;
@@ -80,16 +80,16 @@ export async function POST(request: Request) {
   const week = 60 * 60 * 24 * 7;
   jar.set(env.AUTH_COOKIE_NAME, r.token, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: env.COOKIE_SECURE,
-    path: '/',
+    path: "/",
     maxAge: week,
   });
   jar.set(env.ROLE_COOKIE_NAME, staffRole, {
     httpOnly: false,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: env.COOKIE_SECURE,
-    path: '/',
+    path: "/",
     maxAge: week,
   });
 

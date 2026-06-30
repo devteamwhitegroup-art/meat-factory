@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
-import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
@@ -56,7 +55,6 @@ export function SettlementReceipt({
   onReleaseHold: () => void;
   onApproveMedical: (medicalNumber: string | null) => void;
 }) {
-  const { animalName } = useAnimalCatalog();
   return (
     <section data-print="settlement">
       <div className="mb-3 flex justify-end print-hide">
@@ -102,9 +100,7 @@ export function SettlementReceipt({
             <TableBody>
               {compact(existing.lines).map((l) => (
                 <TableRow key={l.id!}>
-                  <TableCell>
-                    {animalName.get(l.animalType ?? "") ?? l.animalType}
-                  </TableCell>
+                  <TableCell>{l.animalType}</TableCell>
                   <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                   <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
                   <TableCell>{formatMNT(l.meatAmount)}</TableCell>
@@ -250,7 +246,7 @@ export function SettlementReceipt({
                   return (
                     <div key={t} className="rounded-md border">
                       <div className="border-b bg-muted/30 px-3 py-1.5 text-xs font-medium">
-                        {animalName.get(t) ?? t}
+                        {t}
                       </div>
                       <Table>
                         <TableHeader>
@@ -293,7 +289,7 @@ export function SettlementReceipt({
                         </TableBody>
                       </Table>
                       <div className="flex justify-between border-t px-3 py-1.5 text-xs font-medium">
-                        <span>{animalName.get(t) ?? t} нийт</span>
+                        <span>{t} нийт</span>
                         <span className="tabular-nums">{formatMNT(sub)}</span>
                       </div>
                     </div>

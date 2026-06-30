@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useRef } from 'react';
-import { CameraIcon, CheckIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
+import { useRef } from "react";
+import { CameraIcon, CheckIcon } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { useFileUpload, type UploadFolder } from "@/lib/hooks/useFileUpload";
 
 type Props = {
   value: string | null;
@@ -19,8 +19,8 @@ type Props = {
 export function PhotoCaptureButton({
   value,
   onChange,
-  type = 'register',
-  label = 'Зураг дарах',
+  type = "register",
+  label = "Зураг дарах",
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { upload, uploading } = useFileUpload(type);
@@ -28,12 +28,12 @@ export function PhotoCaptureButton({
   async function handleFile(file: File) {
     try {
       onChange(await upload(file));
-      toast.success('Зураг даруулсан');
+      toast.success("Зураг даруулсан");
     } catch (e) {
       onChange(null);
-      toast.error(e instanceof Error ? e.message : 'Хадгалах амжилтгүй');
+      toast.error(e instanceof Error ? e.message : "Хадгалах амжилтгүй");
     } finally {
-      if (inputRef.current) inputRef.current.value = '';
+      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
@@ -55,13 +55,13 @@ export function PhotoCaptureButton({
       <Button
         type="button"
         size="lg"
-        variant={done ? 'outline' : 'default'}
+        variant={done ? "outline" : "default"}
         className="h-14 w-full gap-2 text-base"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
       >
         {done ? <CheckIcon /> : <CameraIcon />}
-        {uploading ? 'Хадгалж байна…' : done ? 'Дахин дарах' : label}
+        {uploading ? "Хадгалж байна…" : done ? "Дахин дарах" : label}
       </Button>
     </>
   );

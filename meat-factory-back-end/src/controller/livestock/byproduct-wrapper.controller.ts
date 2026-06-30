@@ -9,7 +9,6 @@ import {
   TGetByproductWrappers,
   TUpdateByproductWrapper,
 } from "../../types/livestock/byproduct-wrapper.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
 import { findOrThrow, listPaginated } from "../../utils";
 
@@ -45,7 +44,7 @@ export class ByproductWrapperController {
   ): Promise<TByproductWrapper> {
     if (!doc.name || !doc.name.trim())
       throw new Error("Багцын нэр шаардлагатай");
-    const animal = await AnimalController.resolveByType(doc.animalType);
+    const animal = await AnimalController.resolveByName(doc.animalType);
     await this._assertUnique(animal.id, doc.name.trim());
 
     return await ByproductWrapperModel.create({
@@ -69,9 +68,7 @@ export class ByproductWrapperController {
     // animalType filter joins through the Animals table.
     const animalInclude: IncludeOptions = { model: AnimalModel, as: "animal" };
     if (doc.animalType) {
-      if (!Object.values(ANIMAL_TYPE).includes(doc.animalType))
-        throw new Error(`Invalid animal type: ${doc.animalType}`);
-      animalInclude.where = { animalType: doc.animalType };
+      animalInclude.where = { name: doc.animalType };
       animalInclude.required = true;
     }
 
@@ -96,7 +93,7 @@ export class ByproductWrapperController {
 
     let nextAnimalId = row.animalId;
     if (doc.animalType !== undefined) {
-      const animal = await AnimalController.resolveByType(doc.animalType);
+      const animal = await AnimalController.resolveByName(doc.animalType);
       nextAnimalId = animal.id;
     }
     const nextName = doc.name !== undefined ? doc.name.trim() : row.name;

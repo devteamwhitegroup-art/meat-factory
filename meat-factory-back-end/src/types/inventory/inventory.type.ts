@@ -1,5 +1,4 @@
 import { TPagination } from '../global/global.type';
-import { ANIMAL_TYPE } from '../livestock/registration.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 export enum MOVEMENT_TYPE {
@@ -18,9 +17,9 @@ export type TInventoryItem = {
   id: string;
   sku: string;
   productType: PRODUCT_TYPE;
-  animalType: ANIMAL_TYPE | null;
+  animalType: string | null;
   // Free-form Mongolian byproduct name (e.g. "Адууны хэл", "Хацар мах") — the
-  // only byproduct identity. SKU is BYPN:<name>.
+  // only byproduct identity. SKU is Дайвар:<name>.
   byproductName: string | null;
   quantityKg: number;
   createdAt: Date;
@@ -44,7 +43,7 @@ export type TInventoryMovement = {
 
 export type TManualAdjustInput = {
   productType: PRODUCT_TYPE;
-  animalType?: ANIMAL_TYPE | null;
+  animalType?: string | null;
   byproductName?: string | null;
   quantityKg: number;
   direction: MOVEMENT_TYPE;
@@ -60,7 +59,7 @@ export type TGetMovements = {
 
 export type TGetStock = {
   productType?: PRODUCT_TYPE;
-  animalType?: ANIMAL_TYPE;
+  animalType?: string;
   byproductName?: string;
 };
 
@@ -68,8 +67,8 @@ export type TGetStock = {
 // to InventoryController so it never imports those modules' controllers.
 export type TStockLine = {
   productType: PRODUCT_TYPE;
-  animalType?: ANIMAL_TYPE | null;
-  // BYPRODUCT lines carry a free-form byproductName (SKU BYPN:<name>).
+  animalType?: string | null;
+  // BYPRODUCT lines carry a free-form byproductName (SKU Дайвар:<name>).
   byproductName?: string | null;
   quantityKg: number;
 };

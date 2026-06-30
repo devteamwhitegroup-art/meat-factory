@@ -17,7 +17,7 @@ export default `#graphql
         id: ID
         sku: String
         productType: PRODUCT_TYPE
-        animalType: ANIMAL_TYPE
+        animalType: String
         # Free-form Mongolian byproduct name (SKU BYPN:<name>).
         byproductName: String
         quantityKg: Float
@@ -84,7 +84,7 @@ export default `#graphql
     extend type Query {
         inventoryStock(
             productType: PRODUCT_TYPE
-            animalType: ANIMAL_TYPE
+            animalType: String
             byproductName: String
         ): InventoryItemsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
@@ -102,11 +102,11 @@ export default `#graphql
     extend type Mutation {
         adjustInventory(
             productType: PRODUCT_TYPE!
-            animalType: ANIMAL_TYPE
+            animalType: String
             byproductName: String
             quantityKg: Float!
             direction: MOVEMENT_TYPE!
             notes: String
-        ): InventoryItemResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN"])
+        ): InventoryItemResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN", "STOREKEEPER" ])
     }
 `;

@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SettingsDoc, UpdateSettingsDoc } from '@/lib/queries/settings';
-import { runMutation } from '@/lib/runMutation';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsDoc, UpdateSettingsDoc } from "@/lib/queries/settings";
+import { runMutation } from "@/lib/runMutation";
 
 type Form = {
   meatCapacityKg: string;
@@ -20,7 +20,7 @@ type Form = {
 
 export function SettingsClient() {
   const { data, loading, refetch } = useQuery(SettingsDoc, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [save] = useMutation(UpdateSettingsDoc);
   const [form, setForm] = useState<Form | null>(null);
@@ -47,11 +47,11 @@ export function SettingsClient() {
     const t = Number(effective.meatAlertThresholdKg);
     const c = Number(effective.cargoCapacityKg);
     if ([m, t, c].some((n) => !Number.isFinite(n) || n < 0)) {
-      toast.error('Утга сөрөг байж болохгүй');
+      toast.error("Утга сөрөг байж болохгүй");
       return;
     }
     if (t > 0 && m > 0 && t > m) {
-      toast.error('Босго багтаамжаас их байж болохгүй');
+      toast.error("Босго багтаамжаас их байж болохгүй");
       return;
     }
     setBusy(true);
@@ -66,7 +66,7 @@ export function SettingsClient() {
             },
           })
         ).data?.updateSettings,
-      { success: 'Хадгалагдлаа', onSuccess: refetch },
+      { success: "Хадгалагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }
@@ -119,8 +119,8 @@ export function SettingsClient() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Махны нөөц энэ хэмжээнээс давсан үед Telegram-аар мэдэгдэл явна.
-            0 буюу хоосон үед мэдэгдэл унтраана.
+            Махны нөөц энэ хэмжээнээс давсан үед Telegram-аар мэдэгдэл явна. 0
+            буюу хоосон үед мэдэгдэл унтраана.
           </p>
         </CardContent>
       </Card>
@@ -152,7 +152,7 @@ export function SettingsClient() {
 
       <div className="sm:col-span-2 lg:col-span-3">
         <Button onClick={onSave} disabled={busy} className="w-full sm:w-auto">
-          {busy ? '...' : 'Хадгалах'}
+          {busy ? "..." : "Хадгалах"}
         </Button>
       </div>
     </div>

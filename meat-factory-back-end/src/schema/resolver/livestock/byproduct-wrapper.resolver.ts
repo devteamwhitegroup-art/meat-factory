@@ -24,7 +24,7 @@ export default {
     // available) but the column is actually animal.animalType through the FK.
     animalType: async (wrapper: ByproductWrapperModel) => {
       const animal = await loadAnimal(wrapper);
-      return animal?.animalType ?? null;
+      return animal?.name ?? null;
     },
     animal: async (wrapper: ByproductWrapperModel) => {
       return await loadAnimal(wrapper);

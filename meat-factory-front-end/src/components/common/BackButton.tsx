@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { ArrowLeftIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useRouter } from "next/navigation";
+import { ArrowLeftIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function BackButton({
-  label = 'Буцах',
+  label = "Буцах",
   href,
 }: {
   label?: string;

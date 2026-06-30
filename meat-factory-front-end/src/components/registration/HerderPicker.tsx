@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -29,19 +29,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { CreateHerderDoc, HerderListDoc } from '@/lib/queries/herder';
-import { HerderAddressListDoc } from '@/lib/queries/herder-address';
-import { unwrap } from '@/lib/unwrap';
-import { compact } from '@/lib/compact';
+} from "@/components/ui/form";
+import { CreateHerderDoc, HerderListDoc } from "@/lib/queries/herder";
+import { HerderAddressListDoc } from "@/lib/queries/herder-address";
+import { unwrap } from "@/lib/unwrap";
+import { compact } from "@/lib/compact";
 
 // Either pick an address from the catalogue (addressId) or type one in
 // (address). At least one is required; both are allowed when admin wants to
 // override the catalogue label for an unusual herder.
 const schema = z
   .object({
-    name: z.string().min(1, 'Нэр шаардлагатай'),
-    registrationNo: z.string().min(1, 'Регистрийн дугаар шаардлагатай'),
+    name: z.string().min(1, "Нэр шаардлагатай"),
+    registrationNo: z.string().min(1, "Регистрийн дугаар шаардлагатай"),
     phone: z.string().optional(),
     bankAccount: z.string().optional(),
     bankName: z.string().optional(),
@@ -49,10 +49,15 @@ const schema = z
     addressId: z.string().optional(),
     address: z.string().optional(),
   })
-  .refine((v) => (v.addressId && v.addressId.length > 0) || (v.address && v.address.trim().length > 0), {
-    path: ['addressId'],
-    message: 'Хаяг сонгох эсвэл бичих',
-  });
+  .refine(
+    (v) =>
+      (v.addressId && v.addressId.length > 0) ||
+      (v.address && v.address.trim().length > 0),
+    {
+      path: ["addressId"],
+      message: "Хаяг сонгох эсвэл бичих",
+    },
+  );
 type Values = z.infer<typeof schema>;
 
 export type PickedHerder = {
@@ -74,27 +79,31 @@ type Props = {
 
 export function HerderPicker({ value, onChange, onSelect }: Props) {
   const [open, setOpen] = useState(false);
-  const { data, loading: fetching, refetch } = useQuery(HerderListDoc, {
+  const {
+    data,
+    loading: fetching,
+    refetch,
+  } = useQuery(HerderListDoc, {
     variables: { limit: 50, page: 1 },
   });
   const [createHerder] = useMutation(CreateHerderDoc);
   // Address catalogue for the dropdown inside the "Шинэ малчин" dialog.
   const { data: addrData } = useQuery(HerderAddressListDoc, {
     variables: { search: null, isActive: true },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const addresses = compact(addrData?.herderAddresses?.herderAddresses);
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: '',
-      registrationNo: '',
-      phone: '',
-      bankAccount: '',
-      bankName: '',
-      accountHolderName: '',
-      addressId: '',
-      address: '',
+      name: "",
+      registrationNo: "",
+      phone: "",
+      bankAccount: "",
+      bankName: "",
+      accountHolderName: "",
+      addressId: "",
+      address: "",
     },
   });
 
@@ -105,7 +114,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
 
   const herders = compact(data?.herders?.herders);
   const labelFor = (h: (typeof herders)[number]) =>
-    `${h.name}${h.registrationNo ? ` — ${h.registrationNo}` : ''}`;
+    `${h.name}${h.registrationNo ? ` — ${h.registrationNo}` : ""}`;
   const itemLabels = Object.fromEntries(
     herders.filter((h) => h.id).map((h) => [h.id as string, labelFor(h)]),
   );
@@ -122,14 +131,11 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
           accountHolderName: values.accountHolderName?.trim() || null,
           addressId: values.addressId || null,
           // Send the free-form fallback only when no catalogue id is set.
-          address:
-            values.addressId
-              ? null
-              : values.address?.trim() || null,
+          address: values.addressId ? null : values.address?.trim() || null,
         },
       });
       const created = unwrap(r.data?.createHerder).herder;
-      if (!created?.id) throw new Error('Хариу буцаасангүй');
+      if (!created?.id) throw new Error("Хариу буцаасангүй");
       toast.success(`Малчин нэмэгдлээ: ${created.name}`);
       // Refresh the list first so the new herder is in the options before we
       // set it as the selected value (otherwise the trigger renders blank).
@@ -159,7 +165,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
         >
           <SelectTrigger className="h-12 w-full text-base">
             <SelectValue
-              placeholder={fetching ? 'Уншиж байна…' : 'Малчин сонгох'}
+              placeholder={fetching ? "Уншиж байна…" : "Малчин сонгох"}
             />
           </SelectTrigger>
           <SelectContent>
@@ -186,10 +192,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
             <DialogTitle>Шинэ малчин</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-3"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <FormField
                 control={form.control}
                 name="name"
@@ -249,10 +252,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
                   <FormItem>
                     <FormLabel>Банкны нэр</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="ж: Хаан банк"
-                        {...field}
-                      />
+                      <Input placeholder="ж: Хаан банк" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -281,22 +281,18 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
                   // Resolve the picked address's name manually — base-ui
                   // Select shows the raw UUID in the trigger when the
                   // matching <SelectItem> isn't currently in the tree.
-                  const selected = addresses.find(
-                    (a) => a.id === field.value,
-                  );
+                  const selected = addresses.find((a) => a.id === field.value);
                   return (
                     <FormItem>
                       <FormLabel>Хаяг</FormLabel>
                       <FormControl>
                         <Select
                           value={field.value || undefined}
-                          onValueChange={(v) => field.onChange(v ?? '')}
+                          onValueChange={(v) => field.onChange(v ?? "")}
                         >
                           <SelectTrigger className="h-10 w-full">
                             {field.value ? (
-                              <span>
-                                {selected?.name ?? 'Сонгосон'}
-                              </span>
+                              <span>{selected?.name ?? "Сонгосон"}</span>
                             ) : (
                               <SelectValue placeholder="Хаягийн жагсаалтаас сонгох" />
                             )}

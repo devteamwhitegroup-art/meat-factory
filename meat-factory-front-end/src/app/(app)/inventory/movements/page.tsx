@@ -5,22 +5,19 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { getClient } from '@/lib/apollo/server';
-import { InventoryTabs } from '@/components/inventory/InventoryTabs';
-import { InventoryMovementsDoc } from '@/lib/queries/inventory';
-import { unwrapList } from '@/lib/unwrap';
-import {
-  MOVEMENT_SOURCE_MN,
-  MOVEMENT_TYPE_MN,
-} from '@/lib/format/enum';
-import { formatNumber } from '@/lib/format/money';
-import { fmtDateTime } from '@/lib/format/date';
+} from "@/components/ui/table";
+import { getClient } from "@/lib/apollo/server";
+import { InventoryTabs } from "@/components/inventory/InventoryTabs";
+import { InventoryMovementsDoc } from "@/lib/queries/inventory";
+import { unwrapList } from "@/lib/unwrap";
+import { MOVEMENT_SOURCE_MN, MOVEMENT_TYPE_MN } from "@/lib/format/enum";
+import { formatNumber } from "@/lib/format/money";
+import { fmtDateTime } from "@/lib/format/date";
 
-import { requireCap } from '@/lib/auth/server';
+import { requireCap } from "@/lib/auth/server";
 
 export default async function InventoryMovementsPage() {
-  await requireCap('inventory');
+  await requireCap("inventory");
   const { data } = await getClient().query({
     query: InventoryMovementsDoc,
     variables: {
@@ -42,8 +39,7 @@ export default async function InventoryMovementsPage() {
       <h1 className="text-2xl font-semibold">Нөөц</h1>
       <InventoryTabs />
       <div className="text-sm text-muted-foreground">
-        Нөөц рүү орох / гарах бүх хөдөлгөөний түүх. Эх үүсвэр нь Тооцоо
-        (орох IN), Ачилт (OUT) эсвэл Гар (Тохируулга).
+        Нөөц рүү орсон / гарсан бүх хөдөлгөөний түүх.
       </div>
       {error ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -72,13 +68,13 @@ export default async function InventoryMovementsPage() {
                 <TableRow key={m.id!}>
                   <TableCell>{fmtDateTime(m.createdAt)}</TableCell>
                   <TableCell className="font-mono text-xs">
-                    {m.item?.sku ?? '—'}
+                    {m.item?.sku ?? "—"}
                   </TableCell>
                   <TableCell>
-                    {MOVEMENT_TYPE_MN[m.movementType ?? ''] ?? m.movementType}
+                    {MOVEMENT_TYPE_MN[m.movementType ?? ""] ?? m.movementType}
                   </TableCell>
                   <TableCell>
-                    {MOVEMENT_SOURCE_MN[m.source ?? ''] ?? m.source}
+                    {MOVEMENT_SOURCE_MN[m.source ?? ""] ?? m.source}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatNumber(m.quantityKg)} кг

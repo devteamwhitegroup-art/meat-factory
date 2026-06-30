@@ -4,7 +4,6 @@ import {
   TCreateShipment,
   TGetShipments,
 } from "../../../types/shipment/shipment.type";
-import { ANIMAL_TYPE } from "../../../types/livestock/registration.type";
 import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
 import { TShipmentSaleLine } from "../../../types/shipment/shipment-sale-line.type";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
@@ -54,7 +53,7 @@ export default {
         doc: {
           shipmentId: string;
           productType: PRODUCT_TYPE;
-          animalType?: ANIMAL_TYPE | null;
+          animalType?: string | null;
           byproductName?: string | null;
           sourceConstantId?: string | null;
           productLabel?: string | null;

@@ -1,13 +1,8 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const HerderAddressListDoc = graphql(/* GraphQL */ `
   query HerderAddresses($search: String, $isActive: Boolean) {
-    herderAddresses(
-      search: $search
-      isActive: $isActive
-      limit: 200
-      page: 1
-    ) {
+    herderAddresses(search: $search, isActive: $isActive, limit: 200, page: 1) {
       success
       message
       count
@@ -37,11 +32,7 @@ export const CreateHerderAddressDoc = graphql(/* GraphQL */ `
 `);
 
 export const UpdateHerderAddressDoc = graphql(/* GraphQL */ `
-  mutation UpdateHerderAddress(
-    $id: ID!
-    $name: String
-    $isActive: Boolean
-  ) {
+  mutation UpdateHerderAddress($id: ID!, $name: String, $isActive: Boolean) {
     updateHerderAddress(id: $id, name: $name, isActive: $isActive) {
       success
       message

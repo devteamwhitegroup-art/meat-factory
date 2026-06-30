@@ -1,8 +1,6 @@
-import { ANIMAL_TYPE } from './registration.type';
-
-// The persisted row stores animalId (FK). animalType is reached via the joined
-// Animal. The controller-facing inputs still accept animalType for ergonomics
-// (FE selects from the enum-driven catalogue), resolved server-side.
+// The persisted row stores animalId (FK). The animal is reached via the joined
+// Animal. Controller-facing inputs accept the animal NAME (the catalogue key),
+// resolved server-side to animalId.
 export type TWeighingEntry = {
   id: string;
   registrationId: string;
@@ -20,7 +18,7 @@ export type TWeighingEntry = {
 
 export type TCreateWeighingEntry = {
   registrationId: string;
-  animalType: ANIMAL_TYPE;
+  animalType: string;
   weightKg: number;
   pricePerKg?: number | null;
   photoFileId?: string | null;
@@ -30,6 +28,6 @@ export type TUpdateWeighingEntry = {
   id: string;
   weightKg?: number;
   pricePerKg?: number | null;
-  animalType?: ANIMAL_TYPE;
+  animalType?: string;
   photoFileId?: string | null;
 };

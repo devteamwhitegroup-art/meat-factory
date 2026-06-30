@@ -1,13 +1,12 @@
 import { PaginationSchema } from "../global/global.type";
 
-// ANIMAL_TYPE declared once in registration.type.ts; ByproductConstant +
-// Animal declared in their own typedefs — referenced here, not redeclared.
+// animalType is the animal catalogue name (the String enum was removed).
 export default `#graphql
     type ByproductWrapper {
         id: ID
         animalId: ID
         animal: Animal
-        animalType: ANIMAL_TYPE
+        animalType: String
         name: String
         isActive: Boolean
         items: [ByproductConstant]
@@ -30,7 +29,7 @@ export default `#graphql
 
     extend type Query {
         byproductWrappers(
-            animalType: ANIMAL_TYPE
+            animalType: String
             search: String
             isActive: Boolean
             ${PaginationSchema}
@@ -40,13 +39,13 @@ export default `#graphql
 
     extend type Mutation {
         createByproductWrapper(
-            animalType: ANIMAL_TYPE!
+            animalType: String!
             name: String!
         ): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
 
         updateByproductWrapper(
             id: ID!
-            animalType: ANIMAL_TYPE
+            animalType: String
             name: String
             isActive: Boolean
         ): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])

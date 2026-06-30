@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useMemo, useState } from "react";
+import { useMutation } from "@apollo/client/react";
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PhotoUpload } from '@/components/common/PhotoUpload';
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PhotoUpload } from "@/components/common/PhotoUpload";
 import {
   AddShipmentPhotoDoc,
   RemoveShipmentPhotoDoc,
-} from '@/lib/queries/shipment';
-import { runMutation } from '@/lib/runMutation';
+} from "@/lib/queries/shipment";
+import { runMutation } from "@/lib/runMutation";
 
 // ─── Shipment photo gallery (multi-image attachments) ────────────────
 //
@@ -59,7 +59,7 @@ export function ShipmentPhotoGallery({
   }
 
   async function onRemove(id: string) {
-    if (!confirm('Энэ зургийг устгах уу?')) return;
+    if (!confirm("Энэ зургийг устгах уу?")) return;
     await runMutation(
       async () =>
         (await remove({ variables: { id } })).data?.removeShipmentPhoto,

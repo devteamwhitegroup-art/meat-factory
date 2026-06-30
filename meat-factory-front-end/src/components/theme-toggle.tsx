@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
-import { SunIcon, MoonIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { SunIcon, MoonIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -14,15 +14,15 @@ export function ThemeToggle() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
-  const isDark = mounted && resolvedTheme === 'dark';
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <Button
       variant="ghost"
       size="icon"
       aria-label="Загвар солих"
-      title={isDark ? 'Гэрэлтэй' : 'Харанхуй'}
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      title={isDark ? "Гэрэлтэй" : "Харанхуй"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
     </Button>

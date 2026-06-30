@@ -1,4 +1,4 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const ShipmentListDoc = graphql(/* GraphQL */ `
   query Shipments(
@@ -32,7 +32,10 @@ export const ShipmentListDoc = graphql(/* GraphQL */ `
         totalPrice
         shippedAt
         createdAt
-        customer { id name }
+        customer {
+          id
+          name
+        }
       }
     }
   }
@@ -59,14 +62,24 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
         driverName
         driverPhone
         serialNumber
-        photo { id url }
+        photo {
+          id
+          url
+        }
         photos {
           id
           sequenceNo
           createdAt
-          file { id url }
+          file {
+            id
+            url
+          }
         }
-        customer { id name contactPhone }
+        customer {
+          id
+          name
+          contactPhone
+        }
         cargoEntries {
           id
           productType
@@ -80,7 +93,10 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
           weightKg
           sequenceNo
           createdAt
-          createdBy { id param }
+          createdBy {
+            id
+            param
+          }
         }
         saleLines {
           id
@@ -100,7 +116,7 @@ export const AddCargoEntryDoc = graphql(/* GraphQL */ `
   mutation AddCargoEntry(
     $shipmentId: ID!
     $productType: PRODUCT_TYPE!
-    $animalType: ANIMAL_TYPE
+    $animalType: String
     $byproductName: String
     $sourceConstantId: ID
     $productLabel: String
@@ -197,7 +213,10 @@ export const AddShipmentPhotoDoc = graphql(/* GraphQL */ `
         id
         sequenceNo
         createdAt
-        file { id url }
+        file {
+          id
+          url
+        }
       }
     }
   }
@@ -235,7 +254,11 @@ export const CreateShipmentDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      shipment { id shipmentCode status }
+      shipment {
+        id
+        shipmentCode
+        status
+      }
     }
   }
 `);
@@ -255,7 +278,11 @@ export const UpdateShipmentStatusDoc = graphql(/* GraphQL */ `
     updateShipmentStatus(id: $id, status: $status) {
       success
       message
-      shipment { id status shippedAt }
+      shipment {
+        id
+        status
+        shippedAt
+      }
     }
   }
 `);

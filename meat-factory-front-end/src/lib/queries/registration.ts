@@ -238,7 +238,7 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
 export const AddWeighingEntryDoc = graphql(/* GraphQL */ `
   mutation AddWeighingEntry(
     $registrationId: ID!
-    $animalType: ANIMAL_TYPE!
+    $animalType: String!
     $weightKg: Float!
     $pricePerKg: Float
     $photoFileId: ID
@@ -269,7 +269,7 @@ export const UpdateWeighingEntryDoc = graphql(/* GraphQL */ `
     $id: ID!
     $weightKg: Float
     $pricePerKg: Float
-    $animalType: ANIMAL_TYPE
+    $animalType: String
     $photoFileId: ID
   ) {
     updateWeighingEntry(

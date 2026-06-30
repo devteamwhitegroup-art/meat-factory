@@ -5,18 +5,10 @@ import { useQuery } from "@apollo/client/react";
 import { AnimalListDoc } from "@/lib/queries/animal";
 import { compact } from "@/lib/compact";
 
-// Stable display order matching the BE enum, used when DB rows arrive in a
-// different order. Anything outside this list is appended at the end.
-const ORDER = ["COW", "SHEEP", "HORSE", "GOAT", "CAMEL"];
-
-function rank(t: string): number {
-  const i = ORDER.indexOf(t);
-  return i === -1 ? ORDER.length : i;
-}
-
-// Single source of truth for "which animal types does this app know about?".
-// Drives tabs, grids, and dropdowns. The Animals catalog is seeded by the
-// back-end on boot so this query always returns the full set.
+// Single source of truth for the animal catalogue (admin-managed Animals table,
+// keyed by `name`). `name` is also the value stored as `animalType` on every
+// other record, so pickers send the name as `animalType` and labels render it
+// directly — no enum→Cyrillic map.
 export function useAnimalCatalog() {
   const { data, loading, error, refetch } = useQuery(AnimalListDoc, {
     fetchPolicy: "cache-first",
@@ -24,26 +16,11 @@ export function useAnimalCatalog() {
 
   const animals = useMemo(() => compact(data?.animals?.animals), [data]);
 
-  const animalTypes: string[] = useMemo(() => {
-    const out: string[] = [];
-    for (const a of animals) {
-      if (a.animalType) out.push(a.animalType as string);
-    }
-    out.sort((x, y) => rank(x) - rank(y));
-    return out;
-  }, [animals]);
-
-  // animalType → admin-editable display name (e.g. COW → "Үхэр"). Single
-  // source for animal labels; callers fall back to the raw type if missing.
-  const animalName: Map<string, string> = useMemo(
-    () =>
-      new Map(
-        animals.flatMap((a) =>
-          a.animalType && a.name ? [[a.animalType as string, a.name]] : [],
-        ),
-      ),
+  // Selectable animal names (active only), in catalogue order.
+  const animalTypes: string[] = useMemo(
+    () => animals.flatMap((a) => (a.isActive && a.name ? [a.name] : [])),
     [animals],
   );
 
-  return { animals, animalTypes, animalName, loading, error, refetch };
+  return { animals, animalTypes, loading, error, refetch };
 }

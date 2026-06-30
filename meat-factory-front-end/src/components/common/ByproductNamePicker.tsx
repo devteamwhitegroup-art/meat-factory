@@ -27,12 +27,12 @@ export function ByproductNamePicker({
   onChange: (name: string) => void;
   disabled?: boolean;
 }) {
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animalTypes } = useAnimalCatalog();
   const [animal, setAnimal] = useState("");
   const [wrapperId, setWrapperId] = useState("");
 
   const { data } = useQuery(ByproductWrapperListDoc, {
-    variables: { animalType: animal as never, isActive: true },
+    variables: { animalType: animal, isActive: true },
     skip: !animal,
     fetchPolicy: "cache-and-network",
   });
@@ -53,13 +53,13 @@ export function ByproductNamePicker({
       >
         <SelectTrigger className="h-9">
           <SelectValue placeholder="Мал">
-            {animal ? (animalName.get(animal) ?? animal) : undefined}
+            {animal ? animal : undefined}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {animalTypes.map((t) => (
             <SelectItem key={t} value={t}>
-              {animalName.get(t) ?? t}
+              {t}
             </SelectItem>
           ))}
         </SelectContent>

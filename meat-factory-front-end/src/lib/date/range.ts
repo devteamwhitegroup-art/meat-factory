@@ -6,8 +6,8 @@
 // Local YYYY-MM-DD (avoids UTC shifting the calendar day).
 export function ymd(d: Date): string {
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
@@ -33,16 +33,16 @@ export type Shortcut = {
 
 export const SHORTCUTS: Shortcut[] = [
   {
-    key: 'today',
-    label: 'Өнөөдөр',
+    key: "today",
+    label: "Өнөөдөр",
     range: () => {
       const n = new Date();
       return { from: ymd(n), to: ymd(n) };
     },
   },
   {
-    key: 'yesterday',
-    label: 'Өчигдөр',
+    key: "yesterday",
+    label: "Өчигдөр",
     range: () => {
       const n = new Date();
       n.setDate(n.getDate() - 1);
@@ -50,13 +50,13 @@ export const SHORTCUTS: Shortcut[] = [
     },
   },
   {
-    key: 'this_month',
-    label: 'Энэ сар',
+    key: "this_month",
+    label: "Энэ сар",
     range: () => thisMonth(),
   },
   {
-    key: 'prev_month',
-    label: 'Өнгөрсөн сар',
+    key: "prev_month",
+    label: "Өнгөрсөн сар",
     range: () => {
       const n = new Date();
       return monthRange(n.getFullYear(), n.getMonth() - 1);
@@ -75,8 +75,8 @@ export function parseRange(
   if (!from && !to) return null;
   const f = (from || to)!;
   const t = (to || from)!;
-  const [fy, fm, fd] = f.split('-').map(Number);
-  const [ty, tm, td] = t.split('-').map(Number);
+  const [fy, fm, fd] = f.split("-").map(Number);
+  const [ty, tm, td] = t.split("-").map(Number);
   if (!fy || !fm || !fd || !ty || !tm || !td) return null;
   return {
     startDate: new Date(fy, fm - 1, fd, 0, 0, 0, 0).toISOString(),

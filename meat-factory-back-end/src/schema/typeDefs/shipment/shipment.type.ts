@@ -28,7 +28,7 @@ export default `#graphql
         # MEAT (animalType) or BYPRODUCT (byproductName).
         productType: PRODUCT_TYPE
         # MEAT line: meat type (EXPORT ⇒ HORSE only). Null on byproduct lines.
-        animalType: ANIMAL_TYPE
+        animalType: String
         # BYPRODUCT line: free-form byproduct name. Null on meat lines.
         byproductName: String
         # Traceability link to the byproduct catalogue entry (animal → wrapper
@@ -60,7 +60,7 @@ export default `#graphql
         id: ID
         shipmentId: ID
         productType: PRODUCT_TYPE
-        animalType: ANIMAL_TYPE
+        animalType: String
         byproductName: String
         groupKey: String
         totalWeightKg: Float
@@ -198,7 +198,7 @@ export default `#graphql
             # MEAT or BYPRODUCT. EXPORT shipments accept MEAT/HORSE only.
             productType: PRODUCT_TYPE!
             # Required for MEAT lines (EXPORT ⇒ HORSE).
-            animalType: ANIMAL_TYPE
+            animalType: String
             # BYPRODUCT lines: pass sourceConstantId (name derived) or a
             # free-form byproductName.
             byproductName: String

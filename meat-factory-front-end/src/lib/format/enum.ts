@@ -11,8 +11,9 @@ export const ROLE_MN: Record<string, string> = {
   STOREKEEPER: "Нярав",
 };
 
-// Animal-type display names are admin-editable and come from the Animals
-// catalogue (Animal.name) via useAnimalCatalog().animalName / getAnimalNames().
+// Animal labels are not enums: the catalogue stores the Mongolian name as
+// `Animal.name`, which is the value carried by `animalType` on every record —
+// render it directly, no map.
 
 export const REGISTRATION_STATUS_MN: Record<string, string> = {
   REGISTERED: "Бүртгэгдсэн",
@@ -67,7 +68,7 @@ export const MOVEMENT_TYPE_MN: Record<string, string> = {
 export const MOVEMENT_SOURCE_MN: Record<string, string> = {
   SETTLEMENT: "Тооцоо",
   SHIPMENT: "Ачилт",
-  MANUAL: "Гар",
+  MANUAL: "Гар тохируулга",
 };
 
 export const PRODUCT_TYPE_MN: Record<string, string> = {

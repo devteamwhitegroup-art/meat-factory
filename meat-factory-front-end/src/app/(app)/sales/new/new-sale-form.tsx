@@ -35,7 +35,7 @@ type LineRow = {
 
 export function NewSaleForm() {
   const router = useRouter();
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animalTypes } = useAnimalCatalog();
   const { data, loading: fetching } = useQuery(CustomerListDoc, {
     variables: {
       isActive: true,
@@ -54,7 +54,7 @@ export function NewSaleForm() {
   const [lines, setLines] = useState<LineRow[]>([
     {
       productType: "MEAT",
-      animalType: "COW",
+      animalType: "",
       byproductName: "",
       quantityKg: "",
       unitPrice: "",
@@ -83,7 +83,7 @@ export function NewSaleForm() {
       ...s,
       {
         productType: "MEAT",
-        animalType: "COW",
+        animalType: "",
         byproductName: "",
         quantityKg: "",
         unitPrice: "",
@@ -104,11 +104,15 @@ export function NewSaleForm() {
       toast.error("Дайвар сонгоно уу");
       return;
     }
+    if (lines.some((l) => l.productType === "MEAT" && !l.animalType)) {
+      toast.error("Малын төрөл сонгоно уу");
+      return;
+    }
     const lineItems = lines.map((l) => {
       const isMeat = l.productType === "MEAT";
       return {
         productType: l.productType as never,
-        animalType: isMeat ? (l.animalType as never) : null,
+        animalType: isMeat ? l.animalType : null,
         byproductName: !isMeat ? l.byproductName || null : null,
         quantityKg: Number(l.quantityKg) || 0,
         unitPrice: Number(l.unitPrice) || 0,
@@ -228,7 +232,7 @@ export function NewSaleForm() {
                           const v = (raw ?? "MEAT") as "MEAT" | "BYPRODUCT";
                           set(i, {
                             productType: v,
-                            animalType: v === "MEAT" ? "COW" : "",
+                            animalType: "",
                             byproductName: "",
                           });
                         }}
@@ -259,9 +263,7 @@ export function NewSaleForm() {
                                 shows the Cyrillic name, even before the
                                 catalogue items mount. */}
                             {l.animalType ? (
-                              <span>
-                                {animalName.get(l.animalType) ?? l.animalType}
-                              </span>
+                              <span>{l.animalType}</span>
                             ) : (
                               <SelectValue placeholder="Сонгох" />
                             )}
@@ -269,7 +271,7 @@ export function NewSaleForm() {
                           <SelectContent>
                             {animalTypes.map((t) => (
                               <SelectItem key={t} value={t}>
-                                {animalName.get(t) ?? t}
+                                {t}
                               </SelectItem>
                             ))}
                           </SelectContent>

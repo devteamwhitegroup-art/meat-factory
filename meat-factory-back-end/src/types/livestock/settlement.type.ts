@@ -1,7 +1,6 @@
-import { ANIMAL_TYPE } from './registration.type';
 
 export type TSettlementLineInput = {
-  animalType: ANIMAL_TYPE;
+  animalType: string;
   slaughterCost?: number; // Бой зардал (default 0)
 };
 
@@ -62,7 +61,7 @@ export type TSettlement = {
 // Defined here so livestock never imports the inventory module.
 export type TRegistrationIngestLine = {
   productType: 'MEAT' | 'BYPRODUCT';
-  animalType?: ANIMAL_TYPE | null;
+  animalType?: string | null;
   byproductType?: string | null;
   // Free-form byproduct name (e.g. "Адууны хэл"). Set for BYPRODUCT lines
   // coming from the post-Phase-3 catalogue; mutually exclusive with

@@ -197,9 +197,6 @@ flowchart TD
 | `InventoryItem` | Нөөц | Running balance per SKU (`MEAT:COW`), never negative. |
 | `InventoryMovement` | Хөдөлгөөн | Immutable ledger: IN/OUT/ADJUSTMENT + balanceAfterKg. |
 
-Enums: `ANIMAL_TYPE` = COW, SHEEP, HORSE, GOAT, CAMEL, CALF · `BYPRODUCT_TYPE` =
-HEART, LUNG, LIVER, KIDNEY, STOMACH, INTESTINE, TONGUE, HEAD, TAIL, LEG, BLOOD, HIDE, OTHER.
-
 ---
 
 ## 8. Business logic (the rules)

@@ -1,20 +1,20 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from "@/components/ui/card";
 
 type Props = {
   label: string;
   value: string;
   hint?: string;
-  accent?: 'green' | 'amber' | 'rose' | 'default';
+  accent?: "green" | "amber" | "rose" | "default";
 };
 
-const ACCENT: Record<NonNullable<Props['accent']>, string> = {
-  green: 'text-emerald-700',
-  amber: 'text-amber-700',
-  rose: 'text-rose-700',
-  default: 'text-foreground',
+const ACCENT: Record<NonNullable<Props["accent"]>, string> = {
+  green: "text-emerald-700",
+  amber: "text-amber-700",
+  rose: "text-rose-700",
+  default: "text-foreground",
 };
 
-export function MetricCard({ label, value, hint, accent = 'default' }: Props) {
+export function MetricCard({ label, value, hint, accent = "default" }: Props) {
   return (
     <Card>
       <CardContent className="space-y-1 p-4">

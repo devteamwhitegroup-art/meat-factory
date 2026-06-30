@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@apollo/client/react";
 import { toast } from "sonner";
+import type { ResultOf } from "@graphql-typed-document-node/core";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,131 +11,221 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
-import { UpsertAnimalDoc } from "@/lib/queries/animal";
+import { AnimalListDoc, UpsertAnimalDoc } from "@/lib/queries/animal";
 import { runMutation } from "@/lib/runMutation";
 
-type Form = { name: string; price: string; cover: boolean };
+type Animal = NonNullable<
+  NonNullable<
+    NonNullable<ResultOf<typeof AnimalListDoc>["animals"]>["animals"]
+  >[number]
+>;
 
+type Form = {
+  name: string;
+  isExport: boolean;
+  price: string;
+  cover: boolean;
+  yield: string;
+  isActive: boolean;
+};
+
+const EMPTY: Form = {
+  name: "",
+  isExport: false,
+  price: "0",
+  cover: false,
+  yield: "",
+  isActive: true,
+};
+
+function fromAnimal(a: Animal): Form {
+  return {
+    name: a.name ?? "",
+    isExport: !!a.isExport,
+    price: String(a.pricePerAnimal ?? 0),
+    cover: !!a.canCoverSlaughterCost,
+    yield: a.yieldPercent != null ? String(a.yieldPercent) : "",
+    isActive: a.isActive ?? true,
+  };
+}
+
+// Admin catalogue: every animal is a card (create = the trailing blank card).
+// `name` is the key — also the value stored as `animalType` everywhere else —
+// and editing it on an existing row (with its id) renames in place.
 export function AnimalsClient() {
-  const { animals, animalTypes, animalName, loading, refetch } =
-    useAnimalCatalog();
+  const { animals, loading, refetch } = useAnimalCatalog();
   const [upsert] = useMutation(UpsertAnimalDoc);
-  const [forms, setForms] = useState<Record<string, Form>>({});
+  const [edits, setEdits] = useState<Record<string, Form>>({});
+  const [newForm, setNewForm] = useState<Form>(EMPTY);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const existing = animals;
-
-  // `forms` holds only user edits; un-edited types fall back to the current
-  // server values, so no seeding effect is needed.
-  function getForm(t: string): Form {
-    const edited = forms[t];
-    if (edited) return edited;
-    const a = existing.find((x) => (x.animalType as string) === t);
-    return {
-      name: a?.name ?? "",
-      price: String(a?.pricePerAnimal ?? 0),
-      cover: !!a?.canCoverSlaughterCost,
-    };
-  }
-
-  async function save(animalType: string) {
-    const f = getForm(animalType);
-    const n = Number(f.price);
-    if (!Number.isFinite(n) || n < 0) {
+  async function save(id: string | null, f: Form) {
+    const name = f.name.trim();
+    if (!name) {
+      toast.error("Нэр оруулна уу");
+      return;
+    }
+    const price = Number(f.price);
+    if (!Number.isFinite(price) || price < 0) {
       toast.error("Үнэ 0-ээс багагүй байх ёстой");
       return;
     }
-    setBusy(animalType);
+    const yieldPercent = f.yield.trim() ? Number(f.yield) : null;
+    if (
+      yieldPercent != null &&
+      (!Number.isFinite(yieldPercent) || yieldPercent < 0)
+    ) {
+      toast.error("Гарц 0-ээс багагүй байх ёстой");
+      return;
+    }
+    setBusy(id ?? "new");
     await runMutation(
       async () =>
         (
           await upsert({
             variables: {
-              animalType: animalType as never,
-              name: f.name.trim() || null,
-              pricePerAnimal: n,
-              canCoverSlaughterCost: !!f.cover,
+              id,
+              name,
+              isExport: f.isExport,
+              pricePerAnimal: price,
+              canCoverSlaughterCost: f.cover,
+              yieldPercent,
+              isActive: f.isActive,
             },
           })
         ).data?.upsertAnimal,
       {
-        success: `${f.name.trim() || animalName.get(animalType) || animalType}: хадгаллаа`,
-        onSuccess: refetch,
+        success: `${name}: хадгаллаа`,
+        onSuccess: () => {
+          if (id)
+            setEdits((s) => {
+              const n = { ...s };
+              delete n[id];
+              return n;
+            });
+          else setNewForm(EMPTY);
+          refetch();
+        },
       },
     );
     setBusy(null);
   }
 
-  if (loading && existing.length === 0) {
+  if (loading && animals.length === 0) {
     return <Skeleton className="h-64 w-full" />;
   }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {animalTypes.map((t) => {
-        const f = getForm(t);
+      {animals.map((a) => {
+        const id = a.id!;
+        const f = edits[id] ?? fromAnimal(a);
         return (
-          <Card key={t}>
-            <CardContent className="space-y-3 p-4">
-              <div className="text-base font-semibold">
-                {animalName.get(t) ?? t}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Нэр</label>
-                <Input
-                  value={f.name}
-                  onChange={(e) =>
-                    setForms((s) => ({
-                      ...s,
-                      [t]: { ...getForm(t), name: e.target.value },
-                    }))
-                  }
-                  placeholder="Жишээ нь: Үхэр"
-                  className="h-11 text-base"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Бой зардал — 1 толгойн үнэ (₮)
-                </label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  value={f.price}
-                  onChange={(e) =>
-                    setForms((s) => ({
-                      ...s,
-                      [t]: { ...getForm(t), price: e.target.value },
-                    }))
-                  }
-                  placeholder="₮"
-                  className="h-11 text-right text-base tabular-nums"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={f.cover}
-                  onCheckedChange={(c) =>
-                    setForms((s) => ({
-                      ...s,
-                      [t]: { ...getForm(t), cover: !!c },
-                    }))
-                  }
-                />
-                <span>Дайвараар бой зардлыг нөхөх боломжтой</span>
-              </label>
-              <Button
-                type="button"
-                onClick={() => save(t)}
-                disabled={busy === t}
-                className="w-full"
-              >
-                {busy === t ? "..." : "Хадгалах"}
-              </Button>
-            </CardContent>
-          </Card>
+          <AnimalCard
+            key={id}
+            form={f}
+            busy={busy === id}
+            saveLabel="Хадгалах"
+            onChange={(p) => setEdits((s) => ({ ...s, [id]: { ...f, ...p } }))}
+            onSave={() => save(id, f)}
+          />
         );
       })}
+      <AnimalCard
+        form={newForm}
+        busy={busy === "new"}
+        saveLabel="Шинээр нэмэх"
+        isNew
+        onChange={(p) => setNewForm((s) => ({ ...s, ...p }))}
+        onSave={() => save(null, newForm)}
+      />
     </div>
+  );
+}
+
+function AnimalCard({
+  form,
+  busy,
+  saveLabel,
+  isNew,
+  onChange,
+  onSave,
+}: {
+  form: Form;
+  busy: boolean;
+  saveLabel: string;
+  isNew?: boolean;
+  onChange: (patch: Partial<Form>) => void;
+  onSave: () => void;
+}) {
+  return (
+    <Card className={isNew ? "border-dashed" : undefined}>
+      <CardContent className="space-y-3 p-4">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Нэр</label>
+          <Input
+            value={form.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+            placeholder={isNew ? "Шинэ мал — ж: Үхэр" : "Жишээ нь: Үхэр"}
+            className="h-11 text-base"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">
+              Бой зардал (₮)
+            </label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              value={form.price}
+              onChange={(e) => onChange({ price: e.target.value })}
+              placeholder="₮"
+              className="h-11 text-right text-base tabular-nums"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">Гарц (%)</label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              value={form.yield}
+              onChange={(e) => onChange({ yield: e.target.value })}
+              placeholder="%"
+              className="h-11 text-right text-base tabular-nums"
+            />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.cover}
+            onCheckedChange={(c) => onChange({ cover: !!c })}
+          />
+          <span>Дайвараар бой зардлыг нөхөх боломжтой</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.isExport}
+            onCheckedChange={(c) => onChange({ isExport: !!c })}
+          />
+          <span>Экспортын мал</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.isActive}
+            onCheckedChange={(c) => onChange({ isActive: !!c })}
+          />
+          <span>Идэвхтэй</span>
+        </label>
+        <Button
+          type="button"
+          onClick={onSave}
+          disabled={busy}
+          className="w-full"
+        >
+          {busy ? "..." : saveLabel}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

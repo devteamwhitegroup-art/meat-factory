@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ApolloNextAppProvider } from '@apollo/client-integration-nextjs';
-import { makeClient } from './client';
+import { ApolloNextAppProvider } from "@apollo/client-integration-nextjs";
+import { makeClient } from "./client";
 
 export function ApolloProvider({ children }: { children: React.ReactNode }) {
   return (

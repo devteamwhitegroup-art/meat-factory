@@ -1,8 +1,7 @@
 import { PaginationSchema } from '../global/global.type';
 
-// NOTE: ANIMAL_TYPE enum is declared once in registration.type.ts — do not
-// redeclare it here (mergeTypeDefs throws on duplicate enum declarations).
-// animalType is reached through wrapper → animal, not stored on the constant.
+// animalType filter is the animal catalogue name (the ANIMAL_TYPE enum was
+// removed), reached through wrapper → animal, not stored on the constant.
 export default `#graphql
     type ByproductConstant {
         id: ID
@@ -31,7 +30,7 @@ export default `#graphql
     extend type Query {
         byproductConstants(
             wrapperId: ID
-            animalType: ANIMAL_TYPE
+            animalType: String
             search: String
             isActive: Boolean
             ${PaginationSchema}

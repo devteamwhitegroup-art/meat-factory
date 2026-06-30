@@ -1,4 +1,4 @@
-import { ShipmentDetailClient } from './shipment-detail-client';
+import { ShipmentDetailClient } from "./shipment-detail-client";
 
 type Props = { params: Promise<{ id: string }> };
 

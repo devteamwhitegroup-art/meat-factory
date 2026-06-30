@@ -7,10 +7,7 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import { AnimalController } from "./animal.controller";
 import { ByproductConstantController } from "./byproduct-constant.controller";
 import { RegistrationController } from "./registration.controller";
-import {
-  ANIMAL_TYPE,
-  REGISTRATION_STATUS,
-} from "../../types/livestock/registration.type";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TByproductItemInput } from "../../types/livestock/byproduct-log.type";
 import { TDateRange } from "../../types/dashboard/dashboard.type";
 import { TContext } from "../../types/global/global.type";
@@ -28,7 +25,7 @@ export class ByproductLogController {
     });
     const counts: Record<string, number> = {};
     for (const l of lines) {
-      const t = l.animal?.animalType;
+      const t = l.animal?.name;
       if (t) counts[t] = l.count;
     }
     return await ByproductConstantController.deriveForCounts(counts);
@@ -57,11 +54,9 @@ export class ByproductLogController {
     // Resolve every distinct animalType that appears in the input to an
     // animalId in one bulk lookup.
     const distinctTypes = Array.from(
-      new Set(
-        clean.map((i) => i.animalType).filter((t): t is ANIMAL_TYPE => !!t),
-      ),
+      new Set(clean.map((i) => i.animalType).filter((t): t is string => !!t)),
     );
-    const typeToId = await AnimalController.mapTypesToIds(distinctTypes);
+    const typeToId = await AnimalController.mapNamesToIds(distinctTypes);
 
     await sequelize.transaction(async (t) => {
       await ByproductLogModel.destroy({
@@ -151,7 +146,7 @@ export class ByproductLogController {
       }
     > = {};
     for (const b of factoryRows) {
-      const at = b.animal?.animalType ?? null;
+      const at = b.animal?.name ?? null;
       const name = b.name ?? "OTHER";
       const key = `${at ?? ""}|${name}`;
       if (!map[key])

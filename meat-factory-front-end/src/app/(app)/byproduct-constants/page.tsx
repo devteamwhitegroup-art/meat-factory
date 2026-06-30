@@ -1,8 +1,8 @@
-import { ByproductConstantsClient } from './byproduct-constants-client';
-import { requireCap } from '@/lib/auth/server';
+import { ByproductConstantsClient } from "./byproduct-constants-client";
+import { requireCap } from "@/lib/auth/server";
 
 export default async function ByproductConstantsPage() {
-  await requireCap('byproductConstants');
+  await requireCap("byproductConstants");
   return (
     <div className="space-y-6">
       <div>

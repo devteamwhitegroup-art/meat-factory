@@ -1,14 +1,16 @@
-// ANIMAL_TYPE declared once in registration.type.ts — do not redeclare.
+// The ANIMAL_TYPE enum was removed — animals are an admin-managed catalogue
+// keyed by `name`.
 export default `#graphql
     type Animal {
         id: ID
-        animalType: ANIMAL_TYPE
-        # Mongolian display name (Үхэр, Хонь, …). Catalogue source of truth.
+        # Unique catalogue name (Үхэр, Адуу, …) — the animal identity.
         name: String
+        # Meat allowed on export shipments (horse only, for now).
+        isExport: Boolean
         pricePerAnimal: Float
         canCoverSlaughterCost: Boolean
         # Carcass-to-saleable yield (%) applied when meat is ingested into
-        # inventory. Horse seeds at 70 (bone-out); everything else 100.
+        # inventory. Horse 70 (bone-out); others 100.
         yieldPercent: Float
         isActive: Boolean
         createdAt: Date
@@ -28,16 +30,17 @@ export default `#graphql
     }
 
     extend type Query {
-        # Open to any authenticated staff — the catalog drives the FE's animal
-        # type lists (intake grid, weighing, settlement, sales, etc.) so every
-        # role needs to read it. Mutations stay restricted below.
+        # Open to any authenticated staff — the catalogue drives the FE's
+        # animal lists everywhere. Mutations stay restricted below.
         animals: AnimalsResponse @authLogin
     }
 
     extend type Mutation {
+        # Provide id to edit (incl. rename); omit to create by name.
         upsertAnimal(
-            animalType: ANIMAL_TYPE!
-            name: String
+            id: ID
+            name: String!
+            isExport: Boolean
             pricePerAnimal: Float
             canCoverSlaughterCost: Boolean
             yieldPercent: Float

@@ -1,5 +1,5 @@
-import { getSessionToken, proxyUpstream } from '@/lib/api/proxy';
-import { env } from '@/lib/env';
+import { getSessionToken, proxyUpstream } from "@/lib/api/proxy";
+import { env } from "@/lib/env";
 
 // Same-origin GraphQL proxy. The browser Apollo client posts here so the
 // JWT cookie never has to leave the server. We re-issue the request to the
@@ -10,17 +10,16 @@ export async function POST(request: Request) {
 
   if (!token) {
     return Response.json(
-      { errors: [{ message: 'Not authenticated' }] },
+      { errors: [{ message: "Not authenticated" }] },
       { status: 401 },
     );
   }
 
   const body = await request.text();
   return proxyUpstream(env.GRAPHQL_UPSTREAM_URL, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'content-type':
-        request.headers.get('content-type') ?? 'application/json',
+      "content-type": request.headers.get("content-type") ?? "application/json",
       authorization: `Bearer ${token}`,
     },
     body,

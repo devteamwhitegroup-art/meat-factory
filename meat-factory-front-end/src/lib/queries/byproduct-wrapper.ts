@@ -1,7 +1,7 @@
-import { graphql } from '@/lib/gql/gql';
+import { graphql } from "@/lib/gql/gql";
 
 export const ByproductWrapperListDoc = graphql(/* GraphQL */ `
-  query ByproductWrappers($animalType: ANIMAL_TYPE, $isActive: Boolean) {
+  query ByproductWrappers($animalType: String, $isActive: Boolean) {
     byproductWrappers(
       animalType: $animalType
       isActive: $isActive
@@ -17,7 +17,7 @@ export const ByproductWrapperListDoc = graphql(/* GraphQL */ `
         animalType
         animal {
           id
-          animalType
+          name
           canCoverSlaughterCost
         }
         name
@@ -36,10 +36,7 @@ export const ByproductWrapperListDoc = graphql(/* GraphQL */ `
 `);
 
 export const CreateByproductWrapperDoc = graphql(/* GraphQL */ `
-  mutation CreateByproductWrapper(
-    $animalType: ANIMAL_TYPE!
-    $name: String!
-  ) {
+  mutation CreateByproductWrapper($animalType: String!, $name: String!) {
     createByproductWrapper(animalType: $animalType, name: $name) {
       success
       message
@@ -51,11 +48,7 @@ export const CreateByproductWrapperDoc = graphql(/* GraphQL */ `
 `);
 
 export const UpdateByproductWrapperDoc = graphql(/* GraphQL */ `
-  mutation UpdateByproductWrapper(
-    $id: ID!
-    $name: String
-    $isActive: Boolean
-  ) {
+  mutation UpdateByproductWrapper($id: ID!, $name: String, $isActive: Boolean) {
     updateByproductWrapper(id: $id, name: $name, isActive: $isActive) {
       success
       message

@@ -1,5 +1,5 @@
-import { toast } from 'sonner';
-import { unwrap } from '@/lib/unwrap';
+import { toast } from "sonner";
+import { unwrap } from "@/lib/unwrap";
 
 // Standard CRUD-mutation flow shared across the client components: run the
 // mutation, unwrap its `{ success, message }` envelope, toast on success/error,
@@ -14,19 +14,22 @@ export async function runMutation<
   T extends { success?: boolean | null; message?: string | null },
 >(
   action: () => Promise<T | null | undefined>,
-  opts: { success?: string | ((data: T) => string); onSuccess?: () => unknown } = {},
+  opts: {
+    success?: string | ((data: T) => string);
+    onSuccess?: () => unknown;
+  } = {},
 ): Promise<boolean> {
   try {
     const data = unwrap(await action());
     if (opts.success) {
       toast.success(
-        typeof opts.success === 'function' ? opts.success(data) : opts.success,
+        typeof opts.success === "function" ? opts.success(data) : opts.success,
       );
     }
     await opts.onSuccess?.();
     return true;
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
+    toast.error(e instanceof Error ? e.message : "Алдаа гарлаа");
     return false;
   }
 }

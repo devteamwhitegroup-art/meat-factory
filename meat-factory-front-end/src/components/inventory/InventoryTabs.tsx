@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 // Tab nav between the three inventory sub-pages. Visually matches the
 // shadcn TabsList look but uses real <Link>s for full-page navigation
 // (each route is its own server component, so we can't use Tabs state).
 const TABS: { href: string; label: string }[] = [
-  { href: '/inventory', label: 'Нөөц' },
-  { href: '/inventory/movements', label: 'Хөдөлгөөн' },
-  { href: '/inventory/adjust', label: 'Тохируулга' },
+  { href: "/inventory", label: "Нөөц" },
+  { href: "/inventory/movements", label: "Хөдөлгөөн" },
+  { href: "/inventory/adjust", label: "Тохируулга" },
 ];
 
 export function InventoryTabs() {
@@ -25,10 +25,10 @@ export function InventoryTabs() {
             key={t.href}
             href={t.href}
             className={cn(
-              'flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors',
+              "flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors",
               active
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {t.label}

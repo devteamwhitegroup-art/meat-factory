@@ -1,31 +1,17 @@
-import { ANIMAL_TYPE } from './registration.type';
-
-// Default Mongolian display name per type — used by the boot seed + upsert
-// default. Admin can override via /animals.
-export const ANIMAL_TYPE_LABEL: Record<ANIMAL_TYPE, string> = {
-  [ANIMAL_TYPE.COW]: 'Үхэр',
-  [ANIMAL_TYPE.SHEEP]: 'Хонь',
-  [ANIMAL_TYPE.HORSE]: 'Адуу',
-  [ANIMAL_TYPE.GOAT]: 'Ямаа',
-  [ANIMAL_TYPE.CAMEL]: 'Тэмээ'
-};
-
-// Top-level per-animal-type config:
+// Per-animal-type catalogue config. The ANIMAL_TYPE enum was removed — the
+// unique `name` (Үхэр, Хонь, Адуу, …) is now the identity, admin-managed.
+//   isExport — meat allowed on export shipments (only horse, for now).
 //   pricePerAnimal — slaughter (бой) cost per head; pre-fills settlement.
-//   canCoverSlaughterCost — whether THIS animal's byproducts may be used to
-//     offset the slaughter cost (verifier toggles per-registration). Lives on
-//     the animal so all wrappers (e.g. өлөн гэдэс, гэдэс) of that animal share it.
+//   canCoverSlaughterCost — whether THIS animal's byproducts may offset the
+//     slaughter cost (verifier toggles per-registration).
 // Hierarchy: Animal → ByproductWrapper → ByproductConstant.
 export type TAnimal = {
   id: string;
-  animalType: ANIMAL_TYPE;
-  // Mongolian display name (Үхэр, Хонь, …). The catalogue source of truth so
-  // BE+FE stop hardcoding the translation.
   name: string;
+  isExport: boolean;
   pricePerAnimal: number;
   canCoverSlaughterCost: boolean;
-  // Carcass-to-saleable yield (%) applied when meat hits inventory. Horse =
-  // 70 (bone deduction for foreign-market shipments); everything else = 100.
+  // Carcass-to-saleable yield (%) applied when meat hits inventory.
   yieldPercent: number;
   isActive: boolean;
   createdAt: Date;
@@ -33,8 +19,10 @@ export type TAnimal = {
 };
 
 export type TUpsertAnimal = {
-  animalType: ANIMAL_TYPE;
-  name?: string;
+  // Provide id to edit (incl. rename); omit to create a new animal by name.
+  id?: string;
+  name: string;
+  isExport?: boolean;
   pricePerAnimal?: number;
   canCoverSlaughterCost?: boolean;
   yieldPercent?: number;

@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -15,34 +15,34 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   DeleteMonthlyBudgetDoc,
   MonthlyBudgetsDoc,
   UpsertMonthlyBudgetDoc,
-} from '@/lib/queries/monthly-budget';
-import { compact } from '@/lib/compact';
-import { runMutation } from '@/lib/runMutation';
-import { formatMNT } from '@/lib/format/money';
+} from "@/lib/queries/monthly-budget";
+import { compact } from "@/lib/compact";
+import { runMutation } from "@/lib/runMutation";
+import { formatMNT } from "@/lib/format/money";
 
 const MN_MONTH = [
-  '1 сар',
-  '2 сар',
-  '3 сар',
-  '4 сар',
-  '5 сар',
-  '6 сар',
-  '7 сар',
-  '8 сар',
-  '9 сар',
-  '10 сар',
-  '11 сар',
-  '12 сар',
+  "1 сар",
+  "2 сар",
+  "3 сар",
+  "4 сар",
+  "5 сар",
+  "6 сар",
+  "7 сар",
+  "8 сар",
+  "9 сар",
+  "10 сар",
+  "11 сар",
+  "12 сар",
 ];
 
 export function MonthlyBudgetsClient() {
   const { data, refetch } = useQuery(MonthlyBudgetsDoc, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [upsert, { loading: saving }] = useMutation(UpsertMonthlyBudgetDoc);
   const [remove] = useMutation(DeleteMonthlyBudgetDoc);
@@ -50,8 +50,8 @@ export function MonthlyBudgetsClient() {
   const today = useMemo(() => new Date(), []);
   const [year, setYear] = useState(String(today.getFullYear()));
   const [month, setMonth] = useState(String(today.getMonth() + 1));
-  const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
 
   const budgets = compact(data?.monthlyBudgets?.budgets);
 
@@ -60,15 +60,15 @@ export function MonthlyBudgetsClient() {
     const m = Number(month);
     const a = Number(amount);
     if (!Number.isFinite(y) || y < 2000) {
-      toast.error('Жил буруу байна');
+      toast.error("Жил буруу байна");
       return;
     }
     if (!Number.isFinite(m) || m < 1 || m > 12) {
-      toast.error('Сар 1-12 хооронд байх ёстой');
+      toast.error("Сар 1-12 хооронд байх ёстой");
       return;
     }
     if (!Number.isFinite(a) || a < 0) {
-      toast.error('Дүн сөрөг байж болохгүй');
+      toast.error("Дүн сөрөг байж болохгүй");
       return;
     }
     await runMutation(
@@ -84,10 +84,10 @@ export function MonthlyBudgetsClient() {
           })
         ).data?.upsertMonthlyBudget,
       {
-        success: 'Хадгалагдлаа',
+        success: "Хадгалагдлаа",
         onSuccess: () => {
-          setAmount('');
-          setNotes('');
+          setAmount("");
+          setNotes("");
           refetch();
         },
       },
@@ -95,9 +95,10 @@ export function MonthlyBudgetsClient() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Устгах уу?')) return;
+    if (!confirm("Устгах уу?")) return;
     await runMutation(
-      async () => (await remove({ variables: { id } })).data?.deleteMonthlyBudget,
+      async () =>
+        (await remove({ variables: { id } })).data?.deleteMonthlyBudget,
       { onSuccess: refetch },
     );
   }
@@ -105,8 +106,8 @@ export function MonthlyBudgetsClient() {
   function onEdit(b: (typeof budgets)[number]) {
     setYear(String(b.year ?? today.getFullYear()));
     setMonth(String(b.month ?? today.getMonth() + 1));
-    setAmount(String(b.amountMnt ?? ''));
-    setNotes(b.notes ?? '');
+    setAmount(String(b.amountMnt ?? ""));
+    setNotes(b.notes ?? "");
   }
 
   return (
@@ -146,16 +147,13 @@ export function MonthlyBudgetsClient() {
             </div>
             <div className="flex items-end">
               <Button onClick={onSave} disabled={saving} className="h-11">
-                {saving ? '...' : 'Хадгалах'}
+                {saving ? "..." : "Хадгалах"}
               </Button>
             </div>
           </div>
           <div className="mt-3 space-y-1.5">
             <Label className="text-xs">Тэмдэглэл (заавал биш)</Label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </CardContent>
       </Card>
@@ -189,7 +187,7 @@ export function MonthlyBudgetsClient() {
                       {formatMNT(b.amountMnt)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {b.notes ?? '—'}
+                      {b.notes ?? "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -198,7 +196,7 @@ export function MonthlyBudgetsClient() {
                         onClick={() => onEdit(b)}
                       >
                         Засах
-                      </Button>{' '}
+                      </Button>{" "}
                       <Button
                         size="sm"
                         variant="ghost"

@@ -18,7 +18,6 @@ import { AdminModel } from "../../models/user/admin.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { AnimalController } from "./animal.controller";
 import {
-  ANIMAL_TYPE,
   REGISTRATION_STATUS,
   TCreateRegistration,
   TGetRegistrations,
@@ -168,10 +167,10 @@ export class RegistrationController {
     if (!doc.animalLines || doc.animalLines.length === 0)
       throw new Error("At least one animal line is required");
 
-    const seen = new Set<ANIMAL_TYPE>();
+    const seen = new Set<string>();
     for (const line of doc.animalLines) {
-      if (!Object.values(ANIMAL_TYPE).includes(line.animalType))
-        throw new Error(`Invalid animal type: ${line.animalType}`);
+      if (!line.animalType?.trim())
+        throw new Error("Animal type is required");
       if (!line.count || line.count <= 0)
         throw new Error("Animal count must be a positive number");
       if (seen.has(line.animalType))
@@ -184,8 +183,8 @@ export class RegistrationController {
     if (signatureFileId) await FileController.findIdCheck(signatureFileId);
     if (stampFileId) await FileController.findIdCheck(stampFileId);
 
-    // Resolve every requested animalType → animalId up front.
-    const typeToId = await AnimalController.mapTypesToIds(Array.from(seen));
+    // Resolve every requested animal name → animalId up front.
+    const typeToId = await AnimalController.mapNamesToIds(Array.from(seen));
 
     // Бой зардал is auto-precalculated per type = pricePerAnimal (settings) ×
     // head count. The guard only enters counts; pre-butchered intake = 0.
@@ -369,7 +368,7 @@ export class RegistrationController {
     });
     const lineByType = new Map<string, RegistrationAnimalLineModel>();
     for (const al of animalLines)
-      if (al.animal?.animalType) lineByType.set(al.animal.animalType, al);
+      if (al.animal?.name) lineByType.set(al.animal.name, al);
 
     for (const l of lines) {
       const al = lineByType.get(l.animalType);

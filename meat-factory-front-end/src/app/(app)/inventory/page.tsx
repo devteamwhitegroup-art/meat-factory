@@ -8,14 +8,12 @@ import { StockSplit } from "@/components/inventory/StockSplit";
 import { InventoryStatsDoc, InventoryStockDoc } from "@/lib/queries/inventory";
 import { unwrapList } from "@/lib/unwrap";
 import { formatNumber } from "@/lib/format/money";
-import { getAnimalNames } from "@/lib/animalNames";
 
 import { requireCap } from "@/lib/auth/server";
 
 export default async function InventoryPage() {
   await requireCap("inventory");
   const client = getClient();
-  const animalNames = Object.fromEntries(await getAnimalNames());
   const [stockResp, statsResp] = await Promise.all([
     client.query({
       query: InventoryStockDoc,
@@ -162,7 +160,6 @@ export default async function InventoryPage() {
         </div>
       ) : (
         <StockSplit
-          animalNames={animalNames}
           items={items.map((i) => ({
             id: i.id!,
             sku: i.sku ?? "",

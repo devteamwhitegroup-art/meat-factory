@@ -1,14 +1,7 @@
-import {
-  ANIMAL_TYPE,
-  REGISTRATION_STATUS,
-} from "../../../types/livestock/registration.type";
+import { REGISTRATION_STATUS } from "../../../types/livestock/registration.type";
 import { PaginationSchema } from "../global/global.type";
 
 export default `#graphql
-    enum ANIMAL_TYPE {
-        ${Object.values(ANIMAL_TYPE).join("\n ")}
-    }
-
     enum REGISTRATION_STATUS {
         ${Object.values(REGISTRATION_STATUS).join("\n ")}
     }
@@ -20,7 +13,7 @@ export default `#graphql
         # so existing consumers stay unchanged.
         animalId: ID
         animal: Animal
-        animalType: ANIMAL_TYPE
+        animalType: String
         count: Int
         # Бой зардал per type, captured at weighing (pre-VERIFIED) for the
         # herder slip. Settlement defaults to this.
@@ -34,7 +27,7 @@ export default `#graphql
         registrationId: ID
         animalId: ID
         animal: Animal
-        animalType: ANIMAL_TYPE
+        animalType: String
         weightKg: Float
         pricePerKg: Float
         sequenceNo: Int
@@ -52,7 +45,7 @@ export default `#graphql
         name: String
         animalId: ID
         animal: Animal
-        animalType: ANIMAL_TYPE
+        animalType: String
         canCoverSlaughterCost: Boolean
         count: Int
         averageWeightKg: Float
@@ -66,7 +59,7 @@ export default `#graphql
     }
 
     type DerivedByproduct {
-        animalType: ANIMAL_TYPE
+        animalType: String
         wrapperId: ID
         wrapperName: String
         name: String
@@ -84,14 +77,14 @@ export default `#graphql
 
     input ByproductItemInput {
         name: String!
-        animalType: ANIMAL_TYPE
+        animalType: String
         quantity: Int!
         weightKg: Float
         canCoverSlaughterCost: Boolean
     }
 
     type ByproductHandoffItem {
-        animalType: ANIMAL_TYPE
+        animalType: String
         name: String
         totalQuantity: Int
         totalWeightKg: Float
@@ -122,7 +115,7 @@ export default `#graphql
         settlementId: ID
         animalId: ID
         animal: Animal
-        animalType: ANIMAL_TYPE
+        animalType: String
         receivedWeightKg: Float
         pricePerKg: Float
         meatAmount: Float
@@ -255,17 +248,17 @@ export default `#graphql
     }
 
     input RegistrationAnimalLineInput {
-        animalType: ANIMAL_TYPE!
+        animalType: String!
         count: Int!
     }
 
     input SlaughterCostInput {
-        animalType: ANIMAL_TYPE!
+        animalType: String!
         slaughterCost: Float!
     }
 
     input SettlementLineInput {
-        animalType: ANIMAL_TYPE!
+        animalType: String!
         slaughterCost: Float
     }
 
@@ -304,7 +297,7 @@ export default `#graphql
         # keeper / manager / admin steps in.
         addWeighingEntry(
             registrationId: ID!
-            animalType: ANIMAL_TYPE!
+            animalType: String!
             weightKg: Float!
             pricePerKg: Float
             photoFileId: ID
@@ -318,7 +311,7 @@ export default `#graphql
             id: ID!
             weightKg: Float
             pricePerKg: Float
-            animalType: ANIMAL_TYPE
+            animalType: String
             photoFileId: ID
         ): WeighingEntryResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MODERATOR", "MANAGER", "ADMIN", "SUPER_ADMIN"])
 

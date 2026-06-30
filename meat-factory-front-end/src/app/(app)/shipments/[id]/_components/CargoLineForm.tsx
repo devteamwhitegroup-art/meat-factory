@@ -44,11 +44,16 @@ export function CargoLineForm({
 }) {
   const isExport = category === "EXPORT";
 
-  const { animalTypes, animalName } = useAnimalCatalog();
+  const { animals, animalTypes } = useAnimalCatalog();
   const [addEntry, { loading: adding }] = useMutation(AddCargoEntryDoc);
 
+  // Meat animal options: export shipments only carry export-marked animals
+  // (server-enforced too); domestic carries any active animal.
+  const meatOptions = animals.flatMap((a) =>
+    a.isActive && a.name && (!isExport || a.isExport) ? [a.name] : [],
+  );
+
   const [productType, setProductType] = useState<ProductType>("MEAT");
-  // Meat: EXPORT is horse-only; domestic picks any animal.
   const [animalType, setAnimalType] = useState<string>("");
   // Byproduct cascade.
   const [bpAnimal, setBpAnimal] = useState<string>("");
@@ -61,7 +66,7 @@ export function CargoLineForm({
 
   // Byproduct catalogue for the chosen animal (active wrappers only).
   const { data: catData } = useQuery(ByproductWrapperListDoc, {
-    variables: { animalType: bpAnimal as never, isActive: true },
+    variables: { animalType: bpAnimal, isActive: true },
     skip: productType !== "BYPRODUCT" || !bpAnimal,
     fetchPolicy: "cache-and-network",
   });
@@ -86,8 +91,7 @@ export function CargoLineForm({
   }
 
   async function onAdd() {
-    // Resolve the meat animalType: EXPORT forces HORSE.
-    const meatAnimal = isExport ? "HORSE" : animalType;
+    const meatAnimal = animalType;
     if (productType === "MEAT" && !meatAnimal) {
       toast.error("Малын төрөл сонгоно уу");
       return;
@@ -113,7 +117,7 @@ export function CargoLineForm({
             variables: {
               shipmentId,
               productType,
-              animalType: productType === "MEAT" ? (meatAnimal as never) : null,
+              animalType: productType === "MEAT" ? meatAnimal : null,
               // The server derives byproductName from the constant; we don't
               // send a free-typed name.
               sourceConstantId:
@@ -161,24 +165,23 @@ export function CargoLineForm({
           <div className="space-y-1.5 max-w-xs">
             <Label className="text-xs">Малын төрөл</Label>
             <Select
-              value={isExport ? "HORSE" : animalType || undefined}
+              value={animalType || undefined}
               onValueChange={(v) => setAnimalType(v ?? "")}
-              disabled={isExport}
             >
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="Мал сонгоно уу" />
               </SelectTrigger>
               <SelectContent>
-                {animalTypes.map((t) => (
+                {meatOptions.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {animalName.get(t) ?? t}
+                    {t}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {isExport ? (
               <p className="text-xs text-muted-foreground">
-                Экспортын ачилт зөвхөн адууны мах.
+                Экспортын ачилтад зөвхөн экспортын мал сонгоно.
               </p>
             ) : null}
           </div>
@@ -200,7 +203,7 @@ export function CargoLineForm({
                 <SelectContent>
                   {animalTypes.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {animalName.get(t) ?? t}
+                      {t}
                     </SelectItem>
                   ))}
                 </SelectContent>

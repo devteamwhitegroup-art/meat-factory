@@ -106,7 +106,7 @@ export function IntakeForm() {
     const animalLines = Object.entries(values.counts)
       .filter(([, c]) => Number(c) > 0)
       .map(([animalType, count]) => ({
-        animalType: animalType as never,
+        animalType: animalType,
         count: Number(count),
       }));
 

@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 // Edit one weighing entry's weight + negotiated ₮/kg. Fully controlled by the
 // parent (which owns validation + the save mutation); this is just the modal.

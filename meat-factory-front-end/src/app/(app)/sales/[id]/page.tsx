@@ -15,7 +15,6 @@ import { compact } from "@/lib/compact";
 import { PAYMENT_STATUS_MN, PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
-import { getAnimalNames } from "@/lib/animalNames";
 import { MarkPaidButton } from "./mark-paid-button";
 import { InstallmentsCard } from "./installments-card";
 import { BackButton } from "@/components/common/BackButton";
@@ -26,13 +25,10 @@ type Props = { params: Promise<{ id: string }> };
 export default async function SalesDetailPage({ params }: Props) {
   await requireCap("sales");
   const { id } = await params;
-  const [{ data }, animalNames] = await Promise.all([
-    getClient().query({
-      query: SalesDetailDoc,
-      variables: { id },
-    }),
-    getAnimalNames(),
-  ]);
+  const { data } = await getClient().query({
+    query: SalesDetailDoc,
+    variables: { id },
+  });
   const wrap = data?.salesTransaction;
   if (!wrap?.success || !wrap.salesTransaction) {
     return (
@@ -134,7 +130,7 @@ export default async function SalesDetailPage({ params }: Props) {
               {lines.map((l) => {
                 const product =
                   l.productType === "MEAT"
-                    ? (animalNames.get(l.animalType ?? "") ?? l.animalType)
+                    ? l.animalType
                     : (l.byproductName ?? "—");
                 return (
                   <TableRow key={l.id!}>

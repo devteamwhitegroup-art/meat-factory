@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
 // Click "Харах" → opens the image in a modal instead of a new tab. Used on
 // the registration detail page (intake photo, weighing photos, byproduct
@@ -15,8 +15,8 @@ import {
 export function ImagePreviewLink({
   url,
   alt,
-  label = 'Харах',
-  title = 'Зураг',
+  label = "Харах",
+  title = "Зураг",
 }: {
   url: string;
   alt?: string;

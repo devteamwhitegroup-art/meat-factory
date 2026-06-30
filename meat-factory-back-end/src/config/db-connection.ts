@@ -1,8 +1,5 @@
 import { Sequelize, Options } from "sequelize";
 import { setupModel } from "../models";
-import { AnimalModel } from "../models/livestock/animal.model";
-import { ANIMAL_TYPE } from "../types/livestock/registration.type";
-import { ANIMAL_TYPE_LABEL } from "../types/livestock/animal.type";
 import config from ".";
 
 const {
@@ -48,32 +45,6 @@ export const connectDatabase = async (): Promise<void> => {
           force: false,
           alter: DB_SYNC_ALTER,
         });
-
-        // Seed Animals catalog — one row per ANIMAL_TYPE enum value. The FE
-        // drives its animal lists off this query, so every supported type
-        // must always have a row (price 0 / cover false defaults; admin
-        // edits via /animals).
-        try {
-          for (const t of Object.values(ANIMAL_TYPE)) {
-            const [row] = await AnimalModel.findOrCreate({
-              where: { animalType: t },
-              defaults: {
-                animalType: t,
-                name: ANIMAL_TYPE_LABEL[t],
-                pricePerAnimal: 0,
-                canCoverSlaughterCost: false,
-                isActive: true,
-              },
-            });
-            // Backfill name on pre-existing rows.
-            if (!row.name) await row.update({ name: ANIMAL_TYPE_LABEL[t] });
-          }
-        } catch (seedErr) {
-          console.error(
-            "⚠️ Animals catalog seed skipped:",
-            seedErr instanceof Error ? seedErr.message : "unknown error",
-          );
-        }
       }
 
       console.log("✅ Database successfully connected");

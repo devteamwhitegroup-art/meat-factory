@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useId, useState } from 'react';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { useFileUpload, type UploadFolder } from '@/lib/hooks/useFileUpload';
+import { useId, useState } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useFileUpload, type UploadFolder } from "@/lib/hooks/useFileUpload";
 
 export type { UploadFolder };
 
@@ -15,14 +15,14 @@ type Props = {
   label?: string;
   // When set, tablet/phone browsers open the camera directly instead of the
   // file picker. 'environment' = back camera, 'user' = front. Desktop ignores.
-  capture?: 'environment' | 'user';
+  capture?: "environment" | "user";
 };
 
 export function PhotoUpload({
   value,
   onChange,
-  type = 'other',
-  label = 'Зураг оруулах',
+  type = "other",
+  label = "Зураг оруулах",
   capture,
 }: Props) {
   const { upload, uploading } = useFileUpload(type);
@@ -35,9 +35,9 @@ export function PhotoUpload({
     setPreviewUrl(URL.createObjectURL(file));
     try {
       onChange(await upload(file));
-      toast.success('Зураг ачааллаа');
+      toast.success("Зураг ачааллаа");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Сүлжээний алдаа');
+      toast.error(e instanceof Error ? e.message : "Сүлжээний алдаа");
       onChange(null);
     }
   }
@@ -63,14 +63,14 @@ export function PhotoUpload({
         <label
           htmlFor={inputId}
           className={cn(
-            buttonVariants({ variant: 'outline' }),
-            uploading && 'pointer-events-none opacity-50',
+            buttonVariants({ variant: "outline" }),
+            uploading && "pointer-events-none opacity-50",
           )}
         >
           Зураг оруулах
         </label>
         <span className="max-w-[12rem] truncate text-sm text-muted-foreground">
-          {fileName ?? 'Зураг оруулаагүй байна.'}
+          {fileName ?? "Зураг оруулаагүй байна."}
         </span>
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

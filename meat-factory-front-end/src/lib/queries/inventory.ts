@@ -3,7 +3,7 @@ import { graphql } from "@/lib/gql/gql";
 export const InventoryStockDoc = graphql(/* GraphQL */ `
   query InventoryStock(
     $productType: PRODUCT_TYPE
-    $animalType: ANIMAL_TYPE
+    $animalType: String
     $byproductName: String
   ) {
     inventoryStock(
@@ -86,7 +86,7 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
 export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   mutation AdjustInventory(
     $productType: PRODUCT_TYPE!
-    $animalType: ANIMAL_TYPE
+    $animalType: String
     $byproductName: String
     $quantityKg: Float!
     $direction: MOVEMENT_TYPE!

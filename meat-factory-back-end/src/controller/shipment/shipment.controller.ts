@@ -20,9 +20,9 @@ import {
 } from "../../types/shipment/shipment.type";
 import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { CustomerController } from "../customer/customer.controller";
+import { AnimalController } from "../livestock/animal.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { FileController } from "../global/file.controller";
 import {
@@ -40,15 +40,6 @@ const FORWARD: Record<SHIPMENT_STATUS, SHIPMENT_STATUS | null> = {
   [SHIPMENT_STATUS.DELIVERED]: null,
 };
 
-// Mongolian display name per animal type — used to default a cargo line's
-// productLabel when the FE doesn't send an explicit sub-cut label.
-const ANIMAL_LABEL: Record<ANIMAL_TYPE, string> = {
-  [ANIMAL_TYPE.COW]: "Үхрийн мах",
-  [ANIMAL_TYPE.SHEEP]: "Хонины мах",
-  [ANIMAL_TYPE.HORSE]: "Адууны мах",
-  [ANIMAL_TYPE.GOAT]: "Ямааны мах",
-  [ANIMAL_TYPE.CAMEL]: "Тэмээний мах",
-};
 
 export class ShipmentController {
   static findIdCheck(id: string): Promise<ShipmentModel> {
@@ -133,7 +124,7 @@ export class ShipmentController {
   //   BYPRODUCT → "BYPN:<byproductName>"
   private static _groupKey(
     productType: PRODUCT_TYPE,
-    animalType: ANIMAL_TYPE | null,
+    animalType: string | null,
     byproductName: string | null,
   ): string {
     return productType === PRODUCT_TYPE.MEAT
@@ -146,7 +137,7 @@ export class ShipmentController {
   private static async _groupEntries(shipmentId: string): Promise<
     {
       productType: PRODUCT_TYPE;
-      animalType: ANIMAL_TYPE | null;
+      animalType: string | null;
       byproductName: string | null;
       groupKey: string;
       totalWeightKg: number;
@@ -159,7 +150,7 @@ export class ShipmentController {
       string,
       {
         productType: PRODUCT_TYPE;
-        animalType: ANIMAL_TYPE | null;
+        animalType: string | null;
         byproductName: string | null;
         groupKey: string;
         totalWeightKg: number;
@@ -168,9 +159,7 @@ export class ShipmentController {
     for (const r of rows) {
       const productType = r.productType;
       const animalType =
-        productType === PRODUCT_TYPE.MEAT
-          ? (r.animalType as ANIMAL_TYPE | null)
-          : null;
+        productType === PRODUCT_TYPE.MEAT ? r.animalType : null;
       const byproductName =
         productType === PRODUCT_TYPE.BYPRODUCT ? r.byproductName : null;
       const key = this._groupKey(productType, animalType, byproductName);
@@ -451,8 +440,8 @@ export class ShipmentController {
     shipmentId: string,
     args: {
       productType: PRODUCT_TYPE;
-      // Required for MEAT lines.
-      animalType?: ANIMAL_TYPE | null;
+      // Required for MEAT lines — the animal catalogue name.
+      animalType?: string | null;
       // BYPRODUCT lines: sourceConstantId (name derived) or free-form name.
       byproductName?: string | null;
       sourceConstantId?: string | null;
@@ -470,23 +459,20 @@ export class ShipmentController {
     this._assertEditable(shipment);
 
     const productType = args.productType ?? PRODUCT_TYPE.MEAT;
-    let animalType: ANIMAL_TYPE | null = null;
+    let animalType: string | null = null;
     let byproductName: string | null = null;
     let sourceConstantId: string | null = null;
     let defaultLabel: string;
 
     if (productType === PRODUCT_TYPE.MEAT) {
-      const at = args.animalType;
-      if (!at || !Object.values(ANIMAL_TYPE).includes(at))
-        throw new Error("Махны төрөл буруу байна");
-      // Export trucks carry horse meat only (for now).
-      if (
-        shipment.category === SHIPMENT_CATEGORY.EXPORT &&
-        at !== ANIMAL_TYPE.HORSE
-      )
-        throw new Error("Экспортын ачилт зөвхөн адууны махтай байна");
-      animalType = at;
-      defaultLabel = ANIMAL_LABEL[at];
+      if (!args.animalType?.trim()) throw new Error("Махны төрөл буруу байна");
+      // Resolve against the catalogue (throws if unknown).
+      const animal = await AnimalController.resolveByName(args.animalType);
+      // Export trucks carry export-flagged meat only (horse, for now).
+      if (shipment.category === SHIPMENT_CATEGORY.EXPORT && !animal.isExport)
+        throw new Error("Экспортын ачилт зөвхөн экспортын махтай байна");
+      animalType = animal.name;
+      defaultLabel = `${animal.name} мах`;
     } else {
       // Byproducts are domestic-only.
       if (shipment.category === SHIPMENT_CATEGORY.EXPORT)

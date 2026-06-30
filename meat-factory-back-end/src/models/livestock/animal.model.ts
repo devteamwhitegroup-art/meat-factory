@@ -1,15 +1,16 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import { ANIMAL_TYPE } from "../../types/livestock/registration.type";
 import { TAnimal } from "../../types/livestock/animal.type";
 import { ByproductWrapperModel } from "./byproduct-wrapper.model";
 
 export class AnimalModel extends Model implements TAnimal {
   public id!: string;
-  public animalType!: ANIMAL_TYPE;
+  // Unique catalogue key (Үхэр, Адуу, …). Replaced the ANIMAL_TYPE enum.
   public name!: string;
+  // Meat allowed on export shipments (horse only, for now).
+  public isExport!: boolean;
   public pricePerAnimal!: number;
   public canCoverSlaughterCost!: boolean;
-  // Carcass-to-saleable yield (%); horse seeds at 70 (bone-out), others 100.
+  // Carcass-to-saleable yield (%); horse 70 (bone-out), others 100.
   public yieldPercent!: number;
   public isActive!: boolean;
   public createdAt!: Date;
@@ -34,13 +35,15 @@ export const createAnimalModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      animalType: {
-        type: DataTypes.ENUM(...Object.values(ANIMAL_TYPE)),
-        allowNull: false,
-      },
       name: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
+        unique: true,
+      },
+      isExport: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       pricePerAnimal: {
         type: DataTypes.DECIMAL(12, 2),
@@ -69,7 +72,7 @@ export const createAnimalModel = (sequelize: Sequelize) => {
       timestamps: true,
       underscored: true,
       sequelize,
-      indexes: [{ fields: ["animal_type"], unique: true }],
+      indexes: [{ fields: ["name"], unique: true }],
     },
   );
 };

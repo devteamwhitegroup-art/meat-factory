@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -16,51 +16,51 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
+} from "@/components/ui/sheet";
 import {
   CreateHerderAddressDoc,
   DeleteHerderAddressDoc,
   HerderAddressListDoc,
   UpdateHerderAddressDoc,
-} from '@/lib/queries/herder-address';
-import { runMutation } from '@/lib/runMutation';
-import { compact } from '@/lib/compact';
+} from "@/lib/queries/herder-address";
+import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
 
 type Form = { id?: string; name: string };
 
 export function HerderAddressesClient() {
   const { data, loading, refetch } = useQuery(HerderAddressListDoc, {
     variables: { search: null, isActive: null },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: "cache-and-network",
   });
   const [createRow] = useMutation(CreateHerderAddressDoc);
   const [updateRow] = useMutation(UpdateHerderAddressDoc);
   const [deleteRow] = useMutation(DeleteHerderAddressDoc);
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [form, setForm] = useState<Form>({ name: '' });
+  const [form, setForm] = useState<Form>({ name: "" });
   const rows = compact(data?.herderAddresses?.herderAddresses);
 
   function openCreate() {
-    setForm({ name: '' });
+    setForm({ name: "" });
     setSheetOpen(true);
   }
 
   function openEdit(r: { id?: string | null; name?: string | null }) {
-    setForm({ id: r.id ?? undefined, name: r.name ?? '' });
+    setForm({ id: r.id ?? undefined, name: r.name ?? "" });
     setSheetOpen(true);
   }
 
   async function onSave() {
     const name = form.name.trim();
     if (!name) {
-      toast.error('Хаягийн нэр оруулна уу');
+      toast.error("Хаягийн нэр оруулна уу");
       return;
     }
     await runMutation(
@@ -73,7 +73,7 @@ export function HerderAddressesClient() {
         return r.data?.createHerderAddress;
       },
       {
-        success: 'Хадгалагдлаа',
+        success: "Хадгалагдлаа",
         onSuccess: () => {
           setSheetOpen(false);
           refetch();
@@ -92,11 +92,11 @@ export function HerderAddressesClient() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Энэ хаягийг устгах уу?')) return;
+    if (!confirm("Энэ хаягийг устгах уу?")) return;
     await runMutation(
       async () =>
         (await deleteRow({ variables: { id } })).data?.deleteHerderAddress,
-      { success: 'Устгагдлаа', onSuccess: refetch },
+      { success: "Устгагдлаа", onSuccess: refetch },
     );
   }
 
@@ -129,18 +129,16 @@ export function HerderAddressesClient() {
                   <TableCell>
                     <button
                       type="button"
-                      onClick={() =>
-                        toggleActive(r.id!, r.isActive ?? false)
-                      }
+                      onClick={() => toggleActive(r.id!, r.isActive ?? false)}
                     >
                       <Badge
                         className={
                           r.isActive
-                            ? 'border-0 bg-emerald-100 text-emerald-800'
-                            : 'border-0 bg-rose-100 text-rose-800'
+                            ? "border-0 bg-emerald-100 text-emerald-800"
+                            : "border-0 bg-rose-100 text-rose-800"
                         }
                       >
-                        {r.isActive ? 'Идэвхтэй' : 'Идэвхгүй'}
+                        {r.isActive ? "Идэвхтэй" : "Идэвхгүй"}
                       </Badge>
                     </button>
                   </TableCell>
@@ -170,9 +168,7 @@ export function HerderAddressesClient() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>
-              {form.id ? 'Хаяг засах' : 'Шинэ хаяг'}
-            </SheetTitle>
+            <SheetTitle>{form.id ? "Хаяг засах" : "Шинэ хаяг"}</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 p-4">
             <div className="space-y-1.5">

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { navItemsFor, navIsActive, type StaffRole } from '@/lib/auth/roles';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { navItemsFor, navIsActive, type StaffRole } from "@/lib/auth/roles";
 
 export function Sidebar({ role }: { role: StaffRole | null }) {
   const pathname = usePathname();
@@ -24,10 +24,10 @@ export function Sidebar({ role }: { role: StaffRole | null }) {
               key={i.href}
               href={i.href}
               className={cn(
-                'rounded-md px-3 py-2 text-sm transition-colors',
+                "rounded-md px-3 py-2 text-sm transition-colors",
                 active
-                  ? 'bg-primary/10 font-medium text-primary'
-                  : 'hover:bg-muted',
+                  ? "bg-primary/10 font-medium text-primary"
+                  : "hover:bg-muted",
               )}
             >
               {i.label}

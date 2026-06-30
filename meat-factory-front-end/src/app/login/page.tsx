@@ -1,9 +1,15 @@
-import { Suspense } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoginForm } from './login-form';
+import { Suspense } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { LoginForm } from "./login-form";
 
 // /login uses useSearchParams() in the client form → opt out of static prerender.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
   return (
@@ -17,7 +23,7 @@ export default function LoginPage() {
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
-          {process.env.NODE_ENV !== 'production' ? (
+          {process.env.NODE_ENV !== "production" ? (
             <div className="mt-6 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
               <div className="mb-1 font-medium">Туршилтын данс (dev):</div>
               <ul className="list-disc pl-4">

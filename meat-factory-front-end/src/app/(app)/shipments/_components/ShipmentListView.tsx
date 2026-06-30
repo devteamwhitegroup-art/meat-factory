@@ -1,6 +1,6 @@
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -8,59 +8,59 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { getClient } from '@/lib/apollo/server';
-import { ShipmentListDoc } from '@/lib/queries/shipment';
-import { unwrapList } from '@/lib/unwrap';
-import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from '@/lib/format/enum';
-import { formatNumber, formatMNT } from '@/lib/format/money';
-import { fmtDate } from '@/lib/format/date';
-import { parseRange, thisMonth } from '@/lib/date/range';
-import { DateRangeFilter } from '@/components/common/DateRangeFilter';
+} from "@/components/ui/table";
+import { getClient } from "@/lib/apollo/server";
+import { ShipmentListDoc } from "@/lib/queries/shipment";
+import { unwrapList } from "@/lib/unwrap";
+import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
+import { formatNumber, formatMNT } from "@/lib/format/money";
+import { fmtDate } from "@/lib/format/date";
+import { parseRange, thisMonth } from "@/lib/date/range";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 const STATUS_TABS = [
-  { value: '', label: 'Бүгд' },
-  { value: 'PENDING', label: 'Хүлээгдэж буй' },
-  { value: 'LOADED', label: 'Ачигдсан' },
-  { value: 'DELIVERED', label: 'Хүргэгдсэн' },
+  { value: "", label: "Бүгд" },
+  { value: "PENDING", label: "Хүлээгдэж буй" },
+  { value: "LOADED", label: "Ачигдсан" },
+  { value: "DELIVERED", label: "Хүргэгдсэн" },
 ];
 
 const MARKET_TABS = [
-  { value: '', label: 'Бүгд' },
-  { value: 'ULAANBAATAR', label: 'Улаанбаатар' },
-  { value: 'LOCAL', label: 'Орон нутаг' },
+  { value: "", label: "Бүгд" },
+  { value: "ULAANBAATAR", label: "Улаанбаатар" },
+  { value: "LOCAL", label: "Орон нутаг" },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'border-0 bg-slate-200 text-slate-800',
-  LOADED: 'border-0 bg-amber-100 text-amber-800',
-  DELIVERED: 'border-0 bg-emerald-100 text-emerald-800',
+  PENDING: "border-0 bg-slate-200 text-slate-800",
+  LOADED: "border-0 bg-amber-100 text-amber-800",
+  DELIVERED: "border-0 bg-emerald-100 text-emerald-800",
 };
 
 const MARKET_COLOR: Record<string, string> = {
-  ULAANBAATAR: 'border-0 bg-sky-100 text-sky-800',
-  LOCAL: 'border-0 bg-violet-100 text-violet-800',
+  ULAANBAATAR: "border-0 bg-sky-100 text-sky-800",
+  LOCAL: "border-0 bg-violet-100 text-violet-800",
 };
 
-const PAGE_TITLE: Record<'EXPORT' | 'DOMESTIC', string> = {
-  EXPORT: 'Экспортын ачилт',
-  DOMESTIC: 'Дотоод ачилт',
+const PAGE_TITLE: Record<"EXPORT" | "DOMESTIC", string> = {
+  EXPORT: "Экспортын ачилт",
+  DOMESTIC: "Дотоод ачилт",
 };
 
 // shadcn-style tab look, recreated with <Link>s (this is a server component, so
 // the interactive <Tabs> primitive can't be used).
 const TAB_LIST =
-  'inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1';
+  "inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1";
 function tabCls(active: boolean) {
   return (
-    'inline-flex h-7 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all ' +
+    "inline-flex h-7 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all " +
     (active
-      ? 'bg-background text-foreground shadow-sm'
-      : 'text-foreground/60 hover:text-foreground')
+      ? "bg-background text-foreground shadow-sm"
+      : "text-foreground/60 hover:text-foreground")
   );
 }
 
-export type ShipmentCategory = 'EXPORT' | 'DOMESTIC';
+export type ShipmentCategory = "EXPORT" | "DOMESTIC";
 
 export type ShipmentListSearchParams = {
   status?: string;
@@ -80,7 +80,7 @@ export async function ShipmentListView({
   category: ShipmentCategory;
   searchParams: ShipmentListSearchParams;
 }) {
-  const isDomestic = category === 'DOMESTIC';
+  const isDomestic = category === "DOMESTIC";
   const base = `/shipments/${category.toLowerCase()}`;
 
   const status =
@@ -98,12 +98,12 @@ export async function ShipmentListView({
   // Preserve all active filters in a generated href, overriding one key.
   const hrefWith = (overrides: { status?: string; market?: string }) => {
     const params = new URLSearchParams();
-    const st = overrides.status ?? status ?? '';
-    const mk = overrides.market ?? market ?? '';
-    if (st) params.set('status', st);
-    if (isDomestic && mk) params.set('market', mk);
-    if (sp.from) params.set('from', sp.from);
-    if (sp.to) params.set('to', sp.to);
+    const st = overrides.status ?? status ?? "";
+    const mk = overrides.market ?? market ?? "";
+    if (st) params.set("status", st);
+    if (isDomestic && mk) params.set("market", mk);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
     const qs = params.toString();
     return qs ? `${base}?${qs}` : base;
   };
@@ -144,7 +144,7 @@ export async function ShipmentListView({
               <Link
                 key={t.value}
                 href={hrefWith({ market: t.value })}
-                className={tabCls((market ?? '') === t.value)}
+                className={tabCls((market ?? "") === t.value)}
               >
                 {t.label}
               </Link>
@@ -158,7 +158,7 @@ export async function ShipmentListView({
             <Link
               key={t.value}
               href={hrefWith({ status: t.value })}
-              className={tabCls((status ?? '') === t.value)}
+              className={tabCls((status ?? "") === t.value)}
             >
               {t.label}
             </Link>
@@ -195,7 +195,7 @@ export async function ShipmentListView({
               {rows.map((s) => (
                 <TableRow key={s.id!}>
                   <TableCell className="font-medium">
-                    {s.customer?.name ?? '—'}
+                    {s.customer?.name ?? "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {s.shipmentCode}
@@ -205,29 +205,30 @@ export async function ShipmentListView({
                       {s.domesticMarket ? (
                         <Badge
                           className={
-                            MARKET_COLOR[s.domesticMarket] ?? 'border-0 bg-muted'
+                            MARKET_COLOR[s.domesticMarket] ??
+                            "border-0 bg-muted"
                           }
                         >
                           {DOMESTIC_MARKET_MN[s.domesticMarket] ??
                             s.domesticMarket}
                         </Badge>
                       ) : (
-                        '—'
+                        "—"
                       )}
                     </TableCell>
                   ) : null}
                   <TableCell>{formatNumber(s.weightKg)} кг</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {s.totalPrice != null ? formatMNT(s.totalPrice) : '—'}
+                    {s.totalPrice != null ? formatMNT(s.totalPrice) : "—"}
                   </TableCell>
                   <TableCell>{fmtDate(s.shippedAt ?? s.createdAt)}</TableCell>
                   <TableCell>
                     <Badge
                       className={
-                        STATUS_COLOR[s.status ?? ''] ?? 'border-0 bg-muted'
+                        STATUS_COLOR[s.status ?? ""] ?? "border-0 bg-muted"
                       }
                     >
-                      {SHIPMENT_STATUS_MN[s.status ?? ''] ?? s.status}
+                      {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status}
                     </Badge>
                   </TableCell>
                   <TableCell>

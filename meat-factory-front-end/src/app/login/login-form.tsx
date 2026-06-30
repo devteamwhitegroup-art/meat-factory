@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -16,11 +16,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 
 const schema = z.object({
-  param: z.string().min(3, 'Хамгийн багадаа 3 тэмдэгт'),
-  password: z.string().min(6, 'Хамгийн багадаа 6 тэмдэгт'),
+  param: z.string().min(3, "Хамгийн багадаа 3 тэмдэгт"),
+  password: z.string().min(6, "Хамгийн багадаа 6 тэмдэгт"),
 });
 
 type Values = z.infer<typeof schema>;
@@ -32,15 +32,15 @@ export function LoginForm() {
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { param: '', password: '' },
+    defaultValues: { param: "", password: "" },
   });
 
   async function onSubmit(values: Values) {
     setSubmitting(true);
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           param: values.param.trim(),
           password: values.password.trim(),
@@ -48,14 +48,14 @@ export function LoginForm() {
       });
       const data = (await res.json()) as { ok: boolean; message?: string };
       if (!data.ok) {
-        toast.error(data.message ?? 'Нэвтрэх амжилтгүй');
+        toast.error(data.message ?? "Нэвтрэх амжилтгүй");
         return;
       }
-      const from = search.get('from');
-      router.replace(from && from.startsWith('/') ? from : '/');
+      const from = search.get("from");
+      router.replace(from && from.startsWith("/") ? from : "/");
       router.refresh();
     } catch {
-      toast.error('Сервер холбогдсонгүй');
+      toast.error("Сервер холбогдсонгүй");
     } finally {
       setSubmitting(false);
     }
@@ -84,14 +84,18 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Нууц үг</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="current-password" {...field} />
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? 'Нэвтэрч байна…' : 'Нэвтрэх'}
+          {submitting ? "Нэвтэрч байна…" : "Нэвтрэх"}
         </Button>
       </form>
     </Form>

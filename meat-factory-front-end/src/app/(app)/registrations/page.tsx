@@ -7,7 +7,6 @@ import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { parseRange, thisMonth } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
-import { getAnimalNames } from "@/lib/animalNames";
 
 type Props = {
   searchParams: Promise<{
@@ -61,18 +60,15 @@ export default async function RegistrationsPage({ searchParams }: Props) {
     return qs ? `/registrations?${qs}` : "/registrations";
   };
 
-  const [{ data }, animalNames] = await Promise.all([
-    getClient().query({
-      query: RegistrationListDoc,
-      variables: {
-        statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
-        dateRange,
-        limit: 24,
-        page,
-      },
-    }),
-    getAnimalNames().then((m) => Object.fromEntries(m)),
-  ]);
+  const { data } = await getClient().query({
+    query: RegistrationListDoc,
+    variables: {
+      statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
+      dateRange,
+      limit: 24,
+      page,
+    },
+  });
 
   const {
     rows,
@@ -132,7 +128,6 @@ export default async function RegistrationsPage({ searchParams }: Props) {
               registrationCode={r.registrationCode ?? null}
               status={r.status ?? "REGISTERED"}
               herderName={r.herder?.name ?? null}
-              animalNames={animalNames}
               animalLines={compact(r.animalLines).map((l) => ({
                 animalType: l.animalType ?? "",
                 count: l.count ?? 0,

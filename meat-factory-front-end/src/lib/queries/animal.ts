@@ -1,8 +1,9 @@
 import { graphql } from "@/lib/gql/gql";
 
-// Top-level per-animal-type config: butcher cost + canCoverSlaughterCost.
-// Pre-fills settlement slaughter cost and drives the byproduct ownership rule
-// (false → factory storage; true → herder may keep unless cover is toggled).
+// Animal catalogue — admin-managed, keyed by `name` (the Mongolian display
+// name, which is also the value stored as `animalType` on every other record).
+// Drives intake/weigh/sales/cargo pickers, бой cost prefill and the byproduct
+// ownership rule (canCoverSlaughterCost). `isExport` gates export-shipment cargo.
 export const AnimalListDoc = graphql(/* GraphQL */ `
   query Animals {
     animals {
@@ -10,39 +11,46 @@ export const AnimalListDoc = graphql(/* GraphQL */ `
       message
       animals {
         id
-        animalType
         name
+        isExport
         pricePerAnimal
         canCoverSlaughterCost
+        yieldPercent
         isActive
       }
     }
   }
 `);
 
+// Create (omit id) or edit/rename (pass id) a catalogue animal.
 export const UpsertAnimalDoc = graphql(/* GraphQL */ `
   mutation UpsertAnimal(
-    $animalType: ANIMAL_TYPE!
-    $name: String
+    $id: ID
+    $name: String!
+    $isExport: Boolean
     $pricePerAnimal: Float
     $canCoverSlaughterCost: Boolean
+    $yieldPercent: Float
     $isActive: Boolean
   ) {
     upsertAnimal(
-      animalType: $animalType
+      id: $id
       name: $name
+      isExport: $isExport
       pricePerAnimal: $pricePerAnimal
       canCoverSlaughterCost: $canCoverSlaughterCost
+      yieldPercent: $yieldPercent
       isActive: $isActive
     ) {
       success
       message
       animal {
         id
-        animalType
         name
+        isExport
         pricePerAnimal
         canCoverSlaughterCost
+        yieldPercent
         isActive
       }
     }
