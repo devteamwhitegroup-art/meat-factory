@@ -10,7 +10,7 @@ import {
   TUpdateByproductConstant,
 } from "../../types/livestock/byproduct-constant.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
-import { findOrThrow, listPaginated } from "../../utils";
+import { activeSearchWhere, findOrThrow, listPaginated } from "../../utils";
 
 export class ByproductConstantController {
   static findIdCheck(id: string): Promise<ByproductConstantModel> {
@@ -59,14 +59,8 @@ export class ByproductConstantController {
   static async list(
     doc: TGetByproductConstants,
   ): Promise<TPaginationGeneric<TByproductConstant>> {
-    const where: WhereOptions = {};
+    const where = activeSearchWhere(doc);
     if (doc.wrapperId) Object.assign(where, { wrapperId: doc.wrapperId });
-    if (typeof doc.isActive === "boolean")
-      Object.assign(where, { isActive: doc.isActive });
-    if (doc.search && doc.search.trim())
-      Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` },
-      });
 
     // Filter by animalType joins through wrapper → animal.
     const wrapperInclude: IncludeOptions = {

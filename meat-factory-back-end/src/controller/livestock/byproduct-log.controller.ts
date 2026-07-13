@@ -1,4 +1,4 @@
-import { Op, WhereOptions } from "sequelize";
+import { Op } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
@@ -9,9 +9,9 @@ import { ByproductConstantController } from "./byproduct-constant.controller";
 import { RegistrationController } from "./registration.controller";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TByproductItemInput } from "../../types/livestock/byproduct-log.type";
-import { TDateRange } from "../../types/dashboard/dashboard.type";
-import { TContext } from "../../types/global/global.type";
+import { TContext, TDateRange } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
+import { dateRangeWhere } from "../../utils";
 
 // Byproduct (Дайвар) logs — sub-domain of the registration aggregate. Shared
 // status/role guards and registration lookups live on RegistrationController.
@@ -102,15 +102,8 @@ export class ByproductLogController {
   // Aggregated byproduct output for handoff to the downstream factory
   // (quantity + weight by name; no price in this system).
   static async byproductHandoff(dateRange?: TDateRange) {
-    const where: WhereOptions = {};
-    if (dateRange && (dateRange.startDate || dateRange.endDate)) {
-      const r: Record<symbol, Date> = {};
-      if (dateRange.startDate) r[Op.gte] = new Date(dateRange.startDate);
-      if (dateRange.endDate) r[Op.lte] = new Date(dateRange.endDate);
-      Object.assign(where, { createdAt: r });
-    }
     const rows = await ByproductLogModel.findAll({
-      where,
+      where: dateRangeWhere(dateRange, "createdAt"),
       include: [{ model: AnimalModel, as: "animal" }],
     });
 

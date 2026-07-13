@@ -16,8 +16,4 @@ export class FileController {
     return file;
   }
 
-  static async deleteFile(id: string): Promise<void> {
-    const file = await this.findIdCheck(id);
-    await file.destroy();
-  }
 }

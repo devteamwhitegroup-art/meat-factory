@@ -1,4 +1,4 @@
-import { Op, UniqueConstraintError, WhereOptions } from "sequelize";
+import { UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
@@ -13,7 +13,7 @@ import {
 } from "../../types/sales/sales-transaction.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { CustomerController } from "../customer/customer.controller";
-import { findOrThrow, listPaginated } from "../../utils";
+import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
 
 const MAX_CODE_RETRIES = 5;
 
@@ -147,14 +147,7 @@ export class SalesTransactionController {
     if (doc.paymentStatus)
       Object.assign(where, { paymentStatus: doc.paymentStatus });
     if (doc.customerId) Object.assign(where, { customerId: doc.customerId });
-    if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
-      const range: Record<symbol, Date> = {};
-      if (doc.dateRange.startDate)
-        range[Op.gte] = new Date(doc.dateRange.startDate);
-      if (doc.dateRange.endDate)
-        range[Op.lte] = new Date(doc.dateRange.endDate);
-      Object.assign(where, { transactionDate: range });
-    }
+    Object.assign(where, dateRangeWhere(doc.dateRange, "transactionDate"));
 
     return listPaginated(SalesTransactionModel, doc, {
       where,

@@ -50,6 +50,7 @@ import { Customer_Kind } from "@/lib/gql/graphql";
 import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from "@/lib/format/enum";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { PaginationFooter } from "@/components/common/PaginationFooter";
 
 const KIND_VALUES = ["LOCAL_BROKER", "ULAANBAATAR_BROKER", "FACTORY"] as const;
 type Kind = (typeof KIND_VALUES)[number];
@@ -447,28 +448,13 @@ export function CustomersClient() {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Нийт: {total}</span>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ←
-          </Button>
-          <span>Хуудас {page}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={customers.length < 20}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            →
-          </Button>
-        </div>
-      </div>
+      <PaginationFooter
+        page={page}
+        onPageChange={setPage}
+        total={total}
+        pageSize={20}
+        count={customers.length}
+      />
     </div>
   );
 }

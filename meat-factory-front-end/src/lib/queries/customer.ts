@@ -34,26 +34,6 @@ export const CustomerListDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const CustomerDoc = graphql(/* GraphQL */ `
-  query Customer($id: ID!) {
-    customer(id: $id) {
-      success
-      message
-      customer {
-        id
-        name
-        kind
-        contactPhone
-        address
-        bankAccount
-        registrationNumber
-        taxId
-        isActive
-      }
-    }
-  }
-`);
-
 export const CreateCustomerDoc = graphql(/* GraphQL */ `
   mutation CreateCustomer(
     $name: String!

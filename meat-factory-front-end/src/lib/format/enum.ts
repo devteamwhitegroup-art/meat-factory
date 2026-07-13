@@ -75,7 +75,3 @@ export const PRODUCT_TYPE_MN: Record<string, string> = {
   MEAT: "Мах",
   BYPRODUCT: "Дайвар",
 };
-
-// Deprecated — prefer useAnimalCatalog() so the list comes from the DB
-// (Animals table). Kept here only as a fallback ordering for sorts.
-export const ANIMAL_TYPES = ["COW", "SHEEP", "HORSE", "GOAT", "CAMEL"] as const;

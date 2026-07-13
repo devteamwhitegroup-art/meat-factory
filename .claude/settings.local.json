@@ -8,7 +8,9 @@
       "Bash(pnpm gen *)",
       "Bash(echo \"gen exit=$?\")",
       "Bash(pnpm build *)",
-      "Bash(echo \"build exit=$?\")"
+      "Bash(echo \"build exit=$?\")",
+      "Bash(node -e ' *)",
+      "Bash(graphify export *)"
     ]
   }
 }

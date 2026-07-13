@@ -1,4 +1,4 @@
-import { TPagination } from '../global/global.type';
+import { TDateRange, TPagination } from '../global/global.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 export enum MOVEMENT_TYPE {
@@ -54,7 +54,7 @@ export type TGetMovements = {
   inventoryItemId?: string;
   movementType?: MOVEMENT_TYPE;
   source?: MOVEMENT_SOURCE;
-  dateRange?: { startDate?: Date | null; endDate?: Date | null };
+  dateRange?: TDateRange;
 } & TPagination;
 
 export type TGetStock = {

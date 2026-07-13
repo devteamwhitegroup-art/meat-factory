@@ -11,10 +11,3 @@ export type TSalesInstallment = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-export type TAddSalesInstallment = {
-  salesTransactionId: string;
-  amountMnt: number;
-  paidAt?: Date | null;
-  notes?: string | null;
-};

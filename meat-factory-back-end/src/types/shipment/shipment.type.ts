@@ -1,4 +1,4 @@
-import { TPagination } from '../global/global.type';
+import { TDateRange, TPagination } from '../global/global.type';
 
 export enum SHIPMENT_STATUS {
   PENDING = 'PENDING',
@@ -64,15 +64,10 @@ export type TCreateShipment = {
   photoFileId?: string | null;
 };
 
-export type TUpdateShipmentStatus = {
-  id: string;
-  status: SHIPMENT_STATUS;
-};
-
 export type TGetShipments = {
   status?: SHIPMENT_STATUS;
   category?: SHIPMENT_CATEGORY;
   domesticMarket?: DOMESTIC_MARKET;
   customerId?: string;
-  dateRange?: { startDate?: Date | null; endDate?: Date | null };
+  dateRange?: TDateRange;
 } & TPagination;

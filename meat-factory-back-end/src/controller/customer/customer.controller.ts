@@ -10,7 +10,7 @@ import {
   TUpdateCustomer,
 } from "../../types/customer/customer.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
-import { findOrThrow, listPaginated } from "../../utils";
+import { activeSearchWhere, findOrThrow, listPaginated } from "../../utils";
 
 export class CustomerController {
   static findIdCheck(id: string): Promise<CustomerModel> {
@@ -49,14 +49,8 @@ export class CustomerController {
   static async list(
     doc: TGetCustomers,
   ): Promise<TPaginationGeneric<TCustomer>> {
-    const where: WhereOptions = {};
-    if (typeof doc.isActive === "boolean")
-      Object.assign(where, { isActive: doc.isActive });
+    const where = activeSearchWhere(doc);
     if (doc.kind) Object.assign(where, { kind: doc.kind });
-    if (doc.search && doc.search.trim())
-      Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` },
-      });
 
     return listPaginated(CustomerModel, doc, {
       where,

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,14 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -37,39 +29,18 @@ import {
   HerderListDoc,
   UpdateHerderDoc,
 } from "@/lib/queries/herder";
-import { HerderAddressListDoc } from "@/lib/queries/herder-address";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  HerderFormFields,
+  herderFormDefaults,
+  herderMutationVars,
+  herderSchema,
+  type HerderFormValues,
+} from "@/components/herder/HerderForm";
+import { PaginationFooter } from "@/components/common/PaginationFooter";
 import { runMutation } from "@/lib/runMutation";
-import { compact } from "@/lib/compact";
 import { fmtDate } from "@/lib/format/date";
 
-const schema = z
-  .object({
-    name: z.string().min(1, "Нэр шаардлагатай"),
-    registrationNo: z.string().min(1, "Регистр шаардлагатай"),
-    phone: z.string().optional(),
-    bankAccount: z.string().optional(),
-    bankName: z.string().optional(),
-    accountHolderName: z.string().optional(),
-    addressId: z.string().optional(),
-    address: z.string().optional(),
-  })
-  .refine(
-    (v) =>
-      (v.addressId && v.addressId.length > 0) ||
-      (v.address && v.address.trim().length > 0),
-    {
-      path: ["addressId"],
-      message: "Хаяг сонгох эсвэл бичих",
-    },
-  );
-type Values = z.infer<typeof schema>;
+const PAGE_SIZE = 20;
 
 type EditTarget = {
   id?: string | null;
@@ -92,46 +63,23 @@ export function HerdersClient() {
     loading: fetching,
     refetch,
   } = useQuery(HerderListDoc, {
-    variables: { search: search || null, limit: 20, page },
+    variables: { search: search || null, limit: PAGE_SIZE, page },
     fetchPolicy: "cache-and-network",
   });
   const [createHerder] = useMutation(CreateHerderDoc);
   const [updateHerder] = useMutation(UpdateHerderDoc);
   const [deleteHerder] = useMutation(DeleteHerderDoc);
-  const { data: addrData } = useQuery(HerderAddressListDoc, {
-    variables: { search: null, isActive: true },
-    fetchPolicy: "cache-and-network",
-  });
-  const addresses = compact(addrData?.herderAddresses?.herderAddresses);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<EditTarget>(null);
-  const form = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      registrationNo: "",
-      phone: "",
-      bankAccount: "",
-      bankName: "",
-      accountHolderName: "",
-      addressId: "",
-      address: "",
-    },
+  const form = useForm<HerderFormValues>({
+    resolver: zodResolver(herderSchema),
+    defaultValues: herderFormDefaults,
   });
 
   function openCreate() {
     setEditing(null);
-    form.reset({
-      name: "",
-      registrationNo: "",
-      phone: "",
-      bankAccount: "",
-      bankName: "",
-      accountHolderName: "",
-      addressId: "",
-      address: "",
-    });
+    form.reset(herderFormDefaults);
     setSheetOpen(true);
   }
 
@@ -152,17 +100,8 @@ export function HerdersClient() {
     setSheetOpen(true);
   }
 
-  async function onSubmit(values: Values) {
-    const sharedVars = {
-      name: values.name.trim(),
-      registrationNo: values.registrationNo.trim(),
-      phone: values.phone?.trim() || null,
-      bankAccount: values.bankAccount?.trim() || null,
-      bankName: values.bankName?.trim() || null,
-      accountHolderName: values.accountHolderName?.trim() || null,
-      addressId: values.addressId || null,
-      address: values.addressId ? null : values.address?.trim() || null,
-    };
+  async function onSubmit(values: HerderFormValues) {
+    const sharedVars = herderMutationVars(values);
     await runMutation(
       async () => {
         if (editing?.id) {
@@ -223,145 +162,7 @@ export function HerdersClient() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-3 p-4"
               >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Нэр</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="registrationNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Регистр</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Утас</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bankAccount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Дансны дугаар</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bankName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Банкны нэр</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ж: Хаан банк" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="accountHolderName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Дансны эзэмшигчийн нэр</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="(зөвхөн өөр хүний данс үед)"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="addressId"
-                  render={({ field }) => {
-                    const selected = addresses.find(
-                      (a) => a.id === field.value,
-                    );
-                    return (
-                      <FormItem>
-                        <FormLabel>Хаяг</FormLabel>
-                        <FormControl>
-                          <Select
-                            value={field.value || undefined}
-                            onValueChange={(v) => field.onChange(v ?? "")}
-                          >
-                            <SelectTrigger className="h-10 w-full">
-                              {field.value ? (
-                                <span>{selected?.name ?? "Сонгосон"}</span>
-                              ) : (
-                                <SelectValue placeholder="Каталогаас сонгох" />
-                              )}
-                            </SelectTrigger>
-                            <SelectContent>
-                              {addresses.length === 0 ? (
-                                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                  Хаяг алга
-                                </div>
-                              ) : (
-                                addresses.map((a) => (
-                                  <SelectItem key={a.id!} value={a.id!}>
-                                    {a.name}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Хаяг (нэмэлт, заавал биш)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Каталогаас сонгоогүй үед бичнэ"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <HerderFormFields form={form} />
                 <div className="pt-2">
                   <Button
                     type="submit"
@@ -445,28 +246,13 @@ export function HerdersClient() {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Нийт: {total}</span>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ←
-          </Button>
-          <span>Хуудас {page}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={herders.length < 20}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            →
-          </Button>
-        </div>
-      </div>
+      <PaginationFooter
+        page={page}
+        onPageChange={setPage}
+        total={total}
+        pageSize={PAGE_SIZE}
+        count={herders.length}
+      />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   TUpdateByproductWrapper,
 } from "../../types/livestock/byproduct-wrapper.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
-import { findOrThrow, listPaginated } from "../../utils";
+import { activeSearchWhere, findOrThrow, listPaginated } from "../../utils";
 
 // Wrappers belong-to an Animal row by id. The public API still accepts
 // animalType for ergonomics — we resolve it via AnimalController.resolveByType
@@ -57,13 +57,7 @@ export class ByproductWrapperController {
   static async list(
     doc: TGetByproductWrappers,
   ): Promise<TPaginationGeneric<TByproductWrapper>> {
-    const where: WhereOptions = {};
-    if (typeof doc.isActive === "boolean")
-      Object.assign(where, { isActive: doc.isActive });
-    if (doc.search && doc.search.trim())
-      Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` },
-      });
+    const where = activeSearchWhere(doc);
 
     // animalType filter joins through the Animals table.
     const animalInclude: IncludeOptions = { model: AnimalModel, as: "animal" };

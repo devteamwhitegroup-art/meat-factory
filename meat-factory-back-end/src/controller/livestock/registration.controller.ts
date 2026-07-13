@@ -28,6 +28,7 @@ import { ADMIN_ROLE } from "../../types/user/admin.type";
 import { HerderController } from "./herder.controller";
 import { FileController } from "../global/file.controller";
 import {
+  dateRangeWhere,
   dateStampUTC8,
   findOrThrow,
   listPaginated,
@@ -271,14 +272,7 @@ export class RegistrationController {
     if (doc.herderId) Object.assign(where, { herderId: doc.herderId });
     if (doc.registrationCode)
       Object.assign(where, { registrationCode: doc.registrationCode });
-    if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
-      const range: Record<symbol, Date> = {};
-      if (doc.dateRange.startDate)
-        range[Op.gte] = new Date(doc.dateRange.startDate);
-      if (doc.dateRange.endDate)
-        range[Op.lte] = new Date(doc.dateRange.endDate);
-      Object.assign(where, { intakeDate: range });
-    }
+    Object.assign(where, dateRangeWhere(doc.dateRange, "intakeDate"));
 
     return listPaginated(RegistrationModel, doc, {
       where,
@@ -341,9 +335,10 @@ export class RegistrationController {
   // Capture бой зардал per animal type at weighing (before VERIFIED) so it
   // prints on the herder slip. Settlement defaults to these values. Editable
   // only while REGISTERED / WEIGHED. Pre-butchered intake forces cost to 0.
-  static async setSlaughterCosts(
+  // Shared guard for slip edits allowed only before VERIFIED, by intake-side
+  // staff (storekeeper/manager/super-admin/scale).
+  private static async _guardSlipEditable(
     registrationId: string,
-    lines: TSlaughterCostInput[],
     context: TContext,
   ): Promise<RegistrationModel> {
     this.assertActorRole(context, [
@@ -352,12 +347,20 @@ export class RegistrationController {
       ADMIN_ROLE.SUPER_ADMIN,
       ADMIN_ROLE.SCALE,
     ]);
-
     const reg = await this.findIdCheck(registrationId);
     this.assertStatus(reg, [
       REGISTRATION_STATUS.REGISTERED,
       REGISTRATION_STATUS.WEIGHED,
     ]);
+    return reg;
+  }
+
+  static async setSlaughterCosts(
+    registrationId: string,
+    lines: TSlaughterCostInput[],
+    context: TContext,
+  ): Promise<RegistrationModel> {
+    const reg = await this._guardSlipEditable(registrationId, context);
 
     if (!lines || lines.length === 0)
       throw new Error("At least one slaughter-cost line is required");
@@ -390,18 +393,7 @@ export class RegistrationController {
     fileId: string | null,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
-    ]);
-
-    const reg = await this.findIdCheck(registrationId);
-    this.assertStatus(reg, [
-      REGISTRATION_STATUS.REGISTERED,
-      REGISTRATION_STATUS.WEIGHED,
-    ]);
+    const reg = await this._guardSlipEditable(registrationId, context);
 
     if (fileId) await FileController.findIdCheck(fileId);
     await reg.update({ agreementSignatureFileId: fileId ?? null });

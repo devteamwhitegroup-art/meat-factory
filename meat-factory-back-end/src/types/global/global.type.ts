@@ -18,6 +18,12 @@ export type TPagination = {
   page: number;
 };
 
+// GraphQL DateRangeInput — optional bounds shared by every date-filtered list.
+export type TDateRange = {
+  startDate?: Date | null;
+  endDate?: Date | null;
+};
+
 export type TPaginationGeneric<T> = {
   rows: Array<T>;
   count: number;

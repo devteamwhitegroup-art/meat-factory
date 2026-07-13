@@ -6,21 +6,63 @@ import { getClient } from "@/lib/apollo/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { StockSplit } from "@/components/inventory/StockSplit";
 import { InventoryStatsDoc, InventoryStockDoc } from "@/lib/queries/inventory";
+import { ByproductWrapperListDoc } from "@/lib/queries/byproduct-wrapper";
 import { unwrapList } from "@/lib/unwrap";
+import { compact } from "@/lib/compact";
 import { formatNumber } from "@/lib/format/money";
+import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 
 import { requireCap } from "@/lib/auth/server";
+
+// Human-readable SKU built FE-side (the BE sku doesn't carry the byproduct path).
+//   Meat       →  Мах:<animal>                    e.g. Мах:Үхэр
+//   Byproduct  →  Дайвар:<animal>:<wrapper>:<name> e.g. Дайвар:Адуу:Гэдэс:Зүрх
+// The inventory row has no wrapper, so it's resolved from the byproduct
+// catalogue by (animal, constant name).
+// ponytail: if one constant name lives under >1 wrapper for the same animal the
+// map keeps the last (cosmetic only); add wrapperName to InventoryItem if it bites.
+function buildSku(
+  item: {
+    productType?: string | null;
+    animalType?: string | null;
+    byproductName?: string | null;
+  },
+  wrapperByKey: Record<string, string>,
+): string {
+  const animal = item.animalType ?? "";
+  if (item.productType === "MEAT") {
+    return animal ? `${PRODUCT_TYPE_MN.MEAT}:${animal}` : PRODUCT_TYPE_MN.MEAT;
+  }
+  const wrapper = wrapperByKey[`${animal}::${item.byproductName ?? ""}`];
+  return [PRODUCT_TYPE_MN.BYPRODUCT, animal, wrapper, item.byproductName]
+    .filter(Boolean)
+    .join(":");
+}
 
 export default async function InventoryPage() {
   await requireCap("inventory");
   const client = getClient();
-  const [stockResp, statsResp] = await Promise.all([
+  const [stockResp, statsResp, wrapResp] = await Promise.all([
     client.query({
       query: InventoryStockDoc,
       variables: { productType: null, animalType: null, byproductName: null },
     }),
     client.query({ query: InventoryStatsDoc }),
+    client.query({
+      query: ByproductWrapperListDoc,
+      variables: { animalType: null, isActive: null },
+    }),
   ]);
+  // (animal, constant name) → wrapper name, for the byproduct SKU path.
+  const wrapperByKey: Record<string, string> = {};
+  for (const w of compact(
+    wrapResp.data?.byproductWrappers?.byproductWrappers,
+  )) {
+    for (const it of compact(w.items)) {
+      if (w.animalType && w.name && it.name)
+        wrapperByKey[`${w.animalType}::${it.name}`] = w.name;
+    }
+  }
   const { rows: items, error: stockError } = unwrapList(
     stockResp.data?.inventoryStock,
     stockResp.data?.inventoryStock?.inventoryItems,
@@ -162,7 +204,7 @@ export default async function InventoryPage() {
         <StockSplit
           items={items.map((i) => ({
             id: i.id!,
-            sku: i.sku ?? "",
+            sku: buildSku(i, wrapperByKey),
             productType: (i.productType ?? "MEAT") as "MEAT" | "BYPRODUCT",
             animalType: i.animalType ?? null,
             byproductName: i.byproductName ?? null,

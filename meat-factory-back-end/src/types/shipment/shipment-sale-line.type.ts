@@ -21,8 +21,3 @@ export type TShipmentSaleLine = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-export type TSetShipmentSalePrice = {
-  id: string;
-  pricePerKg: number | null;
-};

@@ -1,4 +1,4 @@
-import { Op, UniqueConstraintError, WhereOptions } from "sequelize";
+import { UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
@@ -26,6 +26,7 @@ import { AnimalController } from "../livestock/animal.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { FileController } from "../global/file.controller";
 import {
+  dateRangeWhere,
   dateStampUTC8,
   findOrThrow,
   listPaginated,
@@ -289,14 +290,7 @@ export class ShipmentController {
     if (doc.domesticMarket)
       Object.assign(where, { domesticMarket: doc.domesticMarket });
     if (doc.customerId) Object.assign(where, { customerId: doc.customerId });
-    if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
-      const range: Record<symbol, Date> = {};
-      if (doc.dateRange.startDate)
-        range[Op.gte] = new Date(doc.dateRange.startDate);
-      if (doc.dateRange.endDate)
-        range[Op.lte] = new Date(doc.dateRange.endDate);
-      Object.assign(where, { createdAt: range });
-    }
+    Object.assign(where, dateRangeWhere(doc.dateRange, "createdAt"));
 
     return listPaginated(ShipmentModel, doc, {
       where,

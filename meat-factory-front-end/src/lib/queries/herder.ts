@@ -26,37 +26,6 @@ export const HerderListDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const HerderDoc = graphql(/* GraphQL */ `
-  query Herder($id: ID!) {
-    herder(id: $id) {
-      success
-      message
-      herder {
-        id
-        name
-        registrationNo
-        phone
-        bankAccount
-        bankName
-        accountHolderName
-        addressId
-        address
-        addressEntry {
-          id
-          name
-        }
-        createdAt
-        registrations {
-          id
-          registrationCode
-          status
-          intakeDate
-        }
-      }
-    }
-  }
-`);
-
 export const CreateHerderDoc = graphql(/* GraphQL */ `
   mutation CreateHerder(
     $name: String!

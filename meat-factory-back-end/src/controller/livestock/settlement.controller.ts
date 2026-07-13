@@ -25,7 +25,32 @@ import { ADMIN_ROLE } from "../../types/user/admin.type";
 // Settlement (Няравын тооцоо / Санхүү) — sub-domain of the registration
 // aggregate. Shared status/role guards and registration lookups live on
 // RegistrationController.
+
+// Full eager-load every mutation returns to the resolver.
+const SETTLEMENT_INCLUDE = [
+  {
+    model: SettlementLineModel,
+    as: "lines",
+    include: [{ model: AnimalModel, as: "animal" }],
+  },
+  {
+    model: SettlementPaymentProofModel,
+    as: "paymentProofs",
+    include: [
+      { model: FileModel, as: "file" },
+      { model: AdminModel, as: "createdBy" },
+    ],
+  },
+];
+
 export class SettlementController {
+  // Re-fetch a settlement with the full include after a mutation.
+  private static _reload(id: string): Promise<SettlementModel> {
+    return findOrThrow(SettlementModel, id, "Settlement not found", {
+      include: SETTLEMENT_INCLUDE,
+    });
+  }
+
   static async createSettlement(
     doc: TCreateSettlement,
     context: TContext,
@@ -171,23 +196,7 @@ export class SettlementController {
       return s;
     });
 
-    return (await SettlementModel.findByPk(settlement.id, {
-      include: [
-        {
-          model: SettlementLineModel,
-          as: "lines",
-          include: [{ model: AnimalModel, as: "animal" }],
-        },
-        {
-          model: SettlementPaymentProofModel,
-          as: "paymentProofs",
-          include: [
-            { model: FileModel, as: "file" },
-            { model: AdminModel, as: "createdBy" },
-          ],
-        },
-      ],
-    })) as SettlementModel;
+    return this._reload(settlement.id);
   }
 
   // First (and possibly partial) payout. `heldAmount` is withheld pending
@@ -301,23 +310,7 @@ export class SettlementController {
     };
     await InventoryController.ingestFromSettledRegistration(dto);
 
-    return (await SettlementModel.findByPk(settlement.id, {
-      include: [
-        {
-          model: SettlementLineModel,
-          as: "lines",
-          include: [{ model: AnimalModel, as: "animal" }],
-        },
-        {
-          model: SettlementPaymentProofModel,
-          as: "paymentProofs",
-          include: [
-            { model: FileModel, as: "file" },
-            { model: AdminModel, as: "createdBy" },
-          ],
-        },
-      ],
-    })) as SettlementModel;
+    return this._reload(settlement.id);
   }
 
   // Release the withheld portion once the medical number is approved. Pays the
@@ -356,23 +349,7 @@ export class SettlementController {
     });
     await reg.update({ status: REGISTRATION_STATUS.SETTLED });
 
-    return (await SettlementModel.findByPk(settlement.id, {
-      include: [
-        {
-          model: SettlementLineModel,
-          as: "lines",
-          include: [{ model: AnimalModel, as: "animal" }],
-        },
-        {
-          model: SettlementPaymentProofModel,
-          as: "paymentProofs",
-          include: [
-            { model: FileModel, as: "file" },
-            { model: AdminModel, as: "createdBy" },
-          ],
-        },
-      ],
-    })) as SettlementModel;
+    return this._reload(settlement.id);
   }
 
   // Money-flow statement: attach an already-uploaded image (bank transfer

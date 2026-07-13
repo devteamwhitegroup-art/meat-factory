@@ -475,19 +475,6 @@ export const ApproveMedicalNumberDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const CancelRegistrationDoc = graphql(/* GraphQL */ `
-  mutation CancelRegistration($registrationId: ID!) {
-    cancelRegistration(registrationId: $registrationId) {
-      success
-      message
-      registration {
-        id
-        status
-      }
-    }
-  }
-`);
-
 export const SetRegistrationSlaughterCostsDoc = graphql(/* GraphQL */ `
   mutation SetRegistrationSlaughterCosts(
     $registrationId: ID!

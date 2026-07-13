@@ -15,7 +15,7 @@ import { compact } from "@/lib/compact";
 import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
-import { parseRange, thisMonth } from "@/lib/date/range";
+import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 const TABS = [
@@ -40,9 +40,7 @@ export default async function SalesPage({ searchParams }: Props) {
   const sp = await searchParams;
   const status =
     sp.status && TABS.some((t) => t.value === sp.status) ? sp.status : null;
-  const page = Number(sp.page) || 1;
-  const def = thisMonth();
-  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+  const { page, dateRange } = pageAndRange(sp);
   const tabHref = (statusVal: string) => {
     const params = new URLSearchParams();
     if (statusVal) params.set("status", statusVal);

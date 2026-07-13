@@ -1,4 +1,4 @@
-import { TPagination } from '../global/global.type';
+import { TDateRange, TPagination } from '../global/global.type';
 
 export enum PAYMENT_STATUS {
   PAID = 'PAID', // ТӨЛБӨР ХИЙСЭН
@@ -58,5 +58,5 @@ export type TCreateSalesTransaction = {
 export type TGetSalesTransactions = {
   paymentStatus?: PAYMENT_STATUS;
   customerId?: string;
-  dateRange?: { startDate?: Date | null; endDate?: Date | null };
+  dateRange?: TDateRange;
 } & TPagination;

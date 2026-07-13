@@ -7,7 +7,7 @@ import {
   TUpdateHerderAddress,
 } from "../../types/livestock/herder-address.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
-import { findOrThrow, listPaginated } from "../../utils";
+import { activeSearchWhere, findOrThrow, listPaginated } from "../../utils";
 
 export class HerderAddressController {
   static findIdCheck(id: string): Promise<HerderAddressModel> {
@@ -41,16 +41,8 @@ export class HerderAddressController {
   static async list(
     doc: TGetHerderAddresses,
   ): Promise<TPaginationGeneric<THerderAddress>> {
-    const where: WhereOptions = {};
-    if (typeof doc.isActive === "boolean")
-      Object.assign(where, { isActive: doc.isActive });
-    if (doc.search && doc.search.trim())
-      Object.assign(where, {
-        name: { [Op.iLike]: `%${doc.search.trim()}%` },
-      });
-
     return listPaginated(HerderAddressModel, doc, {
-      where,
+      where: activeSearchWhere(doc),
       order: [["name", "ASC"]],
     });
   }

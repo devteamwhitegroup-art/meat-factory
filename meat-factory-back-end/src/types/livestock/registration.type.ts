@@ -1,4 +1,4 @@
-import { TPagination } from '../global/global.type';
+import { TDateRange, TPagination } from '../global/global.type';
 
 export enum REGISTRATION_STATUS {
   REGISTERED = 'REGISTERED', // intake created by guard (weighing happens in-place)
@@ -61,7 +61,7 @@ export type TGetRegistrations = {
   herderId?: string;
   registrationCode?: string;
   // Filters on intakeDate (livestock arrival), inclusive both ends.
-  dateRange?: { startDate?: Date | null; endDate?: Date | null };
+  dateRange?: TDateRange;
 } & TPagination;
 
 export type TRegistrationAnimalLine = {

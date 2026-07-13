@@ -18,7 +18,7 @@ import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 // Type-only import (erased at runtime — no module cycle).
 import type { TRegistrationIngestDTO } from "../../types/livestock/settlement.type";
 import { TPaginationGeneric } from "../../types/global/global.type";
-import { findOrThrow, listPaginated } from "../../utils";
+import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
 
 type ApplyArgs = {
   movementType: MOVEMENT_TYPE;
@@ -360,14 +360,7 @@ export class InventoryController {
     if (doc.movementType)
       Object.assign(where, { movementType: doc.movementType });
     if (doc.source) Object.assign(where, { source: doc.source });
-    if (doc.dateRange?.startDate || doc.dateRange?.endDate) {
-      const range: Record<symbol, Date> = {};
-      if (doc.dateRange.startDate)
-        range[Op.gte] = new Date(doc.dateRange.startDate);
-      if (doc.dateRange.endDate)
-        range[Op.lte] = new Date(doc.dateRange.endDate);
-      Object.assign(where, { createdAt: range });
-    }
+    Object.assign(where, dateRangeWhere(doc.dateRange, "createdAt"));
 
     return listPaginated(InventoryMovementModel, doc, {
       where,

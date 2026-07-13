@@ -5,7 +5,7 @@ import { getClient } from "@/lib/apollo/server";
 import { RegistrationListDoc } from "@/lib/queries/registration";
 import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
-import { parseRange, thisMonth } from "@/lib/date/range";
+import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 type Props = {
@@ -45,9 +45,7 @@ const STAGES: Array<{
 export default async function RegistrationsPage({ searchParams }: Props) {
   const sp = await searchParams;
   const stage = STAGES.find((s) => s.value === (sp.stage ?? "")) ?? STAGES[0];
-  const page = Number(sp.page) || 1;
-  const def = thisMonth();
-  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+  const { page, dateRange } = pageAndRange(sp);
 
   // Stage chip hrefs preserve the active date range so switching stage doesn't
   // drop the filter.

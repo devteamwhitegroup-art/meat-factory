@@ -15,7 +15,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
 import { formatNumber, formatMNT } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
-import { parseRange, thisMonth } from "@/lib/date/range";
+import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 
 const STATUS_TABS = [
@@ -91,9 +91,7 @@ export async function ShipmentListView({
     isDomestic && sp.market && MARKET_TABS.some((t) => t.value === sp.market)
       ? sp.market
       : null;
-  const page = Number(sp.page) || 1;
-  const def = thisMonth();
-  const dateRange = parseRange(sp.from ?? def.from, sp.to ?? def.to);
+  const { page, dateRange } = pageAndRange(sp);
 
   // Preserve all active filters in a generated href, overriding one key.
   const hrefWith = (overrides: { status?: string; market?: string }) => {

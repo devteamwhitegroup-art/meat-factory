@@ -20,7 +20,7 @@ import {
 import { TByproductItemInput } from "../../../types/livestock/byproduct-log.type";
 import { TVerifyInput } from "../../../types/livestock/verification.type";
 import { TCreateSettlement } from "../../../types/livestock/settlement.type";
-import { TDateRange } from "../../../types/dashboard/dashboard.type";
+import { TDateRange } from "../../../types/global/global.type";
 import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 // animalType is reached via the FK to Animals. The field resolvers keep the

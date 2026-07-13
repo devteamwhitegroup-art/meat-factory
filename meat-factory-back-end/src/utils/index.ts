@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { Op } from 'sequelize';
 import type {
   FindAndCountOptions,
@@ -8,14 +6,18 @@ import type {
   ModelStatic,
   WhereOptions
 } from 'sequelize';
-import type { TContext, TPaginationGeneric } from '../types/global/global.type';
+import type {
+  TContext,
+  TDateRange,
+  TPaginationGeneric
+} from '../types/global/global.type';
 
 export interface PaginationParams {
   page?: number;
   limit?: number;
 }
 
-export const pagination = (
+const pagination = (
   doc: PaginationParams
 ): { offset: number; limit: number } => {
   const page = doc.page ?? 1;
@@ -53,6 +55,35 @@ export async function listPaginated<M extends Model>(
 ): Promise<TPaginationGeneric<M>> {
   const { offset, limit } = pagination(doc);
   return model.findAndCountAll({ ...options, offset, limit });
+}
+
+// Optional GraphQL DateRangeInput → `{ [column]: { gte/lte } }` where
+// fragment ({} when no bounds), so list endpoints share one date filter:
+// `Object.assign(where, dateRangeWhere(doc.dateRange, "createdAt"))`.
+export function dateRangeWhere(
+  range: TDateRange | null | undefined,
+  column: string
+): WhereOptions {
+  if (!range || (!range.startDate && !range.endDate)) return {};
+  const r: Record<symbol, Date> = {};
+  if (range.startDate) r[Op.gte] = new Date(range.startDate);
+  if (range.endDate) r[Op.lte] = new Date(range.endDate);
+  return { [column]: r };
+}
+
+// Catalogue-style list filters shared by customer / herder-address /
+// byproduct list endpoints: optional isActive flag + case-insensitive
+// name search. Callers layer their extra filters on the returned object.
+export function activeSearchWhere(doc: {
+  isActive?: boolean | null;
+  search?: string | null;
+}): WhereOptions {
+  const where: WhereOptions = {};
+  if (typeof doc.isActive === 'boolean')
+    Object.assign(where, { isActive: doc.isActive });
+  if (doc.search && doc.search.trim())
+    Object.assign(where, { name: { [Op.iLike]: `%${doc.search.trim()}%` } });
+  return where;
 }
 
 // Narrow an `unknown` caught value (TS `useUnknownInCatchVariables`) to a
@@ -150,11 +181,3 @@ export const wrapVoid =
       return { success: false, message: errorMessage(error) };
     }
   };
-
-export const getAppRootDir = () => {
-  let currentDir = __dirname;
-  while (!fs.existsSync(path.join(currentDir, 'package.json'))) {
-    currentDir = path.join(currentDir, '..');
-  }
-  return currentDir;
-};

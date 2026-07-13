@@ -66,6 +66,19 @@ export const SHORTCUTS: Shortcut[] = [
 
 export type ResolvedRange = { startDate: string; endDate: string };
 
+// searchParams boilerplate shared by date-filtered list pages:
+// `?page` + `?from`/`?to` defaulting to the current month.
+export function pageAndRange(sp: { page?: string; from?: string; to?: string }): {
+  page: number;
+  dateRange: ResolvedRange | null;
+} {
+  const def = thisMonth();
+  return {
+    page: Number(sp.page) || 1,
+    dateRange: parseRange(sp.from ?? def.from, sp.to ?? def.to),
+  };
+}
+
 // Server side: `from`/`to` (YYYY-MM-DD) → inclusive ISO range, or null when
 // neither is set. A single bound is treated as a one-day range.
 export function parseRange(

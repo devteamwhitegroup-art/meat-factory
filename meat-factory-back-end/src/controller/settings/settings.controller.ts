@@ -1,5 +1,5 @@
 import { SettingsModel } from "../../models/settings/settings.model";
-import { TSettings, TUpdateSettings } from "../../types/settings/settings.type";
+import { TUpdateSettings } from "../../types/settings/settings.type";
 
 export class SettingsController {
   // Returns the singleton row, creating it on first access with zeroes so the
@@ -49,17 +49,4 @@ export class SettingsController {
     await row.save();
   }
 
-  // Plain DTO for downstream consumers.
-  static toDTO(row: SettingsModel): TSettings {
-    return {
-      id: row.id,
-      meatCapacityKg: Number(row.meatCapacityKg),
-      meatAlertThresholdKg: Number(row.meatAlertThresholdKg),
-      cargoCapacityKg: Number(row.cargoCapacityKg),
-      lastAlertedAt: row.lastAlertedAt,
-      lastAlertedStockKg: Number(row.lastAlertedStockKg),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
 }

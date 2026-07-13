@@ -35,21 +35,3 @@ export type TShipmentCargoEntry = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-export type TCreateShipmentCargoEntry = {
-  shipmentId: string;
-  productType: PRODUCT_TYPE;
-  // Required for MEAT lines.
-  animalType?: string | null;
-  // BYPRODUCT lines: provide sourceConstantId (preferred — name is derived) or
-  // a free-form byproductName.
-  byproductName?: string | null;
-  sourceConstantId?: string | null;
-  // Optional sub-cut label; defaults to the picked type's name when omitted.
-  productLabel?: string | null;
-  pieceCount?: number | null;
-  grossKg?: number | null;
-  tareKg?: number | null;
-  // Direct net weight — only required when grossKg/tareKg aren't supplied.
-  weightKg?: number | null;
-};

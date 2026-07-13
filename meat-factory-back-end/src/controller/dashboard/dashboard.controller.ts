@@ -1,4 +1,4 @@
-import { fn, col, Op, WhereOptions } from "sequelize";
+import { fn, col, Op } from "sequelize";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
@@ -13,23 +13,13 @@ import {
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TDashboard,
-  TDateRange,
   TGetDashboard,
   TPipelineCounts,
 } from "../../types/dashboard/dashboard.type";
+import { TDateRange } from "../../types/global/global.type";
+import { dateRangeWhere } from "../../utils";
 
 export class DashboardController {
-  private static _dateWhere(
-    range: TDateRange | undefined,
-    column: string,
-  ): WhereOptions {
-    if (!range || (!range.startDate && !range.endDate)) return {};
-    const r: Record<symbol, Date> = {};
-    if (range.startDate) r[Op.gte] = new Date(range.startDate);
-    if (range.endDate) r[Op.lte] = new Date(range.endDate);
-    return { [column]: r };
-  }
-
   // ── Sales-side ──────────────────────────────────────────────────────
 
   private static async _totalMeatIncome(dr?: TDateRange): Promise<number> {
@@ -41,7 +31,7 @@ export class DashboardController {
           model: SalesTransactionModel,
           as: "salesTransaction",
           attributes: [],
-          where: this._dateWhere(dr, "transactionDate"),
+          where: dateRangeWhere(dr, "transactionDate"),
           required: true,
         },
       ],
@@ -52,7 +42,7 @@ export class DashboardController {
 
   private static async _transactionCount(dr?: TDateRange): Promise<number> {
     return await SalesTransactionModel.count({
-      where: this._dateWhere(dr, "transactionDate"),
+      where: dateRangeWhere(dr, "transactionDate"),
     });
   }
 
@@ -75,7 +65,7 @@ export class DashboardController {
           model: SalesTransactionModel,
           as: "salesTransaction",
           attributes: [],
-          where: this._dateWhere(dr, "transactionDate"),
+          where: dateRangeWhere(dr, "transactionDate"),
           required: true,
         },
       ],
@@ -99,7 +89,7 @@ export class DashboardController {
   private static async _totalHerderIncome(dr?: TDateRange): Promise<number> {
     const row = (await SettlementModel.findOne({
       attributes: [[fn("SUM", col("net_payable")), "total"]],
-      where: { isPaid: true, ...this._dateWhere(dr, "paidAt") },
+      where: { isPaid: true, ...dateRangeWhere(dr, "paidAt") },
       raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
@@ -110,7 +100,7 @@ export class DashboardController {
   private static async _pendingPayoutAmount(dr?: TDateRange): Promise<number> {
     const row = (await SettlementModel.findOne({
       attributes: [[fn("SUM", col("net_payable")), "total"]],
-      where: { isPaid: false, ...this._dateWhere(dr, "createdAt") },
+      where: { isPaid: false, ...dateRangeWhere(dr, "createdAt") },
       raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
@@ -134,7 +124,7 @@ export class DashboardController {
   private static async _totalByproductKg(dr?: TDateRange): Promise<number> {
     const row = (await ByproductLogModel.findOne({
       attributes: [[fn("SUM", col("total_weight_kg")), "total"]],
-      where: { ...this._dateWhere(dr, "createdAt") },
+      where: { ...dateRangeWhere(dr, "createdAt") },
       raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
@@ -145,7 +135,7 @@ export class DashboardController {
   private static async _byproductBreakdown(dr?: TDateRange) {
     const rows = (await ByproductLogModel.findAll({
       attributes: ["name", [fn("SUM", col("total_weight_kg")), "totalKg"]],
-      where: { ...this._dateWhere(dr, "createdAt"), name: { [Op.ne]: null } },
+      where: { ...dateRangeWhere(dr, "createdAt"), name: { [Op.ne]: null } },
       group: ["name"],
       order: [[fn("SUM", col("total_weight_kg")), "DESC"]],
       limit: 12,

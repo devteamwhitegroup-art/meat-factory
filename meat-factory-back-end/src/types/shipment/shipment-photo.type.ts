@@ -8,8 +8,3 @@ export type TShipmentPhoto = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-export type TAddShipmentPhoto = {
-  shipmentId: string;
-  fileId: string;
-};

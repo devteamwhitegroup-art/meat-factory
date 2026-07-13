@@ -1,10 +1,6 @@
 import type { SalesTransactionModel } from '../../models/sales/sales-transaction.model';
 import type { ShipmentModel } from '../../models/shipment/shipment.model';
-
-export type TDateRange = {
-  startDate?: Date | null;
-  endDate?: Date | null;
-};
+import type { TDateRange } from '../global/global.type';
 
 export type TAnimalBreakdownItem = {
   animalType: string;

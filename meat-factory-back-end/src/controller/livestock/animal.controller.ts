@@ -1,4 +1,3 @@
-import { Op } from "sequelize";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { TAnimal, TUpsertAnimal } from "../../types/livestock/animal.type";
 
@@ -34,16 +33,6 @@ export class AnimalController {
     return out;
   }
 
-  // Inverse — animalId → name. For reading rows without the Animal include.
-  static async mapIdsToNames(
-    ids: string[],
-  ): Promise<Record<string, string>> {
-    if (ids.length === 0) return {};
-    const rows = await AnimalModel.findAll({ where: { id: { [Op.in]: ids } } });
-    const out: Record<string, string> = {};
-    for (const r of rows) out[r.id] = r.name;
-    return out;
-  }
 
   // Pre-fill defaults for a settlement: defaultCost[name] = price × count.
   static async defaultsForCounts(
