@@ -41,6 +41,7 @@ const SETTLEMENT_INCLUDE = [
       { model: AdminModel, as: "createdBy" },
     ],
   },
+  { model: FileModel, as: "storekeeperSignature" },
 ];
 
 export class SettlementController {
@@ -261,13 +262,15 @@ export class SettlementController {
 
     // Feed settled output into inventory as IN movements (idempotent).
     //   MEAT: every settlement line with received_weight_kg > 0.
-    //   BYPRODUCT: each byproduct log row the factory KEEPS — ownership rule:
-    //     canCoverSlaughterCost = false → always factory storage.
-    //     canCoverSlaughterCost = true  → factory only if the verifier set
-    //       verification.slaughterCoveredByByproduct = true (else herder).
+    //   BYPRODUCT: only the rare canCoverSlaughterCost=true rows where the
+    //     verifier set slaughterCoveredByByproduct=true (factory takes the
+    //     byproduct instead of paying cash slaughter cost) — that ownership
+    //     decision isn't known until verification, so it waits until here.
+    //     Non-coverable rows were already ingested at byproduct-save time
+    //     (ByproductLogController.setRegistrationByproducts) — including them
+    //     here too would double-count.
     const lines = await SettlementLineModel.findAll({
       where: { settlementId: settlement.id },
-      include: [{ model: AnimalModel, as: "animal" }],
     });
     const byproducts = await ByproductLogModel.findAll({
       where: { registrationId },
@@ -281,7 +284,7 @@ export class SettlementController {
       .filter((l) => Number(l.receivedWeightKg) > 0)
       .map((l) => ({
         productType: "MEAT" as const,
-        animalType: l.animal?.name ?? null,
+        animalId: l.animalId ?? null,
         byproductType: null,
         byproductName: null,
         quantityKg: Number(l.receivedWeightKg),
@@ -292,12 +295,13 @@ export class SettlementController {
         if (!b.name) return false;
         const kg = Number(b.totalWeightKg ?? 0);
         if (kg <= 0) return false;
-        // Ownership rule.
-        return !b.canCoverSlaughterCost || slaughterCovered;
+        // Only the rare covered case — non-coverable rows are ingested
+        // earlier, at byproduct-save time.
+        return !!b.canCoverSlaughterCost && slaughterCovered;
       })
       .map((b) => ({
         productType: "BYPRODUCT" as const,
-        animalType: null,
+        animalId: b.animalId ?? null,
         byproductType: null,
         byproductName: b.name as string,
         quantityKg: Number(b.totalWeightKg),
@@ -399,6 +403,32 @@ export class SettlementController {
         { model: AdminModel, as: "createdBy" },
       ],
     })) as SettlementPaymentProofModel;
+  }
+
+  // Attach the storekeeper's drawn signature (an already-uploaded File) to
+  // the settlement receipt. Signed once, reused on every subsequent print —
+  // no status gate, since it's the worker's own attestation, not part of the
+  // herder consent flow. Pass null to clear.
+  static async setStorekeeperSignature(
+    registrationId: string,
+    fileId: string | null,
+    context: TContext,
+  ): Promise<SettlementModel> {
+    RegistrationController.assertActorRole(context, [
+      ADMIN_ROLE.STOREKEEPER,
+      ADMIN_ROLE.MANAGER,
+      ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.SCALE,
+    ]);
+
+    const settlement = await SettlementModel.findOne({
+      where: { registrationId },
+    });
+    if (!settlement) throw new Error("Settlement not found");
+
+    if (fileId) await FileController.findIdCheck(fileId);
+    await settlement.update({ storekeeperSignatureFileId: fileId ?? null });
+    return this._reload(settlement.id);
   }
 
   static async removePaymentProof(

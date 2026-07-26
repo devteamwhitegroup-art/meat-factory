@@ -191,6 +191,22 @@ export default {
       ({ id }: { id: string }, ctx) =>
         SettlementController.removePaymentProof(id, ctx),
     ),
+    setSettlementStorekeeperSignature: wrapOne(
+      "settlement",
+      (
+        {
+          registrationId,
+          fileId,
+        }: { registrationId: string; fileId?: string | null },
+        ctx,
+      ) =>
+        SettlementController.setStorekeeperSignature(
+          registrationId,
+          fileId ?? null,
+          ctx,
+        ),
+      "Signature saved",
+    ),
     approveMedicalNumber: wrapOne(
       "registration",
       (

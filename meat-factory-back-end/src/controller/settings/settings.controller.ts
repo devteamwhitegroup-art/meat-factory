@@ -11,6 +11,8 @@ export class SettingsController {
       meatCapacityKg: 0,
       meatAlertThresholdKg: 0,
       cargoCapacityKg: 0,
+      exportAlertThresholdKg: 0,
+      domesticAlertThresholdKg: 0,
       lastAlertedAt: null,
       lastAlertedStockKg: 0,
     });
@@ -35,6 +37,18 @@ export class SettingsController {
       if (!Number.isFinite(n) || n < 0)
         throw new Error("cargoCapacityKg cannot be negative");
       row.cargoCapacityKg = n;
+    }
+    if (doc.exportAlertThresholdKg !== undefined) {
+      const n = Number(doc.exportAlertThresholdKg);
+      if (!Number.isFinite(n) || n < 0)
+        throw new Error("exportAlertThresholdKg cannot be negative");
+      row.exportAlertThresholdKg = n;
+    }
+    if (doc.domesticAlertThresholdKg !== undefined) {
+      const n = Number(doc.domesticAlertThresholdKg);
+      if (!Number.isFinite(n) || n < 0)
+        throw new Error("domesticAlertThresholdKg cannot be negative");
+      row.domesticAlertThresholdKg = n;
     }
     await row.save();
     return row;

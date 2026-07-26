@@ -9,6 +9,10 @@ export enum MOVEMENT_TYPE {
 
 export enum MOVEMENT_SOURCE {
   SETTLEMENT = 'SETTLEMENT',
+  // Non-coverable byproducts (canCoverSlaughterCost=false) — deterministically
+  // factory-owned from the moment they're logged, so they enter inventory
+  // right away instead of waiting for settlement payout.
+  BYPRODUCT = 'BYPRODUCT',
   SHIPMENT = 'SHIPMENT',
   MANUAL = 'MANUAL'
 }
@@ -17,7 +21,8 @@ export type TInventoryItem = {
   id: string;
   sku: string;
   productType: PRODUCT_TYPE;
-  animalType: string | null;
+  // Animal catalogue FK for MEAT rows. Null for byproducts.
+  animalId: string | null;
   // Free-form Mongolian byproduct name (e.g. "Адууны хэл", "Хацар мах") — the
   // only byproduct identity. SKU is Дайвар:<name>.
   byproductName: string | null;
@@ -43,7 +48,7 @@ export type TInventoryMovement = {
 
 export type TManualAdjustInput = {
   productType: PRODUCT_TYPE;
-  animalType?: string | null;
+  animalId?: string | null;
   byproductName?: string | null;
   quantityKg: number;
   direction: MOVEMENT_TYPE;
@@ -59,7 +64,7 @@ export type TGetMovements = {
 
 export type TGetStock = {
   productType?: PRODUCT_TYPE;
-  animalType?: string;
+  animalId?: string;
   byproductName?: string;
 };
 
@@ -67,7 +72,7 @@ export type TGetStock = {
 // to InventoryController so it never imports those modules' controllers.
 export type TStockLine = {
   productType: PRODUCT_TYPE;
-  animalType?: string | null;
+  animalId?: string | null;
   // BYPRODUCT lines carry a free-form byproductName (SKU Дайвар:<name>).
   byproductName?: string | null;
   quantityKg: number;

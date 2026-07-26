@@ -9,6 +9,8 @@ export class SettingsModel extends Model implements TSettings {
   public meatCapacityKg!: number;
   public meatAlertThresholdKg!: number;
   public cargoCapacityKg!: number;
+  public exportAlertThresholdKg!: number;
+  public domesticAlertThresholdKg!: number;
   public lastAlertedAt!: Date | null;
   public lastAlertedStockKg!: number;
   public createdAt!: Date;
@@ -37,6 +39,16 @@ export const createSettingsModel = (sequelize: Sequelize) => {
         defaultValue: 0,
       },
       cargoCapacityKg: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      exportAlertThresholdKg: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      domesticAlertThresholdKg: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
         defaultValue: 0,

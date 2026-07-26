@@ -31,6 +31,10 @@ export class SettlementModel extends Model implements TSettlement {
   public settledById!: string | null;
   public notes!: string | null;
   public photoFileId!: string | null;
+  // Storekeeper's drawn signature on the printed receipt — signed once,
+  // reused on every subsequent print (same pattern as the herder's
+  // agreementSignature on Registration).
+  public storekeeperSignatureFileId!: string | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -39,6 +43,7 @@ export class SettlementModel extends Model implements TSettlement {
   public paymentProofs?: SettlementPaymentProofModel[];
   public settledBy?: AdminModel;
   public photo?: FileModel;
+  public storekeeperSignature?: FileModel;
 
   static associate(): void {
     this.belongsTo(RegistrationModel, {
@@ -52,6 +57,10 @@ export class SettlementModel extends Model implements TSettlement {
     this.belongsTo(FileModel, {
       as: "photo",
       foreignKey: { name: "photoFileId", allowNull: true },
+    });
+    this.belongsTo(FileModel, {
+      as: "storekeeperSignature",
+      foreignKey: { name: "storekeeperSignatureFileId", allowNull: true },
     });
     this.hasMany(SettlementLineModel, {
       as: "lines",

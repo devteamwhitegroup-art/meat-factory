@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { formatMNT, formatNumber } from "@/lib/format/money";
+import { formatNumber } from "@/lib/format/money";
 
 export type LineInput = {
   animalType: string;
@@ -64,9 +64,11 @@ export function SettlementPreview({
               <tr key={r.animalType} className="border-t">
                 <td className="py-2">{r.animalType}</td>
                 <td className="py-2">{formatNumber(r.received)}</td>
-                <td className="py-2">{formatMNT(r.avgPrice)}</td>
-                <td className="py-2">{formatMNT(r.meat)}</td>
-                <td className="py-2 tabular-nums">{formatMNT(r.slaughter)}</td>
+                <td className="py-2">{formatNumber(r.avgPrice)}</td>
+                <td className="py-2">{formatNumber(r.meat)}</td>
+                <td className="py-2 tabular-nums">
+                  {formatNumber(r.slaughter)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -78,12 +80,12 @@ export function SettlementPreview({
           <div className="text-muted-foreground">Нийт хүлээн авсан</div>
           <div className="text-right">{formatNumber(totalReceived)} кг</div>
           <div className="text-muted-foreground">Нийт мах</div>
-          <div className="text-right">{formatMNT(totalMeat)}</div>
+          <div className="text-right">{formatNumber(totalMeat)}</div>
           <div className="text-muted-foreground">Нийт бой зардал</div>
-          <div className="text-right">{formatMNT(totalSlaughter)}</div>
+          <div className="text-right">{formatNumber(totalSlaughter)}</div>
           <div className="text-base font-semibold">Малчинд өгөх дүн</div>
           <div className="text-right text-base font-semibold">
-            {formatMNT(net)}
+            {formatNumber(net)}
           </div>
         </div>
         <p className="text-xs text-muted-foreground">

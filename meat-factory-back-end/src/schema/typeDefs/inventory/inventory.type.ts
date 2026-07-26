@@ -17,7 +17,9 @@ export default `#graphql
         id: ID
         sku: String
         productType: PRODUCT_TYPE
-        animalType: String
+        # Animal catalogue FK for MEAT rows. Null for byproducts.
+        animalId: ID
+        animal: Animal
         # Free-form Mongolian byproduct name (SKU BYPN:<name>).
         byproductName: String
         quantityKg: Float
@@ -73,6 +75,16 @@ export default `#graphql
         alertActive: Boolean
         cargosToClear: Int
         lastAlertedAt: Date
+        # meatStockKg split by the animal's export eligibility (Animal.isExport)
+        # — the full physical total on each side, not reduced by what's
+        # already loaded on a truck. exportEligibleMeatKg + domesticOnlyMeatKg
+        # == meatStockKg.
+        exportEligibleMeatKg: Float
+        domesticOnlyMeatKg: Float
+        exportAlertThresholdKg: Float
+        domesticAlertThresholdKg: Float
+        exportAlertActive: Boolean
+        domesticAlertActive: Boolean
     }
 
     type InventoryStatsResponse {
@@ -84,7 +96,7 @@ export default `#graphql
     extend type Query {
         inventoryStock(
             productType: PRODUCT_TYPE
-            animalType: String
+            animalId: ID
             byproductName: String
         ): InventoryItemsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
@@ -102,7 +114,7 @@ export default `#graphql
     extend type Mutation {
         adjustInventory(
             productType: PRODUCT_TYPE!
-            animalType: String
+            animalId: ID
             byproductName: String
             quantityKg: Float!
             direction: MOVEMENT_TYPE!

@@ -67,6 +67,7 @@ export const MOVEMENT_TYPE_MN: Record<string, string> = {
 
 export const MOVEMENT_SOURCE_MN: Record<string, string> = {
   SETTLEMENT: "Тооцоо",
+  BYPRODUCT: "Дайвар хадгалалт",
   SHIPMENT: "Ачилт",
   MANUAL: "Гар тохируулга",
 };

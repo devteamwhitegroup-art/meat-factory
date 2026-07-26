@@ -13,6 +13,12 @@ export type TSettings = {
   // cargos to clear and the "Шинэ ачилт" shortcut prefills a shipment of
   // this size.
   cargoCapacityKg: number;
+  // Trigger when kg reserved (cargo on non-delivered shipments) for the
+  // EXPORT / DOMESTIC channel crosses this value — a backlog alert, since
+  // meat is one shared pool that only splits by channel once loaded onto a
+  // shipment. 0 disables.
+  exportAlertThresholdKg: number;
+  domesticAlertThresholdKg: number;
   // Set by the alert hook each time a notification fires — used to debounce
   // re-alerts (we only re-fire after a 24h cool-down OR after stock dropped
   // below threshold and re-crossed).
@@ -28,4 +34,6 @@ export type TUpdateSettings = {
   meatCapacityKg?: number;
   meatAlertThresholdKg?: number;
   cargoCapacityKg?: number;
+  exportAlertThresholdKg?: number;
+  domesticAlertThresholdKg?: number;
 };

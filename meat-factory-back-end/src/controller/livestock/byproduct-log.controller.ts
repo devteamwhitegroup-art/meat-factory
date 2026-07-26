@@ -7,6 +7,7 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import { AnimalController } from "./animal.controller";
 import { ByproductConstantController } from "./byproduct-constant.controller";
 import { RegistrationController } from "./registration.controller";
+import { InventoryController } from "../inventory/inventory.controller";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TByproductItemInput } from "../../types/livestock/byproduct-log.type";
 import { TContext, TDateRange } from "../../types/global/global.type";
@@ -33,6 +34,12 @@ export class ByproductLogController {
 
   // Replace this registration's byproduct rows with the confirmed list
   // (derived from constants, quantities adjustable by the storekeeper).
+  // Runs AFTER verification (not before) — slaughterCoveredByByproduct is
+  // decided during/around verify, so logging byproducts earlier means we
+  // can't yet tell which coverable rows the herder keeps vs the factory
+  // takes. Verified-only also closes the old "employee forgot before
+  // verifying, then got locked out" gap, since a WEIGHED-only gate had no
+  // way back in once the registration moved on.
   static async setRegistrationByproducts(
     registrationId: string,
     items: TByproductItemInput[],
@@ -45,7 +52,7 @@ export class ByproductLogController {
     ]);
 
     const reg = await RegistrationController.findIdCheck(registrationId);
-    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.WEIGHED]);
+    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.VERIFIED]);
 
     const clean = (items ?? []).filter(
       (i) => i.name && i.name.trim() && Number(i.quantity) > 0,
@@ -90,6 +97,20 @@ export class ByproductLogController {
         );
       }
     });
+
+    // Non-coverable rows (canCoverSlaughterCost=false) are deterministically
+    // factory-owned — ingest them right away rather than waiting for the
+    // verify → settle → pay pipeline (idempotent, see ingestNonCoverableByproducts).
+    await InventoryController.ingestNonCoverableByproducts(
+      registrationId,
+      clean
+        .filter((i) => !i.canCoverSlaughterCost && i.weightKg != null)
+        .map((i) => ({
+          animalId: i.animalType ? (typeToId[i.animalType] ?? null) : null,
+          byproductName: i.name.trim(),
+          quantityKg: Number(Number(i.weightKg).toFixed(2)),
+        })),
+    );
 
     return await ByproductLogModel.findAll({
       where: { registrationId },

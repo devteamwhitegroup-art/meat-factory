@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { formatMNT, formatNumber } from "@/lib/format/money";
+import { formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
 
@@ -130,25 +130,25 @@ export function WeighSlip({
                     {formatNumber(r.weight)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.pricePerKg > 0 ? formatMNT(r.pricePerKg) : "—"}
+                    {r.pricePerKg > 0 ? formatNumber(r.pricePerKg) : "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatMNT(r.meat)}
+                    {formatNumber(r.meat)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.offset ? (
                       <span className="text-amber-700">
                         <span className="text-muted-foreground line-through">
-                          {formatMNT(r.rawBoy)}
+                          {formatNumber(r.rawBoy)}
                         </span>{" "}
                         0
                       </span>
                     ) : (
-                      formatMNT(r.boy)
+                      formatNumber(r.boy)
                     )}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatMNT(r.net)}
+                    {formatNumber(r.net)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -159,12 +159,14 @@ export function WeighSlip({
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Нийт мах</div>
-            <div className="text-right tabular-nums">{formatMNT(gross)}</div>
+            <div className="text-right tabular-nums">{formatNumber(gross)}</div>
             <div className="text-muted-foreground">Нийт бой зардал</div>
-            <div className="text-right tabular-nums">{formatMNT(totalBoy)}</div>
+            <div className="text-right tabular-nums">
+              {formatNumber(totalBoy)}
+            </div>
             <div className="text-base font-semibold">Малчинд өгөх дүн</div>
             <div className="text-right text-base font-semibold tabular-nums">
-              {formatMNT(netPayable)}
+              {formatNumber(netPayable)}
             </div>
           </div>
 

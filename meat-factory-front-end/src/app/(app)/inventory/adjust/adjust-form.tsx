@@ -24,10 +24,10 @@ import { ByproductNamePicker } from "@/components/common/ByproductNamePicker";
 
 export function AdjustForm() {
   const router = useRouter();
-  const { animalTypes } = useAnimalCatalog();
+  const { animals } = useAnimalCatalog();
   const [adjust] = useMutation(AdjustInventoryDoc);
   const [productType, setProductType] = useState<"MEAT" | "BYPRODUCT">("MEAT");
-  const [animalType, setAnimalType] = useState("");
+  const [animalId, setAnimalId] = useState("");
   const [byproductName, setByproductName] = useState("");
   const [quantityKg, setQuantityKg] = useState("");
   const [direction, setDirection] = useState<"IN" | "OUT" | "ADJUSTMENT">("IN");
@@ -44,7 +44,7 @@ export function AdjustForm() {
       toast.error("Дайвар сонгоно уу");
       return;
     }
-    if (productType === "MEAT" && !animalType) {
+    if (productType === "MEAT" && !animalId) {
       toast.error("Малын төрөл сонгоно уу");
       return;
     }
@@ -53,7 +53,7 @@ export function AdjustForm() {
       const r = await adjust({
         variables: {
           productType: productType as never,
-          animalType: productType === "MEAT" ? animalType : null,
+          animalId: productType === "MEAT" ? animalId : null,
           byproductName: productType === "BYPRODUCT" ? byproductName : null,
           quantityKg: q,
           direction: direction as never,
@@ -95,18 +95,22 @@ export function AdjustForm() {
             <div className="mb-1 text-sm font-medium">Бүтээгдэхүүн</div>
             {productType === "MEAT" ? (
               <Select
-                value={animalType}
-                onValueChange={(v) => setAnimalType(v ?? "")}
+                value={animalId}
+                onValueChange={(v) => setAnimalId(v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue>{animalType}</SelectValue>
+                  <SelectValue>
+                    {animals.find((a) => a.id === animalId)?.name ?? ""}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {animalTypes.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
+                  {animals
+                    .filter((a) => a.isActive && a.id && a.name)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id as string}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             ) : (

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -21,11 +22,12 @@ import {
   MarkSettlementPaidDoc,
   ReleaseSettlementHoldDoc,
   ApproveMedicalNumberDoc,
+  SetSettlementStorekeeperSignatureDoc,
   RegistrationDetailDoc,
 } from "@/lib/queries/registration";
 import { AnimalListDoc } from "@/lib/queries/animal";
 import { runMutation } from "@/lib/runMutation";
-import { formatMNT } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
@@ -50,6 +52,9 @@ export function SettlementClient({ id }: { id: string }) {
   const [markPaid] = useMutation(MarkSettlementPaidDoc);
   const [releaseHold] = useMutation(ReleaseSettlementHoldDoc);
   const [approveMedical] = useMutation(ApproveMedicalNumberDoc);
+  const [setStorekeeperSignature] = useMutation(
+    SetSettlementStorekeeperSignatureDoc,
+  );
 
   // Client-readable role cookie gates the medical-approval action to office
   // roles (MANAGER/ADMIN/SUPER_ADMIN). Read post-mount to avoid hydration skew.
@@ -235,7 +240,7 @@ export function SettlementClient({ id }: { id: string }) {
         ).data?.createSettlement,
       {
         success: (d) =>
-          `Тооцоо үүсгэгдлээ — цэвэр ${formatMNT(d.settlement?.netPayable ?? 0)}`,
+          `Тооцоо үүсгэгдлээ — цэвэр ${formatMoney(d.settlement?.netPayable ?? 0)}`,
         onSuccess: refetch,
       },
     );
@@ -272,6 +277,20 @@ export function SettlementClient({ id }: { id: string }) {
     setBusy(false);
   }
 
+  async function onSetStorekeeperSignature(fileId: string | null) {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (
+          await setStorekeeperSignature({
+            variables: { registrationId: id, fileId },
+          })
+        ).data?.setSettlementStorekeeperSignature,
+      { success: "Няравын гарын үсэг хадгалагдлаа", onSuccess: refetch },
+    );
+    setBusy(false);
+  }
+
   async function onApproveMedical(medicalNumber: string | null) {
     setBusy(true);
     await runMutation(
@@ -301,6 +320,11 @@ export function SettlementClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
+        {existing?.isPaid ? (
+          <Link href="/registrations" className={buttonVariants()}>
+            Бүртгэлийн хэсэг рүү буцах →
+          </Link>
+        ) : null}
       </div>
 
       <Card>
@@ -344,6 +368,7 @@ export function SettlementClient({ id }: { id: string }) {
             onMarkPaid={onMarkPaid}
             onReleaseHold={onReleaseHold}
             onApproveMedical={onApproveMedical}
+            onSetStorekeeperSignature={onSetStorekeeperSignature}
           />
 
           {/* Money-flow statements — appear once a payout has happened. */}

@@ -2,8 +2,9 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import { TAnimal, TUpsertAnimal } from "../../types/livestock/animal.type";
 
 // Animal catalogue (admin-managed). Identity is the unique `name` — the
-// ANIMAL_TYPE enum was removed. Workflow rows store animalId (resolved from
-// the name); the 4 value tables (inventory/cargo/sale/sales) store the name.
+// ANIMAL_TYPE enum was removed. Workflow rows and InventoryItem store
+// animalId (resolved from the name); the remaining value tables
+// (shipment cargo/sale lines, sales) still store the name directly.
 export class AnimalController {
   static async list(): Promise<TAnimal[]> {
     return await AnimalModel.findAll({ order: [["name", "ASC"]] });

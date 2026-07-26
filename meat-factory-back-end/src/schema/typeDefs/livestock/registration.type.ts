@@ -151,6 +151,10 @@ export default `#graphql
         notes: String
         photoFileId: ID
         photo: File
+        # Storekeeper's drawn signature on the printed receipt — signed once,
+        # reused on every subsequent print.
+        storekeeperSignatureFileId: ID
+        storekeeperSignature: File
         lines: [SettlementLine]
         # Money-flow statement images (bank receipts) attached after payout.
         paymentProofs: [SettlementPaymentProof]
@@ -370,6 +374,13 @@ export default `#graphql
         removeSettlementPaymentProof(
             id: ID!
         ): Response @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+
+        # Attach the storekeeper's drawn signature (uploaded File id) to the
+        # settlement receipt. Pass null to clear.
+        setSettlementStorekeeperSignature(
+            registrationId: ID!
+            fileId: ID
+        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
 
         # Factory confirms the medical number (optionally setting it first).
         # Unlocks releaseSettlementHold.

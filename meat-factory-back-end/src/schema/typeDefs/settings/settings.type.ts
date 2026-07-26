@@ -4,6 +4,8 @@ export default `#graphql
         meatCapacityKg: Float
         meatAlertThresholdKg: Float
         cargoCapacityKg: Float
+        exportAlertThresholdKg: Float
+        domesticAlertThresholdKg: Float
         lastAlertedAt: Date
         lastAlertedStockKg: Float
         createdAt: Date
@@ -27,6 +29,8 @@ export default `#graphql
             meatCapacityKg: Float
             meatAlertThresholdKg: Float
             cargoCapacityKg: Float
+            exportAlertThresholdKg: Float
+            domesticAlertThresholdKg: Float
         ): SettingsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
     }
 `;

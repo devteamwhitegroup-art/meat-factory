@@ -3,12 +3,12 @@ import { graphql } from "@/lib/gql/gql";
 export const InventoryStockDoc = graphql(/* GraphQL */ `
   query InventoryStock(
     $productType: PRODUCT_TYPE
-    $animalType: String
+    $animalId: ID
     $byproductName: String
   ) {
     inventoryStock(
       productType: $productType
-      animalType: $animalType
+      animalId: $animalId
       byproductName: $byproductName
     ) {
       success
@@ -18,7 +18,12 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
         id
         sku
         productType
-        animalType
+        animalId
+        animal {
+          id
+          name
+          isExport
+        }
         byproductName
         quantityKg
         updatedAt
@@ -78,6 +83,12 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
         alertActive
         cargosToClear
         lastAlertedAt
+        exportEligibleMeatKg
+        domesticOnlyMeatKg
+        exportAlertThresholdKg
+        domesticAlertThresholdKg
+        exportAlertActive
+        domesticAlertActive
       }
     }
   }
@@ -86,7 +97,7 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
 export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   mutation AdjustInventory(
     $productType: PRODUCT_TYPE!
-    $animalType: String
+    $animalId: ID
     $byproductName: String
     $quantityKg: Float!
     $direction: MOVEMENT_TYPE!
@@ -94,7 +105,7 @@ export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   ) {
     adjustInventory(
       productType: $productType
-      animalType: $animalType
+      animalId: $animalId
       byproductName: $byproductName
       quantityKg: $quantityKg
       direction: $direction

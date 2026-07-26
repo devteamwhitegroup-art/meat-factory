@@ -16,7 +16,7 @@ import { ImagePreviewLink } from "@/components/common/ImagePreviewLink";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
-import { formatMNT, formatNumber } from "@/lib/format/money";
+import { formatNumber } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
 import { BackButton } from "@/components/common/BackButton";
 import { cookies } from "next/headers";
@@ -73,7 +73,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
               Хэмжүүр
             </Link>
           )}
-          {status === "WEIGHED" && can(role, "byproduct") && (
+          {status === "VERIFIED" && can(role, "byproduct") && (
             <Link
               href={`/registrations/${r.id}/byproduct`}
               className={buttonVariants()}
@@ -354,9 +354,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
                   <TableRow key={l.id!}>
                     <TableCell>{l.animalType}</TableCell>
                     <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
-                    <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
-                    <TableCell>{formatMNT(l.meatAmount)}</TableCell>
-                    <TableCell>{formatMNT(l.slaughterCost)}</TableCell>
+                    <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
+                    <TableCell>{formatNumber(l.meatAmount)}</TableCell>
+                    <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -365,31 +365,31 @@ export default async function RegistrationDetailPage({ params }: Props) {
             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
               <div className="text-muted-foreground">Нийт мах</div>
               <div className="text-right">
-                {formatMNT(r.settlement.totalMeatAmount)}
+                {formatNumber(r.settlement.totalMeatAmount)}
               </div>
               <div className="text-muted-foreground">Нийт бой зардал</div>
               <div className="text-right">
-                {formatMNT(r.settlement.totalSlaughterCost)}
+                {formatNumber(r.settlement.totalSlaughterCost)}
               </div>
               <div className="font-medium">
                 Нийт төлбөр (бой зардал хасахаас өмнө)
               </div>
               <div className="text-right font-medium">
-                {formatMNT(r.settlement.grossAmount)}
+                {formatNumber(r.settlement.grossAmount)}
               </div>
               <div className="text-base font-semibold">Малчинд өгөх дүн</div>
               <div className="text-right text-base font-semibold">
-                {formatMNT(r.settlement.netPayable)}
+                {formatNumber(r.settlement.netPayable)}
               </div>
               {Number(r.settlement.heldAmount ?? 0) > 0 && (
                 <>
                   <div className="text-muted-foreground">Олгосон дүн</div>
                   <div className="text-right">
-                    {formatMNT(r.settlement.paidAmount)}
+                    {formatNumber(r.settlement.paidAmount)}
                   </div>
                   <div className="text-amber-700">Үлдэгдэл</div>
                   <div className="text-right text-amber-700">
-                    {formatMNT(r.settlement.heldAmount)}
+                    {formatNumber(r.settlement.heldAmount)}
                   </div>
                 </>
               )}

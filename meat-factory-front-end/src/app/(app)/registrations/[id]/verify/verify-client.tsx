@@ -157,9 +157,11 @@ export function VerifyClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        {reg.status === "VERIFIED" ||
-        reg.status === "PAYMENT_PENDING" ||
-        reg.status === "SETTLED" ? (
+        {reg.status === "VERIFIED" ? (
+          <Button onClick={() => router.push(`/registrations/${id}/byproduct`)}>
+            Дараах: Дайвар →
+          </Button>
+        ) : reg.status === "PAYMENT_PENDING" || reg.status === "SETTLED" ? (
           <Button
             onClick={() => router.push(`/registrations/${id}/settlement`)}
           >
@@ -340,7 +342,7 @@ export function VerifyClient({ id }: { id: string }) {
                 </div>
 
                 <div className="flex items-center justify-between rounded-md border bg-primary/5 px-4 py-3 text-base font-semibold">
-                  <span>Цэвэр төлбөр (тооцоолсон)</span>
+                  <span>Төлбөр</span>
                   <span>{formatMNT(net)}</span>
                 </div>
               </>

@@ -53,6 +53,7 @@ export type TSettlement = {
   settledById: string | null;
   notes: string | null;
   photoFileId: string | null;
+  storekeeperSignatureFileId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -61,7 +62,7 @@ export type TSettlement = {
 // Defined here so livestock never imports the inventory module.
 export type TRegistrationIngestLine = {
   productType: 'MEAT' | 'BYPRODUCT';
-  animalType?: string | null;
+  animalId?: string | null;
   byproductType?: string | null;
   // Free-form byproduct name (e.g. "Адууны хэл"). Set for BYPRODUCT lines
   // coming from the post-Phase-3 catalogue; mutually exclusive with

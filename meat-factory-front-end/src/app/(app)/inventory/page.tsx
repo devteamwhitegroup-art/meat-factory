@@ -24,12 +24,12 @@ import { requireCap } from "@/lib/auth/server";
 function buildSku(
   item: {
     productType?: string | null;
-    animalType?: string | null;
+    animal?: { name?: string | null } | null;
     byproductName?: string | null;
   },
   wrapperByKey: Record<string, string>,
 ): string {
-  const animal = item.animalType ?? "";
+  const animal = item.animal?.name ?? "";
   if (item.productType === "MEAT") {
     return animal ? `${PRODUCT_TYPE_MN.MEAT}:${animal}` : PRODUCT_TYPE_MN.MEAT;
   }
@@ -45,7 +45,7 @@ export default async function InventoryPage() {
   const [stockResp, statsResp, wrapResp] = await Promise.all([
     client.query({
       query: InventoryStockDoc,
-      variables: { productType: null, animalType: null, byproductName: null },
+      variables: { productType: null, animalId: null, byproductName: null },
     }),
     client.query({ query: InventoryStatsDoc }),
     client.query({
@@ -78,6 +78,17 @@ export default async function InventoryPage() {
   const pct =
     meatCap > 0 ? Math.min(100, Math.round((meatStock / meatCap) * 100)) : 0;
   const thrPct = meatCap > 0 ? Math.min(100, (threshold / meatCap) * 100) : 0;
+
+  const exportEligible = Number(stats?.exportEligibleMeatKg ?? 0);
+  const domesticOnly = Number(stats?.domesticOnlyMeatKg ?? 0);
+  const exportEligiblePct =
+    meatStock > 0 ? Math.round((exportEligible / meatStock) * 100) : 0;
+  const domesticOnlyPct =
+    meatStock > 0 ? Math.round((domesticOnly / meatStock) * 100) : 0;
+  const exportThreshold = Number(stats?.exportAlertThresholdKg ?? 0);
+  const domesticThreshold = Number(stats?.domesticAlertThresholdKg ?? 0);
+  const exportAlert = !!stats?.exportAlertActive;
+  const domesticAlert = !!stats?.domesticAlertActive;
 
   return (
     <div className="space-y-6">
@@ -191,6 +202,74 @@ export default async function InventoryPage() {
         </Card>
       </div>
 
+      {/* ─── Экспорт / дотоод: мах нэг нийтлэг физик нөөц, малын экспортын
+          зөвшөөрлөөр (Animal.isExport) хуваагдана. Хоёр тоо нийлээд нийт
+          махны нөөцтэй тэнцүү — "хуваарилагдаагүй" гэж юу ч үлдэхгүй. Босго
+          давсан үед админ шинэ ачилт дуудна. ─────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base">Экспортод ачих боломжтой</CardTitle>
+            {exportAlert ? (
+              <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                Босго давсан
+              </Badge>
+            ) : exportThreshold > 0 ? (
+              <Badge className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                Хэвийн
+              </Badge>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-2xl font-semibold tabular-nums">
+              {formatNumber(exportEligible)} кг
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Нийт махны {exportEligiblePct}% (экспортын зөвшөөрөлтэй мал)
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Босго:{" "}
+              <span className="font-medium text-foreground">
+                {exportThreshold > 0
+                  ? `${formatNumber(exportThreshold)} кг`
+                  : "идэвхгүй"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base">Дотоодод ачих боломжтой</CardTitle>
+            {domesticAlert ? (
+              <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                Босго давсан
+              </Badge>
+            ) : domesticThreshold > 0 ? (
+              <Badge className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+                Хэвийн
+              </Badge>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-2xl font-semibold tabular-nums">
+              {formatNumber(domesticOnly)} кг
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Нийт махны {domesticOnlyPct}% (экспортын зөвшөөрөлгүй мал)
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Босго:{" "}
+              <span className="font-medium text-foreground">
+                {domesticThreshold > 0
+                  ? `${formatNumber(domesticThreshold)} кг`
+                  : "идэвхгүй"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* ─── Stock split: Мах vs Дайвар ──────────────────────────── */}
       {stockError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -206,7 +285,7 @@ export default async function InventoryPage() {
             id: i.id!,
             sku: buildSku(i, wrapperByKey),
             productType: (i.productType ?? "MEAT") as "MEAT" | "BYPRODUCT",
-            animalType: i.animalType ?? null,
+            animalType: i.animal?.name ?? null,
             byproductName: i.byproductName ?? null,
             quantityKg: Number(i.quantityKg ?? 0),
           }))}

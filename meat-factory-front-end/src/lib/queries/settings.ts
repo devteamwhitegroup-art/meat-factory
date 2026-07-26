@@ -10,6 +10,8 @@ export const SettingsDoc = graphql(/* GraphQL */ `
         meatCapacityKg
         meatAlertThresholdKg
         cargoCapacityKg
+        exportAlertThresholdKg
+        domesticAlertThresholdKg
         lastAlertedAt
       }
     }
@@ -21,11 +23,15 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
     $meatCapacityKg: Float
     $meatAlertThresholdKg: Float
     $cargoCapacityKg: Float
+    $exportAlertThresholdKg: Float
+    $domesticAlertThresholdKg: Float
   ) {
     updateSettings(
       meatCapacityKg: $meatCapacityKg
       meatAlertThresholdKg: $meatAlertThresholdKg
       cargoCapacityKg: $cargoCapacityKg
+      exportAlertThresholdKg: $exportAlertThresholdKg
+      domesticAlertThresholdKg: $domesticAlertThresholdKg
     ) {
       success
       message
@@ -34,6 +40,8 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
         meatCapacityKg
         meatAlertThresholdKg
         cargoCapacityKg
+        exportAlertThresholdKg
+        domesticAlertThresholdKg
       }
     }
   }

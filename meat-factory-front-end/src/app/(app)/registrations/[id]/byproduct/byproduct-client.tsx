@@ -143,7 +143,7 @@ export function ByproductClient({ id }: { id: string }) {
     setRows((s) => s.map((r, idx) => (idx === i ? { ...r, quantity: v } : r)));
   }
 
-  async function onSave() {
+  async function onSave(): Promise<boolean> {
     const items = rows
       .map((r) => {
         const quantity = Math.floor(Number(r.quantity) || 0);
@@ -162,16 +162,29 @@ export function ByproductClient({ id }: { id: string }) {
       .filter((i) => i.quantity > 0);
 
     setBusy(true);
-    await runMutation(
+    const ok = await runMutation(
       async () =>
         (await save({ variables: { registrationId: id, items } })).data
           ?.setRegistrationByproducts,
       { success: "Дайвар хадгалагдлаа", onSuccess: refetch },
     );
     setBusy(false);
+    return ok;
   }
 
-  const editable = reg.status === "WEIGHED";
+  const editable = reg.status === "VERIFIED";
+
+  // "Дараах" always saves first so nobody skips past this page without
+  // logging byproducts by simply never clicking "Дайвар хадгалах". When the
+  // page is read-only (already past VERIFIED) there's nothing to save, so
+  // just navigate.
+  async function onNext() {
+    if (editable) {
+      const ok = await onSave();
+      if (!ok) return;
+    }
+    router.push(`/registrations/${id}/settlement`);
+  }
 
   return (
     <div className="space-y-4">
@@ -188,11 +201,8 @@ export function ByproductClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/registrations/${id}/verify`)}
-        >
-          Дараах: Баталгаажуулалт →
+        <Button variant="outline" onClick={onNext} disabled={busy}>
+          {busy ? "Хадгалж байна…" : "Дараах: Тооцоо →"}
         </Button>
       </div>
 
@@ -215,9 +225,15 @@ export function ByproductClient({ id }: { id: string }) {
               );
               // Ownership lives on the Animal config, so it's the same for
               // every wrapper/item under this animal — show the badge once,
-              // on the animal card header.
+              // on the animal card header. Three states, matching the
+              // backend rule (!canCoverSlaughterCost || slaughterCovered):
+              //   not coverable            → always factory
+              //   coverable, not covered   → herder pays cash, keeps it
+              //   coverable, covered       → herder opted to offset with it,
+              //                              so it goes to factory instead
               const coverable =
                 !!animalGroup.wrappers[0]?.items[0]?.row.canCoverSlaughterCost;
+              const covered = !!reg.verification?.slaughterCoveredByByproduct;
               return (
                 <Card key={animalGroup.animalType}>
                   <CardHeader className="flex flex-row items-center gap-3 space-y-0">
@@ -226,16 +242,23 @@ export function ByproductClient({ id }: { id: string }) {
                         <CardTitle className="text-lg">
                           {animalGroup.animalType}
                         </CardTitle>
-                        {coverable ? (
-                          <Badge
-                            className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                            title="Малчинтай хэлэлцсэнээр өөртөө авна; нөхөвөл үйлдвэрт орно"
-                          >
-                            Малчны эзэмшил
-                          </Badge>
-                        ) : (
+                        {!coverable ? (
                           <Badge className="border-0 bg-sky-100 text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
                             Үйлдвэрийн нөөц
+                          </Badge>
+                        ) : covered ? (
+                          <Badge
+                            className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                            title="Малчин бой зардлыг дайвараар нөхсөн тул үйлдвэрт орно"
+                          >
+                            Үйлдвэрт (нөхөлт)
+                          </Badge>
+                        ) : (
+                          <Badge
+                            className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                            title="Малчин бой зардлыг мөнгөөр төлж, дайвараа өөртөө авна; нөхвөл үйлдвэрт орно"
+                          >
+                            Малчны эзэмшил
                           </Badge>
                         )}
                       </div>
@@ -326,7 +349,7 @@ export function ByproductClient({ id }: { id: string }) {
           </Button>
           {!editable ? (
             <div className="text-xs text-muted-foreground">
-              Дайвар бүртгэхийн тулд статус «Жинлэсэн» байх ёстой.
+              Дайвар бүртгэхийн тулд статус «Баталгаажсан» байх ёстой.
             </div>
           ) : null}
         </>

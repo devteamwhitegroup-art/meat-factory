@@ -169,6 +169,11 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
             id
             url
           }
+          storekeeperSignatureFileId
+          storekeeperSignature {
+            id
+            url
+          }
           lines {
             id
             animalType
@@ -535,6 +540,29 @@ export const RemoveSettlementPaymentProofDoc = graphql(/* GraphQL */ `
     removeSettlementPaymentProof(id: $id) {
       success
       message
+    }
+  }
+`);
+
+export const SetSettlementStorekeeperSignatureDoc = graphql(/* GraphQL */ `
+  mutation SetSettlementStorekeeperSignature(
+    $registrationId: ID!
+    $fileId: ID
+  ) {
+    setSettlementStorekeeperSignature(
+      registrationId: $registrationId
+      fileId: $fileId
+    ) {
+      success
+      message
+      settlement {
+        id
+        storekeeperSignatureFileId
+        storekeeperSignature {
+          id
+          url
+        }
+      }
     }
   }
 `);

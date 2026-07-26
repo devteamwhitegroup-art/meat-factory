@@ -35,33 +35,54 @@ export class InventoryController {
     return findOrThrow(InventoryItemModel, id, "Inventory item not found");
   }
 
-  private static _buildSku(line: TStockLine): string {
+  // SKU stays human-readable (embeds the animal name), even though identity
+  // is now the FK — resolve the name once via a lookup rather than storing
+  // it, so a catalogue rename can't desync the two.
+  private static async _buildSku(
+    line: TStockLine,
+    t?: Transaction,
+  ): Promise<string> {
     if (line.productType === PRODUCT_TYPE.MEAT) {
-      if (!line.animalType)
-        throw new Error("Мах inventory line requires an animalType");
+      if (!line.animalId)
+        throw new Error("Мах inventory line requires an animalId");
       if (line.byproductName)
         throw new Error("Мах inventory line cannot have a byproductName");
-      return `Мах:${line.animalType}`;
+      const animal = await findOrThrow(
+        AnimalModel,
+        line.animalId,
+        "Малын төрөл олдсонгүй",
+        t ? { transaction: t } : undefined,
+      );
+      return `Мах:${animal.name}`;
     }
-    if (line.animalType)
-      throw new Error("Дайвар inventory line cannot have an animalType");
-    // Byproducts are identified by their free-form catalogue name (Дайвар:<name>).
     const name = line.byproductName?.trim();
     if (!name) throw new Error("Дайвар line requires a byproductName");
-    return `Дайвар:${name}`;
+    // Animal is optional on a byproduct line (some free-form rows aren't
+    // tied to one, matching ByproductLog.animalId), but when present it
+    // must be part of the SKU — otherwise two different animals' same-named
+    // byproducts (e.g. horse "Зүрх" vs cow "Зүрх") collide into one
+    // inventory line instead of staying separate stock.
+    if (!line.animalId) return `Дайвар:${name}`;
+    const animal = await findOrThrow(
+      AnimalModel,
+      line.animalId,
+      "Малын төрөл олдсонгүй",
+      t ? { transaction: t } : undefined,
+    );
+    return `Дайвар:${animal.name}:${name}`;
   }
 
   private static async _getOrCreateItem(
     line: TStockLine,
     t: Transaction,
   ): Promise<InventoryItemModel> {
-    const sku = this._buildSku(line);
+    const sku = await this._buildSku(line, t);
     await InventoryItemModel.findOrCreate({
       where: { sku },
       defaults: {
         sku,
         productType: line.productType,
-        animalType: line.animalType ?? null,
+        animalId: line.animalId ?? null,
         byproductName: line.byproductName?.trim() || null,
         quantityKg: 0,
       },
@@ -115,6 +136,55 @@ export class InventoryController {
     );
   }
 
+  // Called by livestock right when byproducts are logged (ByproductLogController.
+  // setRegistrationByproducts), for the non-coverable rows only — ownership
+  // there is deterministic (always factory), so there's no reason to wait for
+  // the whole verify → settle → pay pipeline. The rare "could cover slaughter
+  // cost" rows stay on ingestFromSettledRegistration, gated by the verifier's
+  // slaughterCoveredByByproduct decision.
+  // ponytail: idempotent by "has anything been ingested for this registration
+  // yet", not a per-edit diff — a second setRegistrationByproducts call with
+  // different amounts won't adjust stock. Add reversal/delta tracking if that
+  // edit case stops being rare.
+  static async ingestNonCoverableByproducts(
+    registrationId: string,
+    lines: {
+      animalId: string | null;
+      byproductName: string;
+      quantityKg: number;
+    }[],
+  ): Promise<void> {
+    if (lines.length === 0) return;
+    const already = await InventoryMovementModel.findOne({
+      where: {
+        source: MOVEMENT_SOURCE.BYPRODUCT,
+        sourceRegistrationId: registrationId,
+      },
+    });
+    if (already) return; // idempotent
+
+    await sequelize.transaction(async (t) => {
+      for (const l of lines) {
+        if (!l.quantityKg || l.quantityKg <= 0) continue;
+        await this._applyMovement(
+          {
+            movementType: MOVEMENT_TYPE.IN,
+            source: MOVEMENT_SOURCE.BYPRODUCT,
+            line: {
+              productType: PRODUCT_TYPE.BYPRODUCT,
+              animalId: l.animalId,
+              byproductName: l.byproductName,
+              quantityKg: l.quantityKg,
+            },
+            sourceRegistrationId: registrationId,
+            notes: `Byproduct log ingest for registration ${registrationId}`,
+          },
+          t,
+        );
+      }
+    });
+  }
+
   // Called by livestock when a registration's settlement is paid.
   static async ingestFromSettledRegistration(
     payload: TRegistrationIngestDTO,
@@ -130,19 +200,19 @@ export class InventoryController {
     // Yield haircut — Animal.yieldPercent (default 100) is applied to MEAT
     // lines so horse (70%) stocks bone-out kg, not carcass kg. Byproducts are
     // already weighed by the storekeeper and pass through unchanged.
-    const meatTypes = Array.from(
+    const meatAnimalIds = Array.from(
       new Set(
         payload.lines
-          .filter((l) => l.productType === "MEAT" && l.animalType)
-          .map((l) => l.animalType as string),
+          .filter((l) => l.productType === "MEAT" && l.animalId)
+          .map((l) => l.animalId as string),
       ),
     );
-    const yieldByType: Record<string, number> = {};
-    if (meatTypes.length > 0) {
+    const yieldById: Record<string, number> = {};
+    if (meatAnimalIds.length > 0) {
       const rows = await AnimalModel.findAll({
-        where: { name: { [Op.in]: meatTypes } },
+        where: { id: { [Op.in]: meatAnimalIds } },
       });
-      for (const r of rows) yieldByType[r.name] = Number(r.yieldPercent);
+      for (const r of rows) yieldById[r.id] = Number(r.yieldPercent);
     }
 
     await sequelize.transaction(async (t) => {
@@ -150,14 +220,14 @@ export class InventoryController {
         if (!l.quantityKg || l.quantityKg <= 0) continue;
         const isMeat = l.productType === "MEAT";
         const yieldPct =
-          isMeat && l.animalType ? (yieldByType[l.animalType] ?? 100) : 100;
+          isMeat && l.animalId ? (yieldById[l.animalId] ?? 100) : 100;
         const adjustedQty =
           yieldPct === 100
             ? l.quantityKg
             : Number(((l.quantityKg * yieldPct) / 100).toFixed(2));
         const line: TStockLine = {
           productType: isMeat ? PRODUCT_TYPE.MEAT : PRODUCT_TYPE.BYPRODUCT,
-          animalType: l.animalType ?? null,
+          animalId: l.animalId ?? null,
           byproductName: l.byproductName ?? null,
           quantityKg: adjustedQty,
         };
@@ -195,6 +265,31 @@ export class InventoryController {
     return Number(row?.total ?? 0);
   }
 
+  // Meat stock split by the animal's export eligibility — the full physical
+  // total on each side (not reduced by what's already loaded on a truck), so
+  // admin sees "of everything in storage, how much could go export?" and can
+  // call a cargo once that side crosses its threshold.
+  private static async _meatKgByExportEligibility(): Promise<{
+    exportEligibleKg: number;
+    domesticOnlyKg: number;
+  }> {
+    const rows = await InventoryItemModel.findAll({
+      attributes: ["quantityKg"],
+      where: { productType: PRODUCT_TYPE.MEAT },
+      include: [{ model: AnimalModel, as: "animal", attributes: ["isExport"] }],
+    });
+    let exportEligible = 0;
+    let domesticOnly = 0;
+    for (const r of rows) {
+      if (r.animal?.isExport) exportEligible += Number(r.quantityKg);
+      else domesticOnly += Number(r.quantityKg);
+    }
+    return {
+      exportEligibleKg: Number(exportEligible.toFixed(2)),
+      domesticOnlyKg: Number(domesticOnly.toFixed(2)),
+    };
+  }
+
   // Inventory summary for the FE analytics block. Bundles totals + settings
   // + alert state in one round-trip so the page renders without a fan-out.
   static async stats(): Promise<{
@@ -206,14 +301,23 @@ export class InventoryController {
     alertActive: boolean;
     cargosToClear: number;
     lastAlertedAt: Date | null;
+    exportEligibleMeatKg: number;
+    domesticOnlyMeatKg: number;
+    exportAlertThresholdKg: number;
+    domesticAlertThresholdKg: number;
+    exportAlertActive: boolean;
+    domesticAlertActive: boolean;
   }> {
-    const [meat, byprod, settings] = await Promise.all([
+    const [meat, byprod, settings, byEligibility] = await Promise.all([
       this.totalKg(PRODUCT_TYPE.MEAT),
       this.totalKg(PRODUCT_TYPE.BYPRODUCT),
       SettingsController.get(),
+      this._meatKgByExportEligibility(),
     ]);
     const cap = Number(settings.cargoCapacityKg);
     const thr = Number(settings.meatAlertThresholdKg);
+    const exportThr = Number(settings.exportAlertThresholdKg);
+    const domesticThr = Number(settings.domesticAlertThresholdKg);
     return {
       meatStockKg: meat,
       byproductStockKg: byprod,
@@ -224,6 +328,14 @@ export class InventoryController {
       // ceil(meat / cargoCap). Returns 0 when cargoCap unset.
       cargosToClear: cap > 0 ? Math.ceil(meat / cap) : 0,
       lastAlertedAt: settings.lastAlertedAt,
+      exportEligibleMeatKg: byEligibility.exportEligibleKg,
+      domesticOnlyMeatKg: byEligibility.domesticOnlyKg,
+      exportAlertThresholdKg: exportThr,
+      domesticAlertThresholdKg: domesticThr,
+      exportAlertActive:
+        exportThr > 0 && byEligibility.exportEligibleKg >= exportThr,
+      domesticAlertActive:
+        domesticThr > 0 && byEligibility.domesticOnlyKg >= domesticThr,
     };
   }
 
@@ -306,11 +418,11 @@ export class InventoryController {
   ): Promise<InventoryItemModel> {
     const line: TStockLine = {
       productType: input.productType,
-      animalType: input.animalType ?? null,
+      animalId: input.animalId ?? null,
       byproductName: input.byproductName ?? null,
       quantityKg: input.quantityKg,
     };
-    const sku = this._buildSku(line);
+    const sku = await this._buildSku(line);
 
     await sequelize.transaction(async (t) => {
       await this._applyMovement(
@@ -341,12 +453,13 @@ export class InventoryController {
   ): Promise<TPaginationGeneric<InventoryItemModel>> {
     const where: WhereOptions = {};
     if (doc.productType) Object.assign(where, { productType: doc.productType });
-    if (doc.animalType) Object.assign(where, { animalType: doc.animalType });
+    if (doc.animalId) Object.assign(where, { animalId: doc.animalId });
     if (doc.byproductName)
       Object.assign(where, { byproductName: doc.byproductName });
 
     return await InventoryItemModel.findAndCountAll({
       where,
+      include: [{ model: AnimalModel, as: "animal" }],
       order: [["sku", "ASC"]],
     });
   }
@@ -364,7 +477,13 @@ export class InventoryController {
 
     return listPaginated(InventoryMovementModel, doc, {
       where,
-      include: [{ model: InventoryItemModel, as: "item" }],
+      include: [
+        {
+          model: InventoryItemModel,
+          as: "item",
+          include: [{ model: AnimalModel, as: "animal" }],
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
   }

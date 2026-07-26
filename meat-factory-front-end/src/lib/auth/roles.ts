@@ -46,8 +46,6 @@ export const CAPS = {
   // System-wide thresholds: storage capacity, alert threshold, cargo capacity.
   settings: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   dashboard: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  monthlyBudgets: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  admins: ["SUPER_ADMIN", "MANAGER"],
   deleteAdmin: ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
@@ -84,9 +82,7 @@ const OFFICE_NAV: NavItem[] = [
   { href: "/inventory", label: "Нөөц" },
   { href: "/byproduct-constants", label: "Дайвар норм" },
   { href: "/animals", label: "Малын тохиргоо" },
-  { href: "/monthly-budgets", label: "Сарын төсөв" },
   { href: "/settings", label: "Систем тохиргоо" },
-  { href: "/admins", label: "Хэрэглэгч" },
 ];
 
 export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {

@@ -16,6 +16,8 @@ type Form = {
   meatCapacityKg: string;
   meatAlertThresholdKg: string;
   cargoCapacityKg: string;
+  exportAlertThresholdKg: string;
+  domesticAlertThresholdKg: string;
 };
 
 export function SettingsClient() {
@@ -38,6 +40,8 @@ export function SettingsClient() {
           meatCapacityKg: String(s.meatCapacityKg ?? 0),
           meatAlertThresholdKg: String(s.meatAlertThresholdKg ?? 0),
           cargoCapacityKg: String(s.cargoCapacityKg ?? 0),
+          exportAlertThresholdKg: String(s.exportAlertThresholdKg ?? 0),
+          domesticAlertThresholdKg: String(s.domesticAlertThresholdKg ?? 0),
         }
       : null);
 
@@ -46,7 +50,9 @@ export function SettingsClient() {
     const m = Number(effective.meatCapacityKg);
     const t = Number(effective.meatAlertThresholdKg);
     const c = Number(effective.cargoCapacityKg);
-    if ([m, t, c].some((n) => !Number.isFinite(n) || n < 0)) {
+    const et = Number(effective.exportAlertThresholdKg);
+    const dt = Number(effective.domesticAlertThresholdKg);
+    if ([m, t, c, et, dt].some((n) => !Number.isFinite(n) || n < 0)) {
       toast.error("Утга сөрөг байж болохгүй");
       return;
     }
@@ -63,6 +69,8 @@ export function SettingsClient() {
               meatCapacityKg: m,
               meatAlertThresholdKg: t,
               cargoCapacityKg: c,
+              exportAlertThresholdKg: et,
+              domesticAlertThresholdKg: dt,
             },
           })
         ).data?.updateSettings,
@@ -146,6 +154,51 @@ export function SettingsClient() {
           <p className="text-xs text-muted-foreground">
             Нэг тээврийн машинд (рефрижератор гэх мэт) багтах хэмжээ. Нөөц
             хуудаснаас «Шинэ ачилт» дарахад энэ хэмжээгээр урьдчилан бөглөнө.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Экспорт/дотоод мэдэгдэл</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="thr-export">Экспортын ачаанд орсон босго (кг)</Label>
+            <Input
+              id="thr-export"
+              type="number"
+              inputMode="decimal"
+              value={effective.exportAlertThresholdKg}
+              onChange={(e) =>
+                setForm({
+                  ...effective,
+                  exportAlertThresholdKg: e.target.value,
+                })
+              }
+              className="h-11 text-right tabular-nums"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="thr-domestic">Дотоод ачаанд орсон босго (кг)</Label>
+            <Input
+              id="thr-domestic"
+              type="number"
+              inputMode="decimal"
+              value={effective.domesticAlertThresholdKg}
+              onChange={(e) =>
+                setForm({
+                  ...effective,
+                  domesticAlertThresholdKg: e.target.value,
+                })
+              }
+              className="h-11 text-right tabular-nums"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Мах нэг нийтлэг нөөц тул ачилт үүсгэх үед л экспорт/дотоод гэж
+            хуваагдана. Энэ босго нь ачигдаад хараахан хүргэгдээгүй (PENDING/
+            LOADED) ачааны нийт хэмжээ давсныг мэдэгдэнэ.
           </p>
         </CardContent>
       </Card>

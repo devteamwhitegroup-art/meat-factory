@@ -180,17 +180,30 @@ export class ShipmentController {
   }
 
   // Inventory deduction is driven by what was actually loaded — the grouped
-  // cargo manifest. Meat deducts MEAT:<animalType>; byproducts deduct
-  // BYPN:<name>.
+  // cargo manifest. Meat deducts MEAT:<animalId>; byproducts deduct
+  // BYPN:<name>. Cargo entries only ever store the catalogue name (validated
+  // at entry time in addCargoEntry), so resolve name → id here at the
+  // inventory boundary rather than threading animalId through cargo/sale
+  // lines too.
   private static async _buildOutLines(
     shipment: ShipmentModel,
   ): Promise<TStockLine[]> {
     const groups = await this._groupEntries(shipment.id);
+    const meatTypes = groups
+      .filter((g) => g.productType === PRODUCT_TYPE.MEAT && g.totalWeightKg > 0)
+      .map((g) => g.animalType as string);
+    const typeToId =
+      meatTypes.length > 0
+        ? await AnimalController.mapNamesToIds(meatTypes)
+        : {};
     const lines = groups
       .filter((g) => g.totalWeightKg > 0)
       .map((g) => ({
         productType: g.productType,
-        animalType: g.productType === PRODUCT_TYPE.MEAT ? g.animalType : null,
+        animalId:
+          g.productType === PRODUCT_TYPE.MEAT
+            ? typeToId[g.animalType as string]
+            : null,
         byproductName:
           g.productType === PRODUCT_TYPE.BYPRODUCT ? g.byproductName : null,
         quantityKg: g.totalWeightKg,

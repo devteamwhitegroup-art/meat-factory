@@ -33,7 +33,7 @@ export function WeighingHistoryList({
   onRemove: (id: string, seq: number) => void;
 }) {
   if (entries.length === 0) {
-    return <div className="text-sm text-muted-foreground">Бичэлт алга</div>;
+    return <div className="text-sm text-muted-foreground">Бичэлт байхгүй</div>;
   }
   return (
     <ul className="space-y-2 text-sm">

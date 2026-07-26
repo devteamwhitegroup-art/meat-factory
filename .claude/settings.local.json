@@ -10,7 +10,10 @@
       "Bash(pnpm build *)",
       "Bash(echo \"build exit=$?\")",
       "Bash(node -e ' *)",
-      "Bash(graphify export *)"
+      "Bash(graphify export *)",
+      "Bash(npx tsc *)",
+      "Bash(graphify query *)",
+      "Bash(node *)"
     ]
   }
 }

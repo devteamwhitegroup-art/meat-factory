@@ -97,6 +97,7 @@ const REGISTRATION_FULL_INCLUDE = [
       },
       { model: AdminModel, as: "settledBy" },
       { model: FileModel, as: "photo" },
+      { model: FileModel, as: "storekeeperSignature" },
     ],
   },
 ];

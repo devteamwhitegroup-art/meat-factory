@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
-import { formatMNT, formatNumber } from "@/lib/format/money";
+import { formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
+import { SignatureField } from "@/components/common/SignatureField";
 
 // Derive the (deeply-nested) registration + settlement shapes straight from
 // the query document, so the receipt always matches what the page fetches.
@@ -44,6 +45,7 @@ export function SettlementReceipt({
   onMarkPaid,
   onReleaseHold,
   onApproveMedical,
+  onSetStorekeeperSignature,
 }: {
   reg: Reg;
   existing: Settlement;
@@ -54,7 +56,11 @@ export function SettlementReceipt({
   onMarkPaid: (heldAmount: number | null) => void;
   onReleaseHold: () => void;
   onApproveMedical: (medicalNumber: string | null) => void;
+  onSetStorekeeperSignature: (fileId: string | null) => void;
 }) {
+  const herderSignatureUrl = reg.agreementSignature?.url ?? null;
+  const storekeeperSignatureUrl = existing.storekeeperSignature?.url ?? null;
+
   return (
     <section data-print="settlement">
       <div className="mb-3 flex justify-end print-hide">
@@ -102,9 +108,9 @@ export function SettlementReceipt({
                 <TableRow key={l.id!}>
                   <TableCell>{l.animalType}</TableCell>
                   <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
-                  <TableCell>{formatMNT(l.pricePerKg)}</TableCell>
-                  <TableCell>{formatMNT(l.meatAmount)}</TableCell>
-                  <TableCell>{formatMNT(l.slaughterCost)}</TableCell>
+                  <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
+                  <TableCell>{formatNumber(l.meatAmount)}</TableCell>
+                  <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -113,29 +119,29 @@ export function SettlementReceipt({
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Нийт мах</div>
             <div className="text-right">
-              {formatMNT(existing.totalMeatAmount)}
+              {formatNumber(existing.totalMeatAmount)}
             </div>
             <div className="text-muted-foreground">Бой зардал</div>
             <div className="text-right">
-              {formatMNT(existing.totalSlaughterCost)}
+              {formatNumber(existing.totalSlaughterCost)}
             </div>
             <div className="font-medium">Нийт төлбөр</div>
             <div className="text-right font-medium">
-              {formatMNT(existing.grossAmount)}
+              {formatNumber(existing.grossAmount)}
             </div>
             <div className="text-base font-semibold">Малчинд өгөх дүн</div>
             <div className="text-right text-base font-semibold">
-              {formatMNT(existing.netPayable)}
+              {formatNumber(existing.netPayable)}
             </div>
             {Number(existing.heldAmount ?? 0) > 0 ? (
               <>
                 <div className="text-muted-foreground">Олгосон дүн</div>
                 <div className="text-right">
-                  {formatMNT(existing.paidAmount)}
+                  {formatNumber(existing.paidAmount)}
                 </div>
                 <div className="text-amber-700">Суутгасан дүн</div>
                 <div className="text-right text-amber-700">
-                  {formatMNT(existing.heldAmount)}
+                  {formatNumber(existing.heldAmount)}
                 </div>
               </>
             ) : null}
@@ -275,10 +281,10 @@ export function SettlementReceipt({
                                   {formatNumber(w.weightKg)}
                                 </TableCell>
                                 <TableCell className="tabular-nums">
-                                  {p > 0 ? formatMNT(p) : "—"}
+                                  {p > 0 ? formatNumber(p) : "—"}
                                 </TableCell>
                                 <TableCell className="tabular-nums">
-                                  {formatMNT(amount)}
+                                  {formatNumber(amount)}
                                 </TableCell>
                                 <TableCell className="text-xs text-muted-foreground print-hide">
                                   {w.scaleOperator?.param ?? "—"}
@@ -290,7 +296,9 @@ export function SettlementReceipt({
                       </Table>
                       <div className="flex justify-between border-t px-3 py-1.5 text-xs font-medium">
                         <span>{t} нийт</span>
-                        <span className="tabular-nums">{formatMNT(sub)}</span>
+                        <span className="tabular-nums">
+                          {formatNumber(sub)}
+                        </span>
                       </div>
                     </div>
                   );
@@ -342,13 +350,50 @@ export function SettlementReceipt({
                 onReleaseHold={onReleaseHold}
               />
             ) : null}
+
+            {/* Storekeeper signature — drawn once, reused on every printed
+                receipt from then on (see herderSignatureUrl above). */}
+            {canSettle ? (
+              <SignatureField
+                value={existing.storekeeperSignatureFileId ?? null}
+                onChange={onSetStorekeeperSignature}
+                label="Няравын гарын үсэг"
+                type="settlement"
+              />
+            ) : null}
           </div>
-          <div className="mt-4 hidden grid-cols-2 gap-x-8 gap-y-10 print:grid">
-            <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-              Малчны гарын үсэг
+          <div className="mt-4 hidden grid-cols-2 gap-x-8 print:grid">
+            <div>
+              {/* Herder already signed the weigh/agreement slip — reuse that
+                  signature here instead of leaving a blank line to re-sign. */}
+              {herderSignatureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={herderSignatureUrl}
+                  alt="Малчны гарын үсэг"
+                  className="h-16 w-auto object-contain"
+                />
+              ) : (
+                <div className="h-16" />
+              )}
+              <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
+                Малчны гарын үсэг
+              </div>
             </div>
-            <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-              Няравын гарын үсэг
+            <div>
+              {storekeeperSignatureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={storekeeperSignatureUrl}
+                  alt="Няравын гарын үсэг"
+                  className="h-16 w-auto object-contain"
+                />
+              ) : (
+                <div className="h-16" />
+              )}
+              <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
+                Няравын гарын үсэг
+              </div>
             </div>
           </div>
         </CardContent>
@@ -415,13 +460,13 @@ function PayBlock({
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Одоо төлөх</span>
         <span className="font-medium tabular-nums">
-          {payNow != null ? formatMNT(payNow) : "—"}
+          {payNow != null ? formatNumber(payNow) : "—"}
         </span>
       </div>
       {held.trim() !== "" && !valid ? (
         <p className="text-xs text-destructive">
-          Суутгах дүн 0-ээс их, нийт дүн ({formatMNT(netPayable)})-ээс хэтрэхгүй
-          байх ёстой.
+          Суутгах дүн 0-ээс их, нийт дүн ({formatNumber(netPayable)})-ээс
+          хэтрэхгүй байх ёстой.
         </p>
       ) : null}
       <Button
@@ -453,9 +498,9 @@ function ReleaseBlock({
     <div className="space-y-2 rounded-md border p-3">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
         <div className="text-muted-foreground">Олгосон дүн</div>
-        <div className="text-right tabular-nums">{formatMNT(paid)}</div>
+        <div className="text-right tabular-nums">{formatNumber(paid)}</div>
         <div className="text-muted-foreground">Суутгасан дүн</div>
-        <div className="text-right tabular-nums">{formatMNT(held)}</div>
+        <div className="text-right tabular-nums">{formatNumber(held)}</div>
       </div>
       {!medicalApproved ? (
         <p className="text-xs text-amber-700">
