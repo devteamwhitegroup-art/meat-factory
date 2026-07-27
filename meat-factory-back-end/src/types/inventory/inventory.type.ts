@@ -8,6 +8,13 @@ export enum MOVEMENT_TYPE {
 }
 
 export enum MOVEMENT_SOURCE {
+  // Meat — slaughtered, weighed, and verified is officially factory stock,
+  // independent of when (or whether yet) the herder is actually paid.
+  VERIFICATION = 'VERIFICATION',
+  // Coverable byproducts only (canCoverSlaughterCost=true AND the verifier
+  // chose factory ownership) — still gated on the first payout since that's
+  // when the ownership call is treated as final. Meat no longer flows
+  // through this source; see VERIFICATION above.
   SETTLEMENT = 'SETTLEMENT',
   // Non-coverable byproducts (canCoverSlaughterCost=false) — deterministically
   // factory-owned from the moment they're logged, so they enter inventory

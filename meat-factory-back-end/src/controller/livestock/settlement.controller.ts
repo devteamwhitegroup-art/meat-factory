@@ -1,4 +1,6 @@
+import { WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
+import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
@@ -7,19 +9,21 @@ import { SettlementPaymentProofModel } from "../../models/livestock/settlement-p
 import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
+import { HerderModel } from "../../models/livestock/herder.model";
 import { FileModel } from "../../models/global/file.model";
 import { AdminModel } from "../../models/user/admin.model";
 import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
-import { findOrThrow } from "../../utils";
+import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TCreateSettlement,
+  TGetSettlements,
   TRegistrationIngestDTO,
 } from "../../types/livestock/settlement.type";
-import { TContext } from "../../types/global/global.type";
+import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Settlement (Няравын тооцоо / Санхүү) — sub-domain of the registration
@@ -49,6 +53,39 @@ export class SettlementController {
   private static _reload(id: string): Promise<SettlementModel> {
     return findOrThrow(SettlementModel, id, "Settlement not found", {
       include: SETTLEMENT_INCLUDE,
+    });
+  }
+
+  // Herder-side payout list — the "Малчид" tab on /sales, alongside the
+  // customer-side SalesTransaction list.
+  static async list(
+    doc: TGetSettlements,
+  ): Promise<TPaginationGeneric<SettlementModel>> {
+    const where: WhereOptions = {};
+    // Loose check: the FE always sends this key (never omits it), using
+    // explicit null for "all" — isPaid is NOT NULL, so `!== undefined` would
+    // turn "all" into a `WHERE is_paid IS NULL` that matches zero rows.
+    if (doc.isPaid != null) Object.assign(where, { isPaid: doc.isPaid });
+    Object.assign(where, dateRangeWhere(doc.dateRange, "createdAt"));
+
+    const registrationWhere: WhereOptions = {};
+    if (doc.herderId) Object.assign(registrationWhere, { herderId: doc.herderId });
+
+    return listPaginated(SettlementModel, doc, {
+      where,
+      include: [
+        {
+          model: RegistrationModel,
+          as: "registration",
+          where:
+            Object.keys(registrationWhere).length > 0
+              ? registrationWhere
+              : undefined,
+          include: [{ model: HerderModel, as: "herder" }],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      distinct: true,
     });
   }
 
@@ -205,7 +242,8 @@ export class SettlementController {
   //   • medical number approved → pay in full (held forced to 0 → SETTLED).
   //   • not approved → a positive held amount is REQUIRED (can't pay full);
   //     pays netPayable − held now → PARTIALLY_SETTLED, rest released later.
-  // Inventory IN runs here regardless (the meat is physically received now).
+  // Meat is already in inventory (ingested at verification); this only
+  // ingests the rare coverable-byproduct case, if any.
   static async markSettlementPaid(
     registrationId: string,
     heldAmount: number | null | undefined,
@@ -240,7 +278,7 @@ export class SettlementController {
       held = 0;
     } else if (held <= 0) {
       throw new Error(
-        "Эмнэлгийн дугаар батлагдаагүй тул бүтэн төлбөр хийх боломжгүй. Суутгах дүн оруулна уу.",
+        "Мал эмнэлгийн дугаар батлагдаагүй тул бүтэн төлбөр хийх боломжгүй. Суутгах дүн оруулна уу.",
       );
     }
 
@@ -260,18 +298,15 @@ export class SettlementController {
         : REGISTRATION_STATUS.PARTIALLY_SETTLED,
     });
 
-    // Feed settled output into inventory as IN movements (idempotent).
-    //   MEAT: every settlement line with received_weight_kg > 0.
-    //   BYPRODUCT: only the rare canCoverSlaughterCost=true rows where the
-    //     verifier set slaughterCoveredByByproduct=true (factory takes the
-    //     byproduct instead of paying cash slaughter cost) — that ownership
-    //     decision isn't known until verification, so it waits until here.
-    //     Non-coverable rows were already ingested at byproduct-save time
-    //     (ByproductLogController.setRegistrationByproducts) — including them
-    //     here too would double-count.
-    const lines = await SettlementLineModel.findAll({
-      where: { settlementId: settlement.id },
-    });
+    // Feed the rare coverable-byproduct case into inventory as IN movements
+    // (idempotent) — canCoverSlaughterCost=true rows where the verifier set
+    // slaughterCoveredByByproduct=true (factory takes the byproduct instead
+    // of paying cash slaughter cost). Meat no longer ingests here — it's
+    // already in stock from verification (VerificationController.verify →
+    // InventoryController.ingestMeatFromVerifiedRegistration). Non-coverable
+    // byproducts were already ingested at byproduct-save time
+    // (ByproductLogController.setRegistrationByproducts) — including them
+    // here too would double-count.
     const byproducts = await ByproductLogModel.findAll({
       where: { registrationId },
     });
@@ -279,16 +314,6 @@ export class SettlementController {
       where: { registrationId },
     });
     const slaughterCovered = !!verification?.slaughterCoveredByByproduct;
-
-    const meatLines = lines
-      .filter((l) => Number(l.receivedWeightKg) > 0)
-      .map((l) => ({
-        productType: "MEAT" as const,
-        animalId: l.animalId ?? null,
-        byproductType: null,
-        byproductName: null,
-        quantityKg: Number(l.receivedWeightKg),
-      }));
 
     const byproductLines = byproducts
       .filter((b) => {
@@ -307,19 +332,22 @@ export class SettlementController {
         quantityKg: Number(b.totalWeightKg),
       }));
 
-    const dto: TRegistrationIngestDTO = {
-      registrationId,
-      settledAt: new Date(),
-      lines: [...meatLines, ...byproductLines],
-    };
-    await InventoryController.ingestFromSettledRegistration(dto);
+    if (byproductLines.length > 0) {
+      const dto: TRegistrationIngestDTO = {
+        registrationId,
+        settledAt: new Date(),
+        lines: byproductLines,
+      };
+      await InventoryController.ingestFromSettledRegistration(dto);
+    }
 
     return this._reload(settlement.id);
   }
 
   // Release the withheld portion once the medical number is approved. Pays the
-  // remaining held amount and fully settles. Inventory was already ingested at
-  // markSettlementPaid (idempotent), so nothing is added here.
+  // remaining held amount and fully settles. Meat inventory was already
+  // ingested at verification; any coverable-byproduct ingestion already
+  // happened at markSettlementPaid (idempotent) — nothing is added here.
   static async releaseSettlementHold(
     registrationId: string,
     context: TContext,
@@ -335,7 +363,7 @@ export class SettlementController {
       REGISTRATION_STATUS.PARTIALLY_SETTLED,
     ]);
     if (!reg.medicalNumberApproved)
-      throw new Error("Эмнэлгийн дугаар батлагдаагүй байна");
+      throw new Error("Мал эмнэлгийн дугаар батлагдаагүй байна");
 
     const settlement = await SettlementModel.findOne({
       where: { registrationId },

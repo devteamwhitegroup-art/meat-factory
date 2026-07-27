@@ -39,7 +39,16 @@ export function BreakdownPie({
             {emptyText}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          // recharts' ResponsiveContainer starts its internal size at
+          // {-1,-1} until the ResizeObserver's first callback lands, which
+          // trips its own "width/height should be > 0" console warning on
+          // every mount. initialDimension seeds a positive placeholder for
+          // that one frame; the real measured size replaces it immediately.
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 1, height: 1 }}
+          >
             <PieChart>
               <Pie
                 data={filtered}

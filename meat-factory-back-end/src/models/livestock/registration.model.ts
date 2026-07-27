@@ -6,6 +6,7 @@ import {
 import { HerderModel } from "./herder.model";
 import { RegistrationAnimalLineModel } from "./registration-animal-line.model";
 import { WeighingEntryModel } from "./weighing-entry.model";
+import { WeighingEntryAuditModel } from "./weighing-entry-audit.model";
 import { ByproductLogModel } from "./byproduct-log.model";
 import { VerificationModel } from "./verification.model";
 import { SettlementModel } from "./settlement.model";
@@ -48,6 +49,7 @@ export class RegistrationModel extends Model implements TRegistration {
   public guard?: AdminModel;
   public animalLines?: RegistrationAnimalLineModel[];
   public weighingEntries?: WeighingEntryModel[];
+  public weighingAuditLog?: WeighingEntryAuditModel[];
   public byproductLogs?: ByproductLogModel[];
   public verification?: VerificationModel;
   public settlement?: SettlementModel;
@@ -83,6 +85,10 @@ export class RegistrationModel extends Model implements TRegistration {
     });
     this.hasMany(WeighingEntryModel, {
       as: "weighingEntries",
+      foreignKey: { name: "registrationId", allowNull: false },
+    });
+    this.hasMany(WeighingEntryAuditModel, {
+      as: "weighingAuditLog",
       foreignKey: { name: "registrationId", allowNull: false },
     });
     this.hasMany(ByproductLogModel, {

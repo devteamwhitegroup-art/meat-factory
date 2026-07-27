@@ -441,10 +441,10 @@ function PayBlock({
   return (
     <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
       <div className="text-sm font-medium text-amber-800">
-        Эмнэлгийн дугаар батлагдаагүй
+        Мал эмнэлгийн дугаар батлагдаагүй
       </div>
       <p className="text-xs text-amber-700">
-        Эмнэлгийн дугаар батлагдах хүртэл тодорхой дүнг суутгаж, үлдсэнийг
+        Мал эмнэлгийн дугаар батлагдах хүртэл тодорхой дүнг суутгаж, үлдсэнийг
         төлнө. Суутгасан дүн нь дугаар батлагдсаны дараа олгогдоно.
       </p>
       <div className="space-y-1.5">
@@ -504,7 +504,7 @@ function ReleaseBlock({
       </div>
       {!medicalApproved ? (
         <p className="text-xs text-amber-700">
-          Суутгасан дүнг олгохын тулд эхлээд эмнэлгийн дугаарыг батлах
+          Суутгасан дүнг олгохын тулд эхлээд Мал эмнэлгийн дугаарыг батлах
           шаардлагатай.
         </p>
       ) : null}
@@ -537,18 +537,18 @@ function MedicalApprovalBlock({
 
   return (
     <div className="space-y-2 rounded-md border border-dashed p-3">
-      <div className="text-sm font-medium">Эмнэлгийн дугаар</div>
+      <div className="text-sm font-medium">Мал эмнэлгийн дугаар</div>
       {hasNumber ? (
         <div className="text-sm">
           Дугаар: <span className="font-mono">{medicalNumber}</span>
         </div>
       ) : (
         <div className="space-y-1.5">
-          <Label className="text-xs">Эмнэлгийн дугаар оруулах</Label>
+          <Label className="text-xs">Мал эмнэлгийн дугаар оруулах</Label>
           <Input
             value={num}
             onChange={(e) => setNum(e.target.value)}
-            placeholder="Эмнэлгийн дугаар"
+            placeholder="Мал эмнэлгийн дугаар"
             className="h-10"
           />
         </div>
@@ -559,7 +559,7 @@ function MedicalApprovalBlock({
         disabled={busy || !canSubmit}
         className="w-full"
       >
-        {busy ? "..." : "Эмнэлгийн дугаар батлах"}
+        {busy ? "..." : "Мал эмнэлгийн дугаар батлах"}
       </Button>
     </div>
   );

@@ -26,6 +26,11 @@ export const CAPS = {
     "ADMIN",
     "SUPER_ADMIN",
   ],
+  // Fixing a weighing entry once the registration is past REGISTERED —
+  // matches WeighingController._assertWeighingEditable's privileged set for
+  // that window (WEIGHED/VERIFIED/PAYMENT_PENDING). Narrower than `weigh`
+  // (open floor, REGISTERED only) — shown as a distinct "fix" nav button.
+  weighFix: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   byproduct: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"],
   verify: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
   medicalNumber: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
@@ -35,6 +40,10 @@ export const CAPS = {
   settleView: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"],
   cancelRegistration: ["MANAGER", "SUPER_ADMIN"],
   herders: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"],
+  // Inline edit of "Малчны мэдээлэл" on the registration detail page —
+  // narrower than `herders` (the standalone /herders CRUD page) by request:
+  // just admin + storekeeper ("нярав" = store manager), not manager/guard.
+  herderEdit: ["ADMIN", "SUPER_ADMIN", "STOREKEEPER"],
   herderAddresses: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   customers: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   sales: ["MANAGER", "ADMIN", "SUPER_ADMIN"],

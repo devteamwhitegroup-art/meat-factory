@@ -48,6 +48,7 @@ export function NewShipmentForm({
   const [vehiclePlate, setVehiclePlate] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
+  const [sealNumber, setSealNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -68,6 +69,7 @@ export function NewShipmentForm({
           vehiclePlate: vehiclePlate.trim() || null,
           driverName: driverName.trim() || null,
           driverPhone: driverPhone.trim() || null,
+          sealNumber: sealNumber.trim() || null,
           notes: notes.trim() || null,
           photoFileId: photoFileId ?? null,
         },
@@ -148,7 +150,7 @@ export function NewShipmentForm({
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Машины дугаар</Label>
             <Input
@@ -158,22 +160,35 @@ export function NewShipmentForm({
               className="h-11"
             />
           </div>
+          {!isDomestic ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Жолоочийн нэр</Label>
+                <Input
+                  value={driverName}
+                  onChange={(e) => setDriverName(e.target.value)}
+                  placeholder="Овог нэр"
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Жолоочийн утас</Label>
+                <Input
+                  inputMode="tel"
+                  value={driverPhone}
+                  onChange={(e) => setDriverPhone(e.target.value)}
+                  placeholder="ж: 9911 2233"
+                  className="h-11"
+                />
+              </div>
+            </>
+          ) : null}
           <div className="space-y-1.5">
-            <Label>Жолоочийн нэр</Label>
+            <Label>Лацны дугаар</Label>
             <Input
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              placeholder="Овог нэр"
-              className="h-11"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Жолоочийн утас</Label>
-            <Input
-              inputMode="tel"
-              value={driverPhone}
-              onChange={(e) => setDriverPhone(e.target.value)}
-              placeholder="ж: 9911 2233"
+              value={sealNumber}
+              onChange={(e) => setSealNumber(e.target.value)}
+              placeholder="Үйлдвэрийн лацны дугаар"
               className="h-11"
             />
           </div>

@@ -300,7 +300,7 @@ export function SettlementClient({ id }: { id: string }) {
             variables: { registrationId: id, medicalNumber },
           })
         ).data?.approveMedicalNumber,
-      { success: "Эмнэлгийн дугаар батлагдлаа", onSuccess: refetch },
+      { success: "Мал эмнэлгийн дугаар батлагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }

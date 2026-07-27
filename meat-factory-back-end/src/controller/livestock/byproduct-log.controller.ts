@@ -45,9 +45,14 @@ export class ByproductLogController {
     items: TByproductItemInput[],
     context: TContext,
   ): Promise<ByproductLogModel[]> {
+    // Same privileged set as weighing-entry edits (WeighingController.
+    // _assertWeighingEditable) — ADMIN was missing here even though it can
+    // fix weighing entries, which looked like an oversight rather than a
+    // deliberate restriction.
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
       ADMIN_ROLE.MANAGER,
+      ADMIN_ROLE.ADMIN,
       ADMIN_ROLE.SUPER_ADMIN,
     ]);
 

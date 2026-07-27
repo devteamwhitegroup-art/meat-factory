@@ -23,6 +23,7 @@ import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { can } from "@/lib/auth/roles";
 import { MedicalNumberEditor } from "./_components/MedicalNumberEditor";
+import { HerderInfoCard } from "./_components/HerderInfoCard";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -73,6 +74,17 @@ export default async function RegistrationDetailPage({ params }: Props) {
               Хэмжүүр
             </Link>
           )}
+          {(status === "WEIGHED" ||
+            status === "VERIFIED" ||
+            status === "PAYMENT_PENDING") &&
+            can(role, "weighFix") && (
+              <Link
+                href={`/registrations/${r.id}/weigh`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Жин засах
+              </Link>
+            )}
           {status === "VERIFIED" && can(role, "byproduct") && (
             <Link
               href={`/registrations/${r.id}/byproduct`}
@@ -109,35 +121,24 @@ export default async function RegistrationDetailPage({ params }: Props) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Малчны мэдээлэл</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 text-sm">
-            <div className="text-muted-foreground">Нэр</div>
-            <div>{r.herder?.name ?? "—"}</div>
-            <div className="text-muted-foreground">Регистрийн дугаар</div>
-            <div>{r.herder?.registrationNo ?? "—"}</div>
-            <div className="text-muted-foreground">Утас</div>
-            <div>{r.herder?.phone ?? "—"}</div>
-            <div className="text-muted-foreground">Дансны дугаар</div>
-            <div>{r.herder?.bankAccount ?? "—"}</div>
-            {r.herder?.bankName ? (
-              <>
-                <div className="text-muted-foreground">Банкны нэр</div>
-                <div>{r.herder.bankName}</div>
-              </>
-            ) : null}
-            {r.herder?.accountHolderName ? (
-              <>
-                <div className="text-muted-foreground">Эзэмшигчийн нэр</div>
-                <div>{r.herder.accountHolderName}</div>
-              </>
-            ) : null}
-            <div className="text-muted-foreground">Хаяг</div>
-            <div>{r.herder?.address ?? "—"}</div>
-          </CardContent>
-        </Card>
+        <HerderInfoCard
+          herder={
+            r.herder?.id
+              ? {
+                  id: r.herder.id,
+                  name: r.herder.name,
+                  registrationNo: r.herder.registrationNo,
+                  phone: r.herder.phone,
+                  bankAccount: r.herder.bankAccount,
+                  bankName: r.herder.bankName,
+                  accountHolderName: r.herder.accountHolderName,
+                  addressId: r.herder.addressId,
+                  address: r.herder.address,
+                }
+              : null
+          }
+          canEdit={can(role, "herderEdit")}
+        />
 
         <Card>
           <CardHeader>
@@ -148,7 +149,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
             <div>{r.vehicleNumber ?? "—"}</div>
             <div className="text-muted-foreground">Тамга</div>
             <div>{r.stamp ?? "—"}</div>
-            <div className="text-muted-foreground">Эмнэлгийн дугаар</div>
+            <div className="text-muted-foreground">Мал эмнэлгийн дугаар</div>
             <div className="flex items-center gap-2">
               <span>{r.medicalNumber ?? "—"}</span>
               <Badge

@@ -36,6 +36,7 @@ export class ShipmentModel extends Model implements TShipment {
   // at create. Resets daily, so unique only together with the date — global
   // uniqueness is carried by shipmentCode. Not user-editable.
   public serialNumber!: number;
+  public sealNumber!: string | null;
   public notes!: string | null;
   public photoFileId!: string | null;
   public createdAt!: Date;
@@ -148,6 +149,11 @@ export const createShipmentModel = (sequelize: Sequelize) => {
       serialNumber: {
         type: DataTypes.INTEGER,
         allowNull: false,
+      },
+      sealNumber: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
       },
       notes: {
         type: DataTypes.TEXT,

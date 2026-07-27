@@ -14,7 +14,11 @@ import { NumericKeypad } from "@/components/forms/NumericKeypad";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { formatNumber } from "@/lib/format/money";
+import {
+  formatDecimalInput,
+  formatNumber,
+  sanitizeDecimalInput,
+} from "@/lib/format/money";
 import {
   AddWeighingEntryDoc,
   DeleteWeighingEntryDoc,
@@ -27,6 +31,7 @@ import { compact } from "@/lib/compact";
 import { WeighEntryDialog } from "./_components/WeighEntryDialog";
 import { WeighingHistoryList } from "./_components/WeighingHistoryList";
 import { SlaughterCostEditor } from "./_components/SlaughterCostEditor";
+import { WeighingAuditLog } from "./_components/WeighingAuditLog";
 
 function readRole(): string | null {
   if (typeof document === "undefined") return null;
@@ -34,11 +39,19 @@ function readRole(): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-// Mirrors the back-end rule: while weighing is in progress (REGISTERED) the
-// scale operator may edit; once "fully uploaded" (WEIGHED / VERIFIED /
-// PAYMENT_PENDING) only manager/admin may; after SETTLED/CANCELLED nobody may.
+// Mirrors the back-end rule (WeighingController._assertWeighingEditable):
+// while weighing is in progress (REGISTERED) the scale operator may
+// add/edit/remove; once "fully uploaded" (WEIGHED / VERIFIED /
+// PAYMENT_PENDING — a Settlement may already exist, just not paid yet) only
+// manager/admin may, and it's logged; once money has actually moved
+// (SETTLED / PARTIALLY_SETTLED) or the registration is CANCELLED, nobody may.
 function canEditEntries(status: string, role: string | null): boolean {
-  if (status === "SETTLED" || status === "CANCELLED") return false;
+  if (
+    status === "SETTLED" ||
+    status === "PARTIALLY_SETTLED" ||
+    status === "CANCELLED"
+  )
+    return false;
   const privileged =
     role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
   if (
@@ -246,18 +259,28 @@ export function WeighClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        {/* Finish only makes sense while still in REGISTERED with at least
-            one entry recorded — afterwards the status is WEIGHED or beyond. */}
-        <Button
-          onClick={finish}
-          disabled={
-            busy ||
-            reg.status !== "REGISTERED" ||
-            compact(reg.weighingEntries).length === 0
-          }
-        >
-          Жинг бүртгэж дуусгах
-        </Button>
+        {/* Finish (the REGISTERED → WEIGHED transition) only makes sense
+            while still REGISTERED. Afterwards the registration is already
+            WEIGHED or beyond — this page is also reachable then, via "Жин
+            засах" on the registration page, to fix a mistake — so there's
+            no status left to move to. Swap in a plain "Done" nav (no
+            mutation) so there's always an obvious button to click, without
+            risking the invalid-transition error finish() would throw. */}
+        {reg.status === "REGISTERED" ? (
+          <Button
+            onClick={finish}
+            disabled={busy || compact(reg.weighingEntries).length === 0}
+          >
+            Жинг бүртгэж дуусгах
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/registrations/${id}`)}
+          >
+            Дуусгах
+          </Button>
+        )}
       </div>
 
       <Tabs
@@ -286,20 +309,21 @@ export function WeighClient({ id }: { id: string }) {
                     value={keypad}
                     onChange={setKeypad}
                     onSubmit={submitWeight}
-                    disabled={busy || reg.status !== "REGISTERED"}
+                    disabled={busy || !editable}
                   />
                   <div className="mt-3 space-y-1.5">
                     <label className="text-sm font-medium">
                       Үнэ / кг (₮, хэлэлцсэн)
                     </label>
                     <Input
-                      type="number"
                       inputMode="decimal"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="ж: 30000"
+                      value={formatDecimalInput(price)}
+                      onChange={(e) =>
+                        setPrice(sanitizeDecimalInput(e.target.value))
+                      }
+                      placeholder="ж: 30,000"
                       className="h-12 text-lg"
-                      disabled={busy || reg.status !== "REGISTERED"}
+                      disabled={busy || !editable}
                     />
                   </div>
                   <div className="mt-4">
@@ -348,6 +372,23 @@ export function WeighClient({ id }: { id: string }) {
             l.slaughterCost != null ? Number(l.slaughterCost) : null,
         }))}
         onChanged={refetch}
+      />
+
+      <WeighingAuditLog
+        rows={compact(reg.weighingAuditLog).map((a) => ({
+          id: a.id!,
+          action: a.action ?? null,
+          weightKgBefore:
+            a.weightKgBefore != null ? Number(a.weightKgBefore) : null,
+          weightKgAfter:
+            a.weightKgAfter != null ? Number(a.weightKgAfter) : null,
+          pricePerKgBefore:
+            a.pricePerKgBefore != null ? Number(a.pricePerKgBefore) : null,
+          pricePerKgAfter:
+            a.pricePerKgAfter != null ? Number(a.pricePerKgAfter) : null,
+          createdAt: a.createdAt as string | null,
+          actor: a.actor?.param ?? null,
+        }))}
       />
 
       <WeighEntryDialog

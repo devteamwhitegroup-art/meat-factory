@@ -122,6 +122,9 @@ export default `#graphql
         # Auto-incremented loading serial (assigned at create, like the
         # registration number).
         serialNumber: Int
+        # The factory's own physical seal/lock number applied to the truck —
+        # free text, staff-entered. Unrelated to shipmentCode/serialNumber.
+        sealNumber: String
         notes: String
         photoFileId: ID
         photo: File
@@ -180,6 +183,8 @@ export default `#graphql
             vehiclePlate: String
             driverName: String
             driverPhone: String
+            # The factory's own physical seal/lock number, if already known.
+            sealNumber: String
             notes: String
             photoFileId: ID
         ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
@@ -217,13 +222,14 @@ export default `#graphql
 
         deleteCargoEntry(id: ID!): Response @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
-        # Unified loading-info update (driver, serial, vehicle plate).
+        # Unified loading-info update (driver, vehicle plate, seal number).
         # Pass only the fields you want to change — null clears.
         updateShipmentLoadingInfo(
             id: ID!
             vehiclePlate: String
             driverName: String
             driverPhone: String
+            sealNumber: String
         ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
 
         addShipmentPhoto(

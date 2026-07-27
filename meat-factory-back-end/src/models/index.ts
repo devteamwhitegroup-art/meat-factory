@@ -25,6 +25,10 @@ import {
   WeighingEntryModel,
 } from "./livestock/weighing-entry.model";
 import {
+  createWeighingEntryAuditModel,
+  WeighingEntryAuditModel,
+} from "./livestock/weighing-entry-audit.model";
+import {
   createByproductLogModel,
   ByproductLogModel,
 } from "./livestock/byproduct-log.model";
@@ -121,6 +125,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createRegistrationModel(sequelize);
   createRegistrationAnimalLineModel(sequelize);
   createWeighingEntryModel(sequelize);
+  createWeighingEntryAuditModel(sequelize);
   createByproductLogModel(sequelize);
   createVerificationModel(sequelize);
   createSettlementModel(sequelize);
@@ -167,6 +172,7 @@ export const setupModel = (sequelize: Sequelize) => {
   RegistrationModel.associate();
   RegistrationAnimalLineModel.associate();
   WeighingEntryModel.associate();
+  WeighingEntryAuditModel.associate();
   ByproductLogModel.associate();
   VerificationModel.associate();
   SettlementModel.associate();

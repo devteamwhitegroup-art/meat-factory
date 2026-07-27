@@ -84,6 +84,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           bankAccount
           bankName
           accountHolderName
+          addressId
           address
         }
         guard {
@@ -110,6 +111,20 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           photo {
             id
             url
+          }
+        }
+        weighingAuditLog {
+          id
+          weighingEntryId
+          action
+          weightKgBefore
+          weightKgAfter
+          pricePerKgBefore
+          pricePerKgAfter
+          createdAt
+          actor {
+            id
+            param
           }
         }
         byproductLogs {

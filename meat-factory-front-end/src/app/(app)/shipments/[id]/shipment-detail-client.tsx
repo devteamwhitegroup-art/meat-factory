@@ -101,7 +101,7 @@ export function ShipmentDetailClient({ id }: { id: string }) {
             href={category ? `/shipments/${category.toLowerCase()}` : undefined}
           />
           <div>
-            <div className="text-sm text-muted-foreground">Ачилтын код</div>
+            <div className="text-sm text-muted-foreground">Ачилтын дугаар</div>
             <h1 className="font-mono text-2xl font-semibold">
               {s.shipmentCode}
             </h1>
@@ -223,9 +223,11 @@ export function ShipmentDetailClient({ id }: { id: string }) {
       <LoadingInfoEditor
         shipmentId={id}
         editable={editable}
+        showDriverFields={category !== "DOMESTIC"}
         vehiclePlate={s.vehiclePlate ?? null}
         driverName={s.driverName ?? null}
         driverPhone={s.driverPhone ?? null}
+        sealNumber={s.sealNumber ?? null}
         onChanged={refetch}
       />
 

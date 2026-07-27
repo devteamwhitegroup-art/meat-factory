@@ -42,6 +42,10 @@ export type TShipment = {
   // Auto-incremented loading serial (assigned at create, like the
   // registration number). Not user-editable.
   serialNumber: number;
+  // The factory's own physical seal/lock number applied to the truck —
+  // free text, staff-entered (mirrors Registration.stamp). Unrelated to
+  // shipmentCode/serialNumber, which stay system-generated.
+  sealNumber: string | null;
   notes: string | null;
   photoFileId: string | null;
   createdAt: Date;
@@ -60,6 +64,7 @@ export type TCreateShipment = {
   vehiclePlate?: string | null;
   driverName?: string | null;
   driverPhone?: string | null;
+  sealNumber?: string | null;
   notes?: string | null;
   photoFileId?: string | null;
 };

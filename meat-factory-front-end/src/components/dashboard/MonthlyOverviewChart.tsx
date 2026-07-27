@@ -75,7 +75,12 @@ export function MonthlyOverviewChart({
             Өгөгдөл алга
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          // See BreakdownPie.tsx for why initialDimension is set here.
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 1, height: 1 }}
+          >
             <ComposedChart data={chartData}>
               <CartesianGrid
                 strokeDasharray="3 3"

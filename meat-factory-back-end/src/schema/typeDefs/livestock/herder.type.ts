@@ -63,7 +63,7 @@ export default `#graphql
             accountHolderName: String
             addressId: ID
             address: String
-        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
+        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD", "STOREKEEPER"])
 
         deleteHerder(
             id: ID!

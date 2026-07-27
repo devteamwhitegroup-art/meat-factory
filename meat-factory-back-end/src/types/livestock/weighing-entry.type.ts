@@ -31,3 +31,24 @@ export type TUpdateWeighingEntry = {
   animalType?: string;
   photoFileId?: string | null;
 };
+
+export enum WEIGHING_AUDIT_ACTION {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE'
+}
+
+// One row per add/edit/remove on a WeighingEntry — see WeighingEntryAuditModel.
+export type TWeighingEntryAudit = {
+  id: string;
+  registrationId: string;
+  weighingEntryId: string;
+  action: WEIGHING_AUDIT_ACTION;
+  actorId: string;
+  weightKgBefore: number | null;
+  weightKgAfter: number | null;
+  pricePerKgBefore: number | null;
+  pricePerKgAfter: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};

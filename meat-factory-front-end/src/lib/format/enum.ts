@@ -66,6 +66,7 @@ export const MOVEMENT_TYPE_MN: Record<string, string> = {
 };
 
 export const MOVEMENT_SOURCE_MN: Record<string, string> = {
+  VERIFICATION: "Баталгаажуулалт",
   SETTLEMENT: "Тооцоо",
   BYPRODUCT: "Дайвар хадгалалт",
   SHIPMENT: "Ачилт",
@@ -75,4 +76,10 @@ export const MOVEMENT_SOURCE_MN: Record<string, string> = {
 export const PRODUCT_TYPE_MN: Record<string, string> = {
   MEAT: "Мах",
   BYPRODUCT: "Дайвар",
+};
+
+export const WEIGHING_AUDIT_ACTION_MN: Record<string, string> = {
+  CREATE: "Нэмсэн",
+  UPDATE: "Засварласан",
+  DELETE: "Устгасан",
 };

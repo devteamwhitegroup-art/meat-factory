@@ -93,16 +93,19 @@ export default {
         vehiclePlate,
         driverName,
         driverPhone,
+        sealNumber,
       }: {
         id: string;
         vehiclePlate?: string | null;
         driverName?: string | null;
         driverPhone?: string | null;
+        sealNumber?: string | null;
       }) =>
         ShipmentController.updateLoadingInfo(id, {
           vehiclePlate,
           driverName,
           driverPhone,
+          sealNumber,
         }),
       "Ачилтын мэдээлэл хадгалагдлаа",
     ),

@@ -36,7 +36,7 @@ export function MedicalNumberEditor({
           })
         ).data?.approveMedicalNumber,
       {
-        success: "Эмнэлгийн дугаар батлагдлаа",
+        success: "Мал эмнэлгийн дугаар батлагдлаа",
         onSuccess: () => router.refresh(),
       },
     );
@@ -45,7 +45,7 @@ export function MedicalNumberEditor({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Эмнэлгийн дугаар</CardTitle>
+        <CardTitle>Мал эмнэлгийн дугаар</CardTitle>
         <Badge
           className={
             approved
@@ -58,11 +58,10 @@ export function MedicalNumberEditor({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Дугаар</Label>
           <Input
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Эмнэлгийн дугаар"
+            placeholder="Мал эмнэлгийн дугаар"
             className="h-11 max-w-xs"
           />
         </div>

@@ -62,6 +62,7 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
         driverName
         driverPhone
         serialNumber
+        sealNumber
         photo {
           id
           url
@@ -195,12 +196,14 @@ export const UpdateShipmentLoadingInfoDoc = graphql(/* GraphQL */ `
     $vehiclePlate: String
     $driverName: String
     $driverPhone: String
+    $sealNumber: String
   ) {
     updateShipmentLoadingInfo(
       id: $id
       vehiclePlate: $vehiclePlate
       driverName: $driverName
       driverPhone: $driverPhone
+      sealNumber: $sealNumber
     ) {
       success
       message
@@ -209,6 +212,7 @@ export const UpdateShipmentLoadingInfoDoc = graphql(/* GraphQL */ `
         vehiclePlate
         driverName
         driverPhone
+        sealNumber
       }
     }
   }
@@ -249,6 +253,7 @@ export const CreateShipmentDoc = graphql(/* GraphQL */ `
     $vehiclePlate: String
     $driverName: String
     $driverPhone: String
+    $sealNumber: String
     $notes: String
     $photoFileId: ID
   ) {
@@ -259,6 +264,7 @@ export const CreateShipmentDoc = graphql(/* GraphQL */ `
       vehiclePlate: $vehiclePlate
       driverName: $driverName
       driverPhone: $driverPhone
+      sealNumber: $sealNumber
       notes: $notes
       photoFileId: $photoFileId
     ) {

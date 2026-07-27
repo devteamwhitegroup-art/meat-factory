@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatDecimalInput, sanitizeDecimalInput } from "@/lib/format/money";
 
 // Edit one weighing entry's weight + negotiated ₮/kg. Fully controlled by the
 // parent (which owns validation + the save mutation); this is just the modal.
@@ -56,10 +57,11 @@ export function WeighEntryDialog({
               Үнэ / кг (₮)
             </label>
             <Input
-              type="number"
               inputMode="decimal"
-              value={price}
-              onChange={(e) => onPriceChange(e.target.value)}
+              value={formatDecimalInput(price)}
+              onChange={(e) =>
+                onPriceChange(sanitizeDecimalInput(e.target.value))
+              }
               className="h-12 text-lg"
             />
           </div>

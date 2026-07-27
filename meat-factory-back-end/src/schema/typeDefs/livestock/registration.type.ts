@@ -1,9 +1,14 @@
 import { REGISTRATION_STATUS } from "../../../types/livestock/registration.type";
+import { WEIGHING_AUDIT_ACTION } from "../../../types/livestock/weighing-entry.type";
 import { PaginationSchema } from "../global/global.type";
 
 export default `#graphql
     enum REGISTRATION_STATUS {
         ${Object.values(REGISTRATION_STATUS).join("\n ")}
+    }
+
+    enum WEIGHING_AUDIT_ACTION {
+        ${Object.values(WEIGHING_AUDIT_ACTION).join("\n ")}
     }
 
     type RegistrationAnimalLine {
@@ -37,6 +42,22 @@ export default `#graphql
         photo: File
         createdAt: Date
         updatedAt: Date
+    }
+
+    # Append-only log of add/edit/remove on a WeighingEntry — see
+    # WeighingEntryAuditModel for why this exists (mistake-fix accountability).
+    type WeighingEntryAudit {
+        id: ID
+        registrationId: ID
+        weighingEntryId: ID
+        action: WEIGHING_AUDIT_ACTION
+        actorId: ID
+        actor: Admin
+        weightKgBefore: Float
+        weightKgAfter: Float
+        pricePerKgBefore: Float
+        pricePerKgAfter: Float
+        createdAt: Date
     }
 
     type ByproductLog {
@@ -128,6 +149,7 @@ export default `#graphql
     type Settlement {
         id: ID
         registrationId: ID
+        registration: Registration
         totalMeatAmount: Float
         totalByproductAmount: Float
         totalSlaughterCost: Float
@@ -213,6 +235,7 @@ export default `#graphql
         isPreButchered: Boolean
         animalLines: [RegistrationAnimalLine]
         weighingEntries: [WeighingEntry]
+        weighingAuditLog: [WeighingEntryAudit]
         byproductLogs: [ByproductLog]
         verification: Verification
         settlement: Settlement
@@ -251,6 +274,13 @@ export default `#graphql
         settlement: Settlement
     }
 
+    type SettlementsResponse {
+        success: Boolean
+        message: String
+        settlements: [Settlement]
+        count: Int
+    }
+
     input RegistrationAnimalLineInput {
         animalType: String!
         count: Int!
@@ -280,6 +310,13 @@ export default `#graphql
         registration(id: ID!): RegistrationResponse @authLogin
         derivedByproducts(registrationId: ID!): DerivedByproductsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
         byproductHandoff(dateRange: DateRangeInput): ByproductHandoffResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
+        # Herder-side payout list — the "Малчид" tab on /sales.
+        settlements(
+            isPaid: Boolean
+            herderId: ID
+            dateRange: DateRangeInput
+            ${PaginationSchema}
+        ): SettlementsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
     }
 
     extend type Mutation {
@@ -326,7 +363,7 @@ export default `#graphql
         setRegistrationByproducts(
             registrationId: ID!
             items: [ByproductItemInput!]!
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
 
         verifyRegistration(
             registrationId: ID!

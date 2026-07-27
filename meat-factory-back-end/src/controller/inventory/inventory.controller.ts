@@ -184,7 +184,74 @@ export class InventoryController {
     });
   }
 
-  // Called by livestock when a registration's settlement is paid.
+  // Called by VerificationController.verify() — meat is physically
+  // slaughtered, weighed, and verified at this point, so it counts as
+  // factory stock now, independent of when (or whether yet) the herder is
+  // actually paid — settlement/payment can lag well behind. Runs in the
+  // caller's transaction, same pattern as ShipmentController.updateStatus +
+  // InventoryController.applyShipmentOut. Idempotent per registration via
+  // MOVEMENT_SOURCE.VERIFICATION.
+  static async ingestMeatFromVerifiedRegistration(
+    registrationId: string,
+    lines: { animalId: string; quantityKg: number }[],
+    t: Transaction,
+  ): Promise<void> {
+    const already = await InventoryMovementModel.findOne({
+      where: {
+        source: MOVEMENT_SOURCE.VERIFICATION,
+        sourceRegistrationId: registrationId,
+      },
+      transaction: t,
+    });
+    if (already) return; // idempotent
+
+    const animalIds = Array.from(new Set(lines.map((l) => l.animalId)));
+    const yieldById: Record<string, number> = {};
+    if (animalIds.length > 0) {
+      const rows = await AnimalModel.findAll({
+        where: { id: { [Op.in]: animalIds } },
+        transaction: t,
+      });
+      for (const r of rows) yieldById[r.id] = Number(r.yieldPercent);
+    }
+
+    for (const l of lines) {
+      if (!l.quantityKg || l.quantityKg <= 0) continue;
+      // Yield haircut — Animal.yieldPercent (default 100) so horse (70%)
+      // stocks bone-out kg, not carcass kg.
+      const yieldPct = yieldById[l.animalId] ?? 100;
+      const adjustedQty =
+        yieldPct === 100
+          ? l.quantityKg
+          : Number(((l.quantityKg * yieldPct) / 100).toFixed(2));
+      const yieldNote =
+        yieldPct !== 100
+          ? ` (yield ${yieldPct}% from ${l.quantityKg} carcass kg)`
+          : "";
+      await this._applyMovement(
+        {
+          movementType: MOVEMENT_TYPE.IN,
+          source: MOVEMENT_SOURCE.VERIFICATION,
+          line: {
+            productType: PRODUCT_TYPE.MEAT,
+            animalId: l.animalId,
+            byproductName: null,
+            quantityKg: adjustedQty,
+          },
+          sourceRegistrationId: registrationId,
+          notes: `Verification ingest for registration ${registrationId}${yieldNote}`,
+        },
+        t,
+      );
+    }
+  }
+
+  // Called by livestock when a registration's settlement is first paid —
+  // ingests ONLY the rare coverable-byproduct case now (meat moved to
+  // ingestMeatFromVerifiedRegistration above, fired at verification instead;
+  // non-coverable byproducts already ingest at byproduct-save time via
+  // MOVEMENT_SOURCE.BYPRODUCT). Kept generic by product type even though in
+  // practice only BYPRODUCT lines reach it today.
   static async ingestFromSettledRegistration(
     payload: TRegistrationIngestDTO,
   ): Promise<void> {

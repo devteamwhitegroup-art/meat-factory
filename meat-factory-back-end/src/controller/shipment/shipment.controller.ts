@@ -105,6 +105,7 @@ export class ShipmentController {
           vehiclePlate: doc.vehiclePlate?.trim() || null,
           driverName: doc.driverName?.trim() || null,
           driverPhone: doc.driverPhone?.trim() || null,
+          sealNumber: doc.sealNumber?.trim() || null,
           notes: doc.notes ?? null,
           photoFileId: doc.photoFileId ?? null,
         });
@@ -340,15 +341,16 @@ export class ShipmentController {
     });
   }
 
-  // Loading info: driver name/phone, vehicle plate. Editable only while PENDING
-  // — fill these before marking the shipment LOADED. (serialNumber is
-  // auto-assigned, not editable here.)
+  // Loading info: driver name/phone, vehicle plate, factory seal number.
+  // Editable only while PENDING — fill these before marking the shipment
+  // LOADED. (serialNumber is auto-assigned, not editable here.)
   static async updateLoadingInfo(
     id: string,
     args: {
       vehiclePlate?: string | null;
       driverName?: string | null;
       driverPhone?: string | null;
+      sealNumber?: string | null;
     },
   ): Promise<ShipmentModel> {
     const s = await this.findIdCheck(id);
@@ -359,6 +361,8 @@ export class ShipmentController {
       s.driverName = args.driverName?.trim() || null;
     if (args.driverPhone !== undefined)
       s.driverPhone = args.driverPhone?.trim() || null;
+    if (args.sealNumber !== undefined)
+      s.sealNumber = args.sealNumber?.trim() || null;
     await s.save();
     return s;
   }

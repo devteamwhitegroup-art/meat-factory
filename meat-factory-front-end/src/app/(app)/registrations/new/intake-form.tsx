@@ -160,7 +160,7 @@ export function IntakeForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardContent className="space-y-6 p-6">
-            {/* Машины дугаар + Эмнэлгийн дугаар. The registration code is
+            {/* Машины дугаар + Мал эмнэлгийн дугаар. The registration code is
                 assigned by the server on create. */}
             <div className="grid items-start gap-6 sm:grid-cols-2">
               <FormField
@@ -186,7 +186,7 @@ export function IntakeForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base">
-                      Эмнэлгийн дугаар (заавал биш)
+                      Мал эмнэлгийн дугаар (заавал биш)
                     </FormLabel>
                     <FormControl>
                       <Input

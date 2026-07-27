@@ -19,7 +19,10 @@ import {
 } from "../../../types/livestock/weighing-entry.type";
 import { TByproductItemInput } from "../../../types/livestock/byproduct-log.type";
 import { TVerifyInput } from "../../../types/livestock/verification.type";
-import { TCreateSettlement } from "../../../types/livestock/settlement.type";
+import {
+  TCreateSettlement,
+  TGetSettlements,
+} from "../../../types/livestock/settlement.type";
 import { TDateRange } from "../../../types/global/global.type";
 import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
@@ -69,6 +72,9 @@ export default {
       "items",
       ({ dateRange }: { dateRange?: TDateRange }) =>
         ByproductLogController.byproductHandoff(dateRange),
+    ),
+    settlements: wrapList("settlements", (doc: TGetSettlements) =>
+      SettlementController.list(doc),
     ),
   },
   Mutation: {

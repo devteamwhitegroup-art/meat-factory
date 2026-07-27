@@ -7,6 +7,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
+import { REGISTRATION_STATUS_MN } from "@/lib/format/enum";
 
 type Props = {
   searchParams: Promise<{
@@ -17,29 +18,21 @@ type Props = {
   }>;
 };
 
-// Stage chips: each maps to a SET of statuses that the BE filters as
-// `status IN (…)`. Order = pipeline order so the chips read left-to-right.
+// One chip per REGISTRATION_STATUS value (plus "Бүгд") — every status is
+// individually filterable. Derived from REGISTRATION_STATUS_MN (single
+// source of truth for the Mongolian labels) so a future status shows up
+// here automatically.
 const STAGES: Array<{
   value: string;
   label: string;
   statuses: string[];
 }> = [
   { value: "", label: "Бүгд", statuses: [] },
-  { value: "registered", label: "Бүртгэгдсэн", statuses: ["REGISTERED"] },
-  {
-    value: "in_process",
-    // Weighing → verification stage: amount being finalised.
-    label: "Дүн тооцоолж буй",
-    statuses: ["WEIGHED", "VERIFIED"],
-  },
-  {
-    value: "payment_pending",
-    // PARTIALLY_SETTLED still needs action (the withheld amount must be
-    // released after medical approval), so it belongs in this queue.
-    label: "Төлбөр хүлээгдэж буй",
-    statuses: ["PAYMENT_PENDING", "PARTIALLY_SETTLED"],
-  },
-  { value: "paid", label: "Төлбөр хийгдсэн", statuses: ["SETTLED"] },
+  ...Object.entries(REGISTRATION_STATUS_MN).map(([status, label]) => ({
+    value: status.toLowerCase(),
+    label,
+    statuses: [status],
+  })),
 ];
 
 export default async function RegistrationsPage({ searchParams }: Props) {

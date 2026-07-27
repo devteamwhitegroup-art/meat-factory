@@ -7,6 +7,7 @@ import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
+import { WeighingEntryAuditModel } from "../../models/livestock/weighing-entry-audit.model";
 import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
@@ -60,6 +61,11 @@ const REGISTRATION_FULL_INCLUDE = [
       { model: AdminModel, as: "scaleOperator" },
       { model: FileModel, as: "photo" },
     ],
+  },
+  {
+    model: WeighingEntryAuditModel,
+    as: "weighingAuditLog",
+    include: [{ model: AdminModel, as: "actor" }],
   },
   {
     model: ByproductLogModel,
@@ -327,7 +333,7 @@ export class RegistrationController {
         ? medicalNumber.trim()
         : reg.medicalNumber;
     if (!number)
-      throw new Error("Эмнэлгийн дугаар оруулаагүй тул батлах боломжгүй");
+      throw new Error("Мал эмнэлгийн дугаар оруулаагүй тул батлах боломжгүй");
 
     await reg.update({ medicalNumber: number, medicalNumberApproved: true });
     return this.getById(registrationId);

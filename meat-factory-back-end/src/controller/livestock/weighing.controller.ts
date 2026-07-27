@@ -1,7 +1,9 @@
+import { Transaction } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
+import { WeighingEntryAuditModel } from "../../models/livestock/weighing-entry-audit.model";
 import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { RegistrationController } from "./registration.controller";
@@ -9,6 +11,7 @@ import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
+  WEIGHING_AUDIT_ACTION,
 } from "../../types/livestock/weighing-entry.type";
 import { TContext } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
@@ -20,17 +23,6 @@ export class WeighingController {
     doc: TCreateWeighingEntry,
     context: TContext,
   ): Promise<WeighingEntryModel> {
-    // Anyone on the floor except the gate guard may weigh — cover for SCALE
-    // shifts where the named operator isn't around.
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.SCALE,
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MODERATOR,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
-    ]);
-
     const { registrationId, animalType, weightKg, pricePerKg } = doc;
     if (!weightKg || weightKg <= 0)
       throw new Error("Weight must be a positive number");
@@ -38,8 +30,8 @@ export class WeighingController {
       throw new Error("Price per kg cannot be negative");
 
     const reg = await RegistrationController.findIdCheck(registrationId);
-    // Weighing happens in-place while the row is REGISTERED. No mid-state.
-    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
+    // Same gate as update/delete — see _assertWeighingEditable.
+    this._assertWeighingEditable(reg, context);
 
     // Resolve the animal by catalogue name (throws if unknown).
     const animal = await AnimalController.resolveByName(animalType);
@@ -74,6 +66,20 @@ export class WeighingController {
         { transaction: t },
       );
 
+      await this._logAudit(
+        {
+          registrationId,
+          weighingEntryId: entry.id,
+          action: WEIGHING_AUDIT_ACTION.CREATE,
+          actorId: context.id,
+          weightKgBefore: null,
+          weightKgAfter: entry.weightKg,
+          pricePerKgBefore: null,
+          pricePerKgAfter: entry.pricePerKg,
+        },
+        t,
+      );
+
       return entry;
     });
   }
@@ -103,12 +109,18 @@ export class WeighingController {
     return RegistrationController.getById(registrationId);
   }
 
-  // Editing/removing a weighing entry. While weighing is in progress
-  // (REGISTERED) the scale operator (and managers) may edit. Once weighing is
-  // "fully uploaded" (finishWeighing → WEIGHED, and onwards through VERIFIED
-  // / PAYMENT_PENDING) it is locked for operators — only MANAGER/ADMIN/
-  // SUPER_ADMIN may edit. After SETTLED/CANCELLED the weights are frozen for
-  // everyone.
+  // Adding/editing/removing a weighing entry. While weighing is in progress
+  // (REGISTERED) the scale operator (and managers) may add/edit/remove. Once
+  // weighing is "fully uploaded" (finishWeighing → WEIGHED, and onwards
+  // through VERIFIED / PAYMENT_PENDING / PARTIALLY_SETTLED) it is locked for
+  // operators — only MANAGER/ADMIN/SUPER_ADMIN may fix a mis-weighed entry,
+  // and every fix is logged (see _logAudit) rather than blocked, since the
+  // herder hasn't necessarily been paid yet even once a Settlement exists
+  // (money transfer lags). The real lock point is the payout itself
+  // (SettlementController.markSettlementPaid → SETTLED/PARTIALLY_SETTLED) —
+  // after that, changing a weighing entry would silently desync the record
+  // from money that's already moved, so it's frozen for everyone alongside
+  // CANCELLED.
   private static _assertWeighingEditable(
     reg: RegistrationModel,
     context: TContext,
@@ -120,21 +132,26 @@ export class WeighingController {
     ];
     if (
       reg.status === REGISTRATION_STATUS.SETTLED ||
+      reg.status === REGISTRATION_STATUS.PARTIALLY_SETTLED ||
       reg.status === REGISTRATION_STATUS.CANCELLED
     ) {
-      throw new Error("Бүртгэл хаагдсан тул жинг засах боломжгүй");
+      throw new Error(
+        "Төлбөр хийгдсэн эсвэл бүртгэл хаагдсан тул жинг засах боломжгүй",
+      );
     }
-    const fullyUploaded =
-      reg.status === REGISTRATION_STATUS.WEIGHED ||
-      reg.status === REGISTRATION_STATUS.VERIFIED ||
-      reg.status === REGISTRATION_STATUS.PAYMENT_PENDING;
-    if (fullyUploaded) {
+    if (reg.status !== REGISTRATION_STATUS.REGISTERED) {
+      // WEIGHED / VERIFIED / PAYMENT_PENDING: settlement may already exist
+      // (created, not yet paid), so only a privileged fix — logged — is
+      // allowed.
       if (!privileged.includes(context.role))
         throw new Error(
           "Жин баталгаажсан тул зөвхөн менежер/админ засах боломжтой",
         );
-      // Open-window weigh edits: anyone on the floor except the gate guard.
-    } else if (
+      return;
+    }
+    // REGISTERED: open-window weigh edits, anyone on the floor except the
+    // gate guard.
+    if (
       ![
         ADMIN_ROLE.SCALE,
         ADMIN_ROLE.STOREKEEPER,
@@ -148,6 +165,22 @@ export class WeighingController {
     }
   }
 
+  private static async _logAudit(
+    args: {
+      registrationId: string;
+      weighingEntryId: string;
+      action: WEIGHING_AUDIT_ACTION;
+      actorId: string;
+      weightKgBefore: number | null;
+      weightKgAfter: number | null;
+      pricePerKgBefore: number | null;
+      pricePerKgAfter: number | null;
+    },
+    t: Transaction,
+  ): Promise<void> {
+    await WeighingEntryAuditModel.create(args, { transaction: t });
+  }
+
   static async updateWeighingEntry(
     doc: TUpdateWeighingEntry,
     context: TContext,
@@ -157,6 +190,9 @@ export class WeighingController {
 
     const reg = await RegistrationController.findIdCheck(entry.registrationId);
     this._assertWeighingEditable(reg, context);
+
+    const weightKgBefore = entry.weightKg;
+    const pricePerKgBefore = entry.pricePerKg;
 
     if (doc.weightKg !== undefined && doc.weightKg !== null) {
       if (doc.weightKg <= 0)
@@ -184,7 +220,22 @@ export class WeighingController {
       entry.photoFileId = doc.photoFileId ?? null;
     }
 
-    await entry.save();
+    await sequelize.transaction(async (t) => {
+      await entry.save({ transaction: t });
+      await this._logAudit(
+        {
+          registrationId: entry.registrationId,
+          weighingEntryId: entry.id,
+          action: WEIGHING_AUDIT_ACTION.UPDATE,
+          actorId: context.id,
+          weightKgBefore,
+          weightKgAfter: entry.weightKg,
+          pricePerKgBefore,
+          pricePerKgAfter: entry.pricePerKg,
+        },
+        t,
+      );
+    });
     return entry;
   }
 
@@ -198,6 +249,21 @@ export class WeighingController {
     const reg = await RegistrationController.findIdCheck(entry.registrationId);
     this._assertWeighingEditable(reg, context);
 
-    await entry.destroy();
+    await sequelize.transaction(async (t) => {
+      await this._logAudit(
+        {
+          registrationId: entry.registrationId,
+          weighingEntryId: entry.id,
+          action: WEIGHING_AUDIT_ACTION.DELETE,
+          actorId: context.id,
+          weightKgBefore: entry.weightKg,
+          weightKgAfter: null,
+          pricePerKgBefore: entry.pricePerKg,
+          pricePerKgAfter: null,
+        },
+        t,
+      );
+      await entry.destroy({ transaction: t });
+    });
   }
 }

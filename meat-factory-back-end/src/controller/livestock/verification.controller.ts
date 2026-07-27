@@ -1,5 +1,8 @@
+import sequelize from "../../config/db-connection";
 import { VerificationModel } from "../../models/livestock/verification.model";
+import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { FileController } from "../global/file.controller";
+import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TVerifyInput } from "../../types/livestock/verification.type";
@@ -34,25 +37,54 @@ export class VerificationController {
 
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    const [verification] = await VerificationModel.findOrCreate({
+    // Meat becomes factory inventory right here — slaughtered + weighed +
+    // verified is "officially factory meat" regardless of when the herder
+    // is actually paid (see InventoryController.
+    // ingestMeatFromVerifiedRegistration). Grouped by animalId straight from
+    // WeighingEntry; no Settlement needs to exist yet.
+    const weighing = await WeighingEntryModel.findAll({
       where: { registrationId: doc.registrationId },
-      defaults: {
-        registrationId: doc.registrationId,
-        notes: doc.notes ?? null,
-        photoFileId: doc.photoFileId ?? null,
-      },
     });
+    const byAnimal: Record<string, number> = {};
+    for (const w of weighing)
+      byAnimal[w.animalId] = (byAnimal[w.animalId] ?? 0) + Number(w.weightKg);
+    const meatLines = Object.entries(byAnimal).map(([animalId, kg]) => ({
+      animalId,
+      quantityKg: Number(kg.toFixed(2)),
+    }));
 
-    if (doc.photoFileId && !verification.photoFileId) {
-      verification.photoFileId = doc.photoFileId;
-    }
-    verification.firstVerifierId = context.id;
-    verification.firstVerifiedAt = new Date();
-    if (doc.notes) verification.notes = doc.notes;
-    await verification.save();
+    return await sequelize.transaction(async (t) => {
+      const [verification] = await VerificationModel.findOrCreate({
+        where: { registrationId: doc.registrationId },
+        defaults: {
+          registrationId: doc.registrationId,
+          notes: doc.notes ?? null,
+          photoFileId: doc.photoFileId ?? null,
+        },
+        transaction: t,
+      });
 
-    await reg.update({ status: REGISTRATION_STATUS.VERIFIED });
-    return verification;
+      if (doc.photoFileId && !verification.photoFileId) {
+        verification.photoFileId = doc.photoFileId;
+      }
+      verification.firstVerifierId = context.id;
+      verification.firstVerifiedAt = new Date();
+      if (doc.notes) verification.notes = doc.notes;
+      await verification.save({ transaction: t });
+
+      await reg.update(
+        { status: REGISTRATION_STATUS.VERIFIED },
+        { transaction: t },
+      );
+
+      await InventoryController.ingestMeatFromVerifiedRegistration(
+        doc.registrationId,
+        meatLines,
+        t,
+      );
+
+      return verification;
+    });
   }
 
   // Verifier toggles whether the slaughter cost is offset by coverable

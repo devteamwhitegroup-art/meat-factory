@@ -1,3 +1,4 @@
+import { TDateRange, TPagination } from '../global/global.type';
 
 export type TSettlementLineInput = {
   animalType: string;
@@ -57,6 +58,12 @@ export type TSettlement = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type TGetSettlements = {
+  isPaid?: boolean;
+  herderId?: string;
+  dateRange?: TDateRange;
+} & TPagination;
 
 // Plain DTO handed to InventoryController on settlement-paid.
 // Defined here so livestock never imports the inventory module.
