@@ -4,7 +4,6 @@ import { InventoryItemModel } from "../../models/inventory/inventory-item.model"
 import { InventoryMovementModel } from "../../models/inventory/inventory-movement.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { SettingsController } from "../settings/settings.controller";
-import { sendTelegramMessage } from "../../function/telegram";
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
@@ -247,11 +246,6 @@ export class InventoryController {
         );
       }
     });
-
-    // After the transaction commits, check whether the new meat total crossed
-    // the storage threshold and notify via Telegram (fire-and-forget so the
-    // settlement-paid response isn't blocked by a slow webhook).
-    void this._maybeFireStorageAlert();
   }
 
   // Total kg currently in stock for a product type. Used by the analytics
@@ -265,29 +259,24 @@ export class InventoryController {
     return Number(row?.total ?? 0);
   }
 
-  // Meat stock split by the animal's export eligibility — the full physical
-  // total on each side (not reduced by what's already loaded on a truck), so
-  // admin sees "of everything in storage, how much could go export?" and can
-  // call a cargo once that side crosses its threshold.
-  private static async _meatKgByExportEligibility(): Promise<{
-    exportEligibleKg: number;
-    domesticOnlyKg: number;
-  }> {
+  // Meat kg eligible for an EXPORT shipment — the full physical total (not
+  // reduced by what's already loaded on a truck), so admin sees "of
+  // everything in storage, how much could go export?" and can call a cargo
+  // once it crosses the export threshold. Export shipments only accept
+  // export-flagged animals (ShipmentController.addCargoEntry); domestic
+  // shipments accept ANY meat, so there is no separate "domestic-only"
+  // split — the domestic-available figure is just the full meat total.
+  private static async _exportEligibleMeatKg(): Promise<number> {
     const rows = await InventoryItemModel.findAll({
       attributes: ["quantityKg"],
       where: { productType: PRODUCT_TYPE.MEAT },
       include: [{ model: AnimalModel, as: "animal", attributes: ["isExport"] }],
     });
     let exportEligible = 0;
-    let domesticOnly = 0;
     for (const r of rows) {
       if (r.animal?.isExport) exportEligible += Number(r.quantityKg);
-      else domesticOnly += Number(r.quantityKg);
     }
-    return {
-      exportEligibleKg: Number(exportEligible.toFixed(2)),
-      domesticOnlyKg: Number(domesticOnly.toFixed(2)),
-    };
+    return Number(exportEligible.toFixed(2));
   }
 
   // Inventory summary for the FE analytics block. Bundles totals + settings
@@ -296,90 +285,34 @@ export class InventoryController {
     meatStockKg: number;
     byproductStockKg: number;
     meatCapacityKg: number;
-    meatAlertThresholdKg: number;
-    cargoCapacityKg: number;
-    alertActive: boolean;
-    cargosToClear: number;
-    lastAlertedAt: Date | null;
     exportEligibleMeatKg: number;
-    domesticOnlyMeatKg: number;
+    domesticAvailableMeatKg: number;
     exportAlertThresholdKg: number;
     domesticAlertThresholdKg: number;
     exportAlertActive: boolean;
     domesticAlertActive: boolean;
   }> {
-    const [meat, byprod, settings, byEligibility] = await Promise.all([
+    const [meat, byprod, settings, exportEligibleMeatKg] = await Promise.all([
       this.totalKg(PRODUCT_TYPE.MEAT),
       this.totalKg(PRODUCT_TYPE.BYPRODUCT),
       SettingsController.get(),
-      this._meatKgByExportEligibility(),
+      this._exportEligibleMeatKg(),
     ]);
-    const cap = Number(settings.cargoCapacityKg);
-    const thr = Number(settings.meatAlertThresholdKg);
     const exportThr = Number(settings.exportAlertThresholdKg);
     const domesticThr = Number(settings.domesticAlertThresholdKg);
     return {
       meatStockKg: meat,
       byproductStockKg: byprod,
       meatCapacityKg: Number(settings.meatCapacityKg),
-      meatAlertThresholdKg: thr,
-      cargoCapacityKg: cap,
-      alertActive: thr > 0 && meat >= thr,
-      // ceil(meat / cargoCap). Returns 0 when cargoCap unset.
-      cargosToClear: cap > 0 ? Math.ceil(meat / cap) : 0,
-      lastAlertedAt: settings.lastAlertedAt,
-      exportEligibleMeatKg: byEligibility.exportEligibleKg,
-      domesticOnlyMeatKg: byEligibility.domesticOnlyKg,
+      exportEligibleMeatKg,
+      // Domestic shipments accept any meat (export-eligible or not), so the
+      // domestic-available pool is the full meat total, not a subset.
+      domesticAvailableMeatKg: meat,
       exportAlertThresholdKg: exportThr,
       domesticAlertThresholdKg: domesticThr,
-      exportAlertActive:
-        exportThr > 0 && byEligibility.exportEligibleKg >= exportThr,
-      domesticAlertActive:
-        domesticThr > 0 && byEligibility.domesticOnlyKg >= domesticThr,
+      exportAlertActive: exportThr > 0 && exportEligibleMeatKg >= exportThr,
+      domesticAlertActive: domesticThr > 0 && meat >= domesticThr,
     };
-  }
-
-  // Threshold-crossing check. Sends a Telegram message at most:
-  //   - once per crossing (debounced by lastAlertedStockKg falling below
-  //     threshold and re-rising), AND
-  //   - at most once per 12h cool-down window.
-  private static async _maybeFireStorageAlert(): Promise<void> {
-    try {
-      const settings = await SettingsController.get();
-      const threshold = Number(settings.meatAlertThresholdKg);
-      if (threshold <= 0) return; // alerts disabled
-      const meatKg = await this.totalKg(PRODUCT_TYPE.MEAT);
-      if (meatKg < threshold) return;
-      const last = Number(settings.lastAlertedStockKg);
-      const lastAt = settings.lastAlertedAt;
-      const COOL_DOWN_MS = 12 * 60 * 60 * 1000;
-      const tooSoon =
-        lastAt && Date.now() - new Date(lastAt).getTime() < COOL_DOWN_MS;
-      // Still above threshold after the previous alert AND inside the
-      // cool-down window: stay quiet.
-      if (last >= threshold && tooSoon) return;
-
-      const cap = Number(settings.meatCapacityKg);
-      const cargoCap = Number(settings.cargoCapacityKg);
-      const cargosToClear = cargoCap > 0 ? Math.ceil(meatKg / cargoCap) : 0;
-      const message =
-        `<b>⚠️ Махны нөөц босго давсан</b>\n` +
-        `Нөөц: <b>${meatKg.toFixed(2)} кг</b>` +
-        (cap > 0 ? ` / ${cap.toFixed(0)} кг багтаамж` : "") +
-        `\n` +
-        `Босго: ${threshold.toFixed(0)} кг\n` +
-        (cargoCap > 0 && cargosToClear > 0
-          ? `Санал болгох ачилт: <b>${cargosToClear}</b> ачаа (1 ачаа ≈ ${cargoCap.toFixed(0)} кг)\n`
-          : "") +
-        `Шинэ ачилт үүсгэнэ үү.`;
-      const ok = await sendTelegramMessage(message);
-      if (ok) await SettingsController.stampAlert(meatKg);
-    } catch (e) {
-      console.error(
-        "[inventory] storage alert hook error:",
-        e instanceof Error ? e.message : "unknown",
-      );
-    }
   }
 
   // Called by ShipmentController when a shipment is delivered. Runs in

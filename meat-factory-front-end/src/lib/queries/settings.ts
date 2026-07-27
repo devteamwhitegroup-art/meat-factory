@@ -8,11 +8,8 @@ export const SettingsDoc = graphql(/* GraphQL */ `
       settings {
         id
         meatCapacityKg
-        meatAlertThresholdKg
-        cargoCapacityKg
         exportAlertThresholdKg
         domesticAlertThresholdKg
-        lastAlertedAt
       }
     }
   }
@@ -21,15 +18,11 @@ export const SettingsDoc = graphql(/* GraphQL */ `
 export const UpdateSettingsDoc = graphql(/* GraphQL */ `
   mutation UpdateSettings(
     $meatCapacityKg: Float
-    $meatAlertThresholdKg: Float
-    $cargoCapacityKg: Float
     $exportAlertThresholdKg: Float
     $domesticAlertThresholdKg: Float
   ) {
     updateSettings(
       meatCapacityKg: $meatCapacityKg
-      meatAlertThresholdKg: $meatAlertThresholdKg
-      cargoCapacityKg: $cargoCapacityKg
       exportAlertThresholdKg: $exportAlertThresholdKg
       domesticAlertThresholdKg: $domesticAlertThresholdKg
     ) {
@@ -38,8 +31,6 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
       settings {
         id
         meatCapacityKg
-        meatAlertThresholdKg
-        cargoCapacityKg
         exportAlertThresholdKg
         domesticAlertThresholdKg
       }

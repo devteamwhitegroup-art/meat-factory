@@ -12,8 +12,8 @@ export class SalesLineItemModel extends Model implements TSalesLineItem {
   public animalType!: string | null;
   public byproductName!: string | null;
   public quantityKg!: number;
-  public unitPrice!: number;
-  public lineAmount!: number;
+  public unitPrice!: number | null;
+  public lineAmount!: number | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -56,11 +56,13 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
       },
       unitPrice: {
         type: DataTypes.DECIMAL(14, 2),
-        allowNull: false,
+        allowNull: true,
+        defaultValue: null,
       },
       lineAmount: {
         type: DataTypes.DECIMAL(14, 2),
-        allowNull: false,
+        allowNull: true,
+        defaultValue: null,
       },
     },
     {

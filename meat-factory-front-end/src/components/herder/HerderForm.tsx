@@ -182,7 +182,7 @@ export function HerderFormFields({
               <FormLabel>Хаяг</FormLabel>
               <FormControl>
                 <Select
-                  value={field.value || undefined}
+                  value={field.value || null}
                   onValueChange={(v) => field.onChange(v ?? "")}
                 >
                   <SelectTrigger className="h-10 w-full">

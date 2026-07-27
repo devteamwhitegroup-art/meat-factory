@@ -165,7 +165,7 @@ export function CargoLineForm({
           <div className="space-y-1.5 max-w-xs">
             <Label className="text-xs">Малын төрөл</Label>
             <Select
-              value={animalType || undefined}
+              value={animalType || null}
               onValueChange={(v) => setAnimalType(v ?? "")}
             >
               <SelectTrigger className="h-11">
@@ -190,7 +190,7 @@ export function CargoLineForm({
             <div className="space-y-1.5">
               <Label className="text-xs">Мал</Label>
               <Select
-                value={bpAnimal || undefined}
+                value={bpAnimal || null}
                 onValueChange={(v) => {
                   setBpAnimal(v ?? "");
                   setBpWrapperId("");
@@ -212,7 +212,7 @@ export function CargoLineForm({
             <div className="space-y-1.5">
               <Label className="text-xs">Багц</Label>
               <Select
-                value={bpWrapperId || undefined}
+                value={bpWrapperId || null}
                 onValueChange={(v) => {
                   setBpWrapperId(v ?? "");
                   setBpConstantId("");
@@ -240,7 +240,7 @@ export function CargoLineForm({
             <div className="space-y-1.5">
               <Label className="text-xs">Дайвар</Label>
               <Select
-                value={bpConstantId || undefined}
+                value={bpConstantId || null}
                 onValueChange={(v) => setBpConstantId(v ?? "")}
                 disabled={!bpWrapperId || constants.length === 0}
               >

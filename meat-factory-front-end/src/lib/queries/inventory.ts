@@ -78,13 +78,8 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
         meatStockKg
         byproductStockKg
         meatCapacityKg
-        meatAlertThresholdKg
-        cargoCapacityKg
-        alertActive
-        cargosToClear
-        lastAlertedAt
         exportEligibleMeatKg
-        domesticOnlyMeatKg
+        domesticAvailableMeatKg
         exportAlertThresholdKg
         domesticAlertThresholdKg
         exportAlertActive

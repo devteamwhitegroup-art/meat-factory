@@ -48,6 +48,11 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
         transactionDate
         paidAt
         notes
+        shipmentId
+        shipment {
+          id
+          shipmentCode
+        }
         customer {
           id
           name
@@ -149,6 +154,20 @@ export const RemoveSalesInstallmentDoc = graphql(/* GraphQL */ `
     removeSalesInstallment(id: $id) {
       success
       message
+    }
+  }
+`);
+
+export const SetSalesLineItemPriceDoc = graphql(/* GraphQL */ `
+  mutation SetSalesLineItemPrice($id: ID!, $unitPrice: Float) {
+    setSalesLineItemPrice(id: $id, unitPrice: $unitPrice) {
+      success
+      message
+      lineItem {
+        id
+        unitPrice
+        lineAmount
+      }
     }
   }
 `);

@@ -11,6 +11,7 @@ import { FileModel } from "../global/file.model";
 import { ShipmentCargoEntryModel } from "./shipment-cargo-entry.model";
 import { ShipmentPhotoModel } from "./shipment-photo.model";
 import { ShipmentSaleLineModel } from "./shipment-sale-line.model";
+import { SalesTransactionModel } from "../sales/sales-transaction.model";
 
 export class ShipmentModel extends Model implements TShipment {
   public id!: string;
@@ -46,6 +47,10 @@ export class ShipmentModel extends Model implements TShipment {
   public cargoEntries?: ShipmentCargoEntryModel[];
   public photos?: ShipmentPhotoModel[];
   public saleLines?: ShipmentSaleLineModel[];
+  // The invoice auto-created on delivery (SalesTransactionController.
+  // createFromShipment). Null until DELIVERED; also null if the shipment had
+  // no customer to bill.
+  public salesTransaction?: SalesTransactionModel | null;
 
   static associate(): void {
     this.belongsTo(CustomerModel, {
@@ -71,6 +76,10 @@ export class ShipmentModel extends Model implements TShipment {
     this.hasMany(ShipmentSaleLineModel, {
       as: "saleLines",
       foreignKey: { name: "shipmentId", allowNull: false },
+    });
+    this.hasOne(SalesTransactionModel, {
+      as: "salesTransaction",
+      foreignKey: { name: "shipmentId", allowNull: true },
     });
   }
 }

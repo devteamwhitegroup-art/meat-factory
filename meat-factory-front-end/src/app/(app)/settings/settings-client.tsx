@@ -14,8 +14,6 @@ import { runMutation } from "@/lib/runMutation";
 
 type Form = {
   meatCapacityKg: string;
-  meatAlertThresholdKg: string;
-  cargoCapacityKg: string;
   exportAlertThresholdKg: string;
   domesticAlertThresholdKg: string;
 };
@@ -38,8 +36,6 @@ export function SettingsClient() {
     (s
       ? {
           meatCapacityKg: String(s.meatCapacityKg ?? 0),
-          meatAlertThresholdKg: String(s.meatAlertThresholdKg ?? 0),
-          cargoCapacityKg: String(s.cargoCapacityKg ?? 0),
           exportAlertThresholdKg: String(s.exportAlertThresholdKg ?? 0),
           domesticAlertThresholdKg: String(s.domesticAlertThresholdKg ?? 0),
         }
@@ -48,16 +44,10 @@ export function SettingsClient() {
   async function onSave() {
     if (!effective) return;
     const m = Number(effective.meatCapacityKg);
-    const t = Number(effective.meatAlertThresholdKg);
-    const c = Number(effective.cargoCapacityKg);
     const et = Number(effective.exportAlertThresholdKg);
     const dt = Number(effective.domesticAlertThresholdKg);
-    if ([m, t, c, et, dt].some((n) => !Number.isFinite(n) || n < 0)) {
+    if ([m, et, dt].some((n) => !Number.isFinite(n) || n < 0)) {
       toast.error("Утга сөрөг байж болохгүй");
-      return;
-    }
-    if (t > 0 && m > 0 && t > m) {
-      toast.error("Босго багтаамжаас их байж болохгүй");
       return;
     }
     setBusy(true);
@@ -67,8 +57,6 @@ export function SettingsClient() {
           await save({
             variables: {
               meatCapacityKg: m,
-              meatAlertThresholdKg: t,
-              cargoCapacityKg: c,
               exportAlertThresholdKg: et,
               domesticAlertThresholdKg: dt,
             },
@@ -90,7 +78,7 @@ export function SettingsClient() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cap">Махны хадгалалтын багтаамж (кг)</Label>
+            <Label htmlFor="cap">Махны агуулахын багтаамж (кг)</Label>
             <Input
               id="cap"
               type="number"
@@ -110,61 +98,11 @@ export function SettingsClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Мэдэгдлийн босго</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="thr">Мэдэгдэх босго (кг)</Label>
-            <Input
-              id="thr"
-              type="number"
-              inputMode="decimal"
-              value={effective.meatAlertThresholdKg}
-              onChange={(e) =>
-                setForm({ ...effective, meatAlertThresholdKg: e.target.value })
-              }
-              className="h-11 text-right tabular-nums"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Махны нөөц энэ хэмжээнээс давсан үед Telegram-аар мэдэгдэл явна. 0
-            буюу хоосон үед мэдэгдэл унтраана.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ачааны багтаамж</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="cargo">1 ачаа (кг)</Label>
-            <Input
-              id="cargo"
-              type="number"
-              inputMode="decimal"
-              value={effective.cargoCapacityKg}
-              onChange={(e) =>
-                setForm({ ...effective, cargoCapacityKg: e.target.value })
-              }
-              className="h-11 text-right tabular-nums"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Нэг тээврийн машинд (рефрижератор гэх мэт) багтах хэмжээ. Нөөц
-            хуудаснаас «Шинэ ачилт» дарахад энэ хэмжээгээр урьдчилан бөглөнө.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Экспорт/дотоод мэдэгдэл</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="thr-export">Экспортын ачаанд орсон босго (кг)</Label>
+            <Label htmlFor="thr-export">Экспортын ачааны босго (кг)</Label>
             <Input
               id="thr-export"
               type="number"
@@ -180,7 +118,7 @@ export function SettingsClient() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="thr-domestic">Дотоод ачаанд орсон босго (кг)</Label>
+            <Label htmlFor="thr-domestic">Дотоод ачааны босго (кг)</Label>
             <Input
               id="thr-domestic"
               type="number"
@@ -196,9 +134,7 @@ export function SettingsClient() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Мах нэг нийтлэг нөөц тул ачилт үүсгэх үед л экспорт/дотоод гэж
-            хуваагдана. Энэ босго нь ачигдаад хараахан хүргэгдээгүй (PENDING/
-            LOADED) ачааны нийт хэмжээ давсныг мэдэгдэнэ.
+            Нөөцөд бүртгэгдсэн махны мэдэгдэл хүлээн авах хэсэг
           </p>
         </CardContent>
       </Card>

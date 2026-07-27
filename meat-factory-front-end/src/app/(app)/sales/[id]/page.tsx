@@ -1,22 +1,16 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { getClient } from "@/lib/apollo/server";
 import { SalesDetailDoc } from "@/lib/queries/sales";
 import { compact } from "@/lib/compact";
-import { PAYMENT_STATUS_MN, PRODUCT_TYPE_MN } from "@/lib/format/enum";
+import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { MarkPaidButton } from "./mark-paid-button";
 import { InstallmentsCard } from "./installments-card";
+import { LineItemsTable } from "./line-items-table";
 import { BackButton } from "@/components/common/BackButton";
 import { requireCap } from "@/lib/auth/server";
 
@@ -94,7 +88,28 @@ export default async function SalesDetailPage({ params }: Props) {
             <div className="text-muted-foreground">Жин</div>
             <div>{formatNumber(t.totalWeightKg)} кг</div>
             <div className="text-muted-foreground">Дүн</div>
-            <div className="font-medium">{formatMNT(t.amount)}</div>
+            <div className="font-medium">
+              {t.amount != null ? (
+                formatMNT(t.amount)
+              ) : (
+                <span className="text-amber-700 dark:text-amber-400">
+                  Үнэ тохируулаагүй
+                </span>
+              )}
+            </div>
+            {t.shipmentId && t.shipment?.shipmentCode ? (
+              <>
+                <div className="text-muted-foreground">Ачилт</div>
+                <div>
+                  <Link
+                    href={`/shipments/${t.shipmentId}`}
+                    className="text-primary underline"
+                  >
+                    {t.shipment.shipmentCode}
+                  </Link>
+                </div>
+              </>
+            ) : null}
             {t.paidAt ? (
               <>
                 <div className="text-muted-foreground">Төлсөн</div>
@@ -116,50 +131,38 @@ export default async function SalesDetailPage({ params }: Props) {
           <CardTitle>Бараа</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Төрөл</TableHead>
-                <TableHead>Бүтээгдэхүүн</TableHead>
-                <TableHead>Жин</TableHead>
-                <TableHead>Үнэ / кг</TableHead>
-                <TableHead>Дүн</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lines.map((l) => {
-                const product =
-                  l.productType === "MEAT"
-                    ? l.animalType
-                    : (l.byproductName ?? "—");
-                return (
-                  <TableRow key={l.id!}>
-                    <TableCell>
-                      {PRODUCT_TYPE_MN[l.productType ?? ""] ?? l.productType}
-                    </TableCell>
-                    <TableCell>{product}</TableCell>
-                    <TableCell>{formatNumber(l.quantityKg)} кг</TableCell>
-                    <TableCell>{formatMNT(l.unitPrice)}</TableCell>
-                    <TableCell>{formatMNT(l.lineAmount)}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <LineItemsTable
+            lines={lines.map((l) => ({
+              id: l.id!,
+              productType: l.productType ?? null,
+              animalType: l.animalType ?? null,
+              byproductName: l.byproductName ?? null,
+              quantityKg: Number(l.quantityKg ?? 0),
+              unitPrice: l.unitPrice != null ? Number(l.unitPrice) : null,
+              lineAmount: l.lineAmount != null ? Number(l.lineAmount) : null,
+            }))}
+          />
         </CardContent>
       </Card>
 
-      {t.id ? (
+      {t.id && t.amount != null ? (
         <InstallmentsCard
           txId={t.id}
-          amount={Number(t.amount ?? 0)}
+          amount={Number(t.amount)}
           installments={installments}
         />
-      ) : null}
+      ) : (
+        <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+          Бүх барааны үнийг дээрх хүснэгтэд тохируулснаар төлбөр бүртгэх
+          боломжтой болно.
+        </div>
+      )}
 
       <Separator />
 
-      {t.paymentStatus !== "PAID" && t.id ? <MarkPaidButton id={t.id} /> : null}
+      {t.paymentStatus !== "PAID" && t.amount != null && t.id ? (
+        <MarkPaidButton id={t.id} />
+      ) : null}
     </div>
   );
 }

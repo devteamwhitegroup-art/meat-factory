@@ -107,6 +107,16 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
           pricePerKg
           amount
         }
+        salesTransaction {
+          id
+          transactionCode
+          amount
+          paymentStatus
+          lineItems {
+            id
+            unitPrice
+          }
+        }
       }
     }
   }

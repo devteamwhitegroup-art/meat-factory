@@ -18,8 +18,11 @@ export type TSalesLineItem = {
   // Free-form byproduct name from the byproduct catalogue (BYPRODUCT lines).
   byproductName: string | null;
   quantityKg: number;
-  unitPrice: number;
-  lineAmount: number;
+  // Null on a line auto-created from an unpriced shipment sale-line group —
+  // filled in later via SalesTransactionController.setLineItemPrice. Always
+  // set immediately on the manual createSalesTransaction path.
+  unitPrice: number | null;
+  lineAmount: number | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -36,8 +39,14 @@ export type TSalesTransaction = {
   id: string;
   transactionCode: string;
   customerId: string;
+  // Set when this invoice was auto-created from a delivered shipment
+  // (ShipmentController.updateStatus → SalesTransactionController.
+  // createFromShipment). Null for manually-created transactions.
+  shipmentId: string | null;
   totalWeightKg: number;
-  amount: number;
+  // Null until every line item is priced — see TSalesLineItem.unitPrice and
+  // SalesTransactionController.setLineItemPrice/_recomputeAmount.
+  amount: number | null;
   paymentStatus: PAYMENT_STATUS;
   transactionDate: Date;
   paidAt: Date | null;

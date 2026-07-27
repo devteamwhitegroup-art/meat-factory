@@ -128,6 +128,9 @@ export default `#graphql
         cargoEntries: [ShipmentCargoEntry]
         saleLines: [ShipmentSaleLine]
         photos: [ShipmentPhoto]
+        # Invoice auto-created on delivery (see updateShipmentStatus). Null
+        # until DELIVERED, or if the shipment had no customer to bill.
+        salesTransaction: SalesTransaction
         createdAt: Date
         updatedAt: Date
     }

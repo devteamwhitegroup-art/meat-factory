@@ -8,8 +8,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Систем тохиргоо</h1>
         <p className="text-sm text-muted-foreground">
-          Махны нөөц багтаамж, мэдэгдлийн босго, нэг ачааны багтаамжийг
-          тохируулна. Босго давсан үед Telegram-аар автомат мэдэгдэл явна.
+          Telegram-аар автомат мэдэгдэл авах тохиргооны хэсэг.
         </p>
       </div>
       <SettingsClient />

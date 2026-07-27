@@ -7,6 +7,7 @@ import { CustomerModel } from "../customer/customer.model";
 import { SalesLineItemModel } from "./sales-line-item.model";
 import { SalesInstallmentModel } from "./sales-installment.model";
 import { AdminModel } from "../user/admin.model";
+import { ShipmentModel } from "../shipment/shipment.model";
 
 export class SalesTransactionModel
   extends Model
@@ -15,8 +16,9 @@ export class SalesTransactionModel
   public id!: string;
   public transactionCode!: string;
   public customerId!: string;
+  public shipmentId!: string | null;
   public totalWeightKg!: number;
-  public amount!: number;
+  public amount!: number | null;
   public paymentStatus!: PAYMENT_STATUS;
   public transactionDate!: Date;
   public paidAt!: Date | null;
@@ -26,6 +28,7 @@ export class SalesTransactionModel
   public updatedAt!: Date;
 
   public customer?: CustomerModel;
+  public shipment?: ShipmentModel;
   public lineItems?: SalesLineItemModel[];
   public installments?: SalesInstallmentModel[];
   public createdBy?: AdminModel;
@@ -34,6 +37,10 @@ export class SalesTransactionModel
     this.belongsTo(CustomerModel, {
       as: "customer",
       foreignKey: { name: "customerId", allowNull: false },
+    });
+    this.belongsTo(ShipmentModel, {
+      as: "shipment",
+      foreignKey: { name: "shipmentId", allowNull: true },
     });
     this.belongsTo(AdminModel, {
       as: "createdBy",
@@ -69,9 +76,13 @@ export const createSalesTransactionModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: 0,
       },
+      // Nullable — auto-created invoices from a delivered-but-unpriced
+      // shipment start with no amount until SalesTransactionController.
+      // setAmount fills one in.
       amount: {
         type: DataTypes.DECIMAL(14, 2),
-        allowNull: false,
+        allowNull: true,
+        defaultValue: null,
       },
       paymentStatus: {
         type: DataTypes.ENUM(...Object.values(PAYMENT_STATUS)),
@@ -105,6 +116,10 @@ export const createSalesTransactionModel = (sequelize: Sequelize) => {
         { fields: ["customer_id"] },
         { fields: ["payment_status"] },
         { fields: ["transaction_date"] },
+        // One invoice per shipment. Postgres unique indexes allow multiple
+        // NULLs, so manually-created transactions (shipmentId null) don't
+        // collide with each other.
+        { fields: ["shipment_id"], unique: true },
       ],
     },
   );

@@ -24,6 +24,8 @@ import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { CustomerController } from "../customer/customer.controller";
 import { AnimalController } from "../livestock/animal.controller";
 import { InventoryController } from "../inventory/inventory.controller";
+import { SalesTransactionController } from "../sales/sales-transaction.controller";
+import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { FileController } from "../global/file.controller";
 import {
   dateRangeWhere,
@@ -235,6 +237,10 @@ export class ShipmentController {
           { status, shippedAt: new Date() },
           { transaction: t },
         );
+        // Auto-invoice: admin no longer has to manually re-enter the weight/
+        // customer on a separate sales transaction. Price carries over from
+        // whatever the shipment was priced at (possibly still null).
+        await SalesTransactionController.createFromShipment(shipment, t);
       });
       return shipment;
     }
@@ -329,6 +335,7 @@ export class ShipmentController {
           include: [{ model: FileModel, as: "file" }],
         },
         { model: ShipmentSaleLineModel, as: "saleLines" },
+        { model: SalesTransactionModel, as: "salesTransaction" },
       ],
     });
   }

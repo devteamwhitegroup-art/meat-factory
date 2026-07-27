@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,9 @@ import {
   SHIPMENT_STATUS_MN,
   SHIPMENT_CATEGORY_MN,
   DOMESTIC_MARKET_MN,
+  PAYMENT_STATUS_MN,
 } from "@/lib/format/enum";
-import { formatNumber } from "@/lib/format/money";
+import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { cn } from "@/lib/utils";
 import { BackButton } from "@/components/common/BackButton";
@@ -276,6 +278,46 @@ export function ShipmentDetailClient({ id }: { id: string }) {
         }))}
         onChanged={refetch}
       />
+
+      {s.salesTransaction?.id ? (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base">Нэхэмжлэх</CardTitle>
+            <Badge
+              className={
+                s.salesTransaction.paymentStatus === "PAID"
+                  ? "border-0 bg-emerald-100 text-emerald-800"
+                  : "border-0 bg-amber-100 text-amber-800"
+              }
+            >
+              {PAYMENT_STATUS_MN[s.salesTransaction.paymentStatus ?? ""] ??
+                s.salesTransaction.paymentStatus}
+            </Badge>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-mono text-sm">
+                {s.salesTransaction.transactionCode}
+              </div>
+              <div className="text-lg font-semibold">
+                {s.salesTransaction.amount != null ? (
+                  formatMNT(s.salesTransaction.amount)
+                ) : (
+                  <span className="text-amber-700 dark:text-amber-400">
+                    Үнэ тохируулаагүй
+                  </span>
+                )}
+              </div>
+            </div>
+            <Link
+              href={`/sales/${s.salesTransaction.id}`}
+              className="text-primary underline text-sm"
+            >
+              Дэлгэрэнгүй
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

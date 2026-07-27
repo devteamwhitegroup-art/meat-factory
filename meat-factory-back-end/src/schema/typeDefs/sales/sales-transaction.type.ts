@@ -20,10 +20,18 @@ export default `#graphql
         animalType: String
         byproductName: String
         quantityKg: Float
+        # Null on a line auto-created from an unpriced shipment sale-line
+        # group — fill in via setSalesLineItemPrice.
         unitPrice: Float
         lineAmount: Float
         createdAt: Date
         updatedAt: Date
+    }
+
+    type SalesLineItemResponse {
+        success: Boolean
+        message: String
+        lineItem: SalesLineItem
     }
 
     # One partial payment against a SalesTransaction. Outstanding =
@@ -51,6 +59,10 @@ export default `#graphql
         transactionCode: String
         customerId: ID
         customer: Customer
+        # Set when this invoice was auto-created from a delivered shipment.
+        # Null for manually-created transactions (via createSalesTransaction).
+        shipmentId: ID
+        shipment: Shipment
         totalWeightKg: Float
         amount: Float
         paymentStatus: PAYMENT_STATUS
@@ -108,6 +120,16 @@ export default `#graphql
         markSalesTransactionPaid(
             id: ID!
         ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+
+        # Fill in (or clear, pass null) the per-kg price on one line item —
+        # the post-delivery equivalent of setShipmentSalePrice, for lines
+        # that came in null from an auto-created invoice. The parent
+        # transaction's amount recomputes automatically, staying null until
+        # every line is priced.
+        setSalesLineItemPrice(
+            id: ID!
+            unitPrice: Float
+        ): SalesLineItemResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
 
         addSalesInstallment(
             salesTransactionId: ID!

@@ -23,7 +23,7 @@ import {
   RemoveSalesInstallmentDoc,
 } from "@/lib/queries/sales";
 import { unwrap } from "@/lib/unwrap";
-import { formatMNT } from "@/lib/format/money";
+import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 
 export type InstallmentRow = {
@@ -123,9 +123,9 @@ export function InstallmentsCard({
             <div className="space-y-1.5">
               <Label className="text-xs">Дүн (₮)</Label>
               <Input
-                inputMode="decimal"
-                value={amt}
-                onChange={(e) => setAmt(e.target.value)}
+                inputMode="numeric"
+                value={amt ? formatNumber(amt) : ""}
+                onChange={(e) => setAmt(e.target.value.replace(/\D/g, ""))}
                 className="h-11 text-right tabular-nums"
               />
             </div>

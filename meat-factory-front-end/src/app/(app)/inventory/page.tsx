@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getClient } from "@/lib/apollo/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { StockSplit } from "@/components/inventory/StockSplit";
+import { BreakdownPie } from "@/components/dashboard/BreakdownPie";
 import { InventoryStatsDoc, InventoryStockDoc } from "@/lib/queries/inventory";
 import { ByproductWrapperListDoc } from "@/lib/queries/byproduct-wrapper";
 import { unwrapList } from "@/lib/unwrap";
@@ -71,20 +72,20 @@ export default async function InventoryPage() {
 
   const meatStock = Number(stats?.meatStockKg ?? 0);
   const meatCap = Number(stats?.meatCapacityKg ?? 0);
-  const threshold = Number(stats?.meatAlertThresholdKg ?? 0);
-  const cargoCap = Number(stats?.cargoCapacityKg ?? 0);
-  const alertActive = !!stats?.alertActive;
-  const cargosToClear = Number(stats?.cargosToClear ?? 0);
   const pct =
     meatCap > 0 ? Math.min(100, Math.round((meatStock / meatCap) * 100)) : 0;
-  const thrPct = meatCap > 0 ? Math.min(100, (threshold / meatCap) * 100) : 0;
+
+  // One InventoryItem row per animal type on the MEAT side (SKU is
+  // Мах:<animal>), so no aggregation needed — just map straight to slices.
+  const meatByAnimal = items
+    .filter((i) => i.productType === "MEAT")
+    .map((i) => ({
+      name: i.animal?.name ?? "—",
+      value: Number(i.quantityKg ?? 0),
+    }));
 
   const exportEligible = Number(stats?.exportEligibleMeatKg ?? 0);
-  const domesticOnly = Number(stats?.domesticOnlyMeatKg ?? 0);
-  const exportEligiblePct =
-    meatStock > 0 ? Math.round((exportEligible / meatStock) * 100) : 0;
-  const domesticOnlyPct =
-    meatStock > 0 ? Math.round((domesticOnly / meatStock) * 100) : 0;
+  const domesticAvailable = Number(stats?.domesticAvailableMeatKg ?? 0);
   const exportThreshold = Number(stats?.exportAlertThresholdKg ?? 0);
   const domesticThreshold = Number(stats?.domesticAlertThresholdKg ?? 0);
   const exportAlert = !!stats?.exportAlertActive;
@@ -94,9 +95,14 @@ export default async function InventoryPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Нөөц</h1>
-        <Link href="/shipments/export/new" className={buttonVariants()}>
-          Шинэ ачилт
-        </Link>
+        <div>
+          <Link href="/shipments/export/new" className={buttonVariants()}>
+            Экспортын шинэ ачилт
+          </Link>
+          <Link href="/shipments/domestic/new" className={buttonVariants()}>
+            Дотоодын шинэ ачилт
+          </Link>
+        </div>
       </div>
 
       <InventoryTabs />
@@ -104,17 +110,8 @@ export default async function InventoryPage() {
       {/* ─── Analytics tiles ──────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-base">Махны нөөц</CardTitle>
-            {alertActive ? (
-              <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-                Босго давсан
-              </Badge>
-            ) : threshold > 0 ? (
-              <Badge className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
-                Хэвийн
-              </Badge>
-            ) : null}
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap items-end justify-between gap-2">
@@ -130,27 +127,15 @@ export default async function InventoryPage() {
                 </span>
               </div>
             </div>
-            {/* Capacity bar with a threshold tick when configured. */}
+            {/* Capacity bar. */}
             {meatCap > 0 ? (
               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={
-                    "h-full " +
-                    (alertActive
-                      ? "bg-amber-500"
-                      : pct >= 80
-                        ? "bg-amber-400"
-                        : "bg-emerald-500")
+                    "h-full " + (pct >= 80 ? "bg-amber-400" : "bg-emerald-500")
                   }
                   style={{ width: `${pct}%` }}
                 />
-                {threshold > 0 ? (
-                  <div
-                    className="absolute top-0 h-full w-px bg-foreground/60"
-                    style={{ left: `${thrPct}%` }}
-                    title={`Босго ${formatNumber(threshold)} кг`}
-                  />
-                ) : null}
               </div>
             ) : (
               <div className="text-xs text-muted-foreground">
@@ -161,55 +146,27 @@ export default async function InventoryPage() {
                 руу орно уу.
               </div>
             )}
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span>
-                Босго:{" "}
-                <span className="font-medium text-foreground">
-                  {threshold > 0 ? `${formatNumber(threshold)} кг` : "идэвхгүй"}
-                </span>
-              </span>
-              <span>
-                1 ачаа:{" "}
-                <span className="font-medium text-foreground">
-                  {cargoCap > 0
-                    ? `${formatNumber(cargoCap)} кг`
-                    : "тохируулаагүй"}
-                </span>
-              </span>
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Ачилт санал</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-3xl font-semibold tabular-nums">
-              {cargosToClear || 0}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {cargoCap > 0 && cargosToClear > 0
-                ? `Багтаамжийг чөлөөлөхөд ойролцоогоор ${cargosToClear} ачаа явуулна (1 ачаа ≈ ${formatNumber(cargoCap)} кг).`
-                : "Ачааны багтаамж тохируулаагүй эсвэл нөөц багатай."}
-            </div>
-            <Link href="/shipments/export/new" className="block">
-              <Button className="w-full" disabled={meatStock <= 0}>
-                Шинэ ачилт үүсгэх
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <BreakdownPie
+          title="Малын задаргаа"
+          data={meatByAnimal}
+          emptyText="Махны нөөц алга"
+        />
       </div>
 
-      {/* ─── Экспорт / дотоод: мах нэг нийтлэг физик нөөц, малын экспортын
-          зөвшөөрлөөр (Animal.isExport) хуваагдана. Хоёр тоо нийлээд нийт
-          махны нөөцтэй тэнцүү — "хуваарилагдаагүй" гэж юу ч үлдэхгүй. Босго
+      {/* ─── Экспорт / дотоод: экспортын ачилтад зөвхөн экспортын
+          зөвшөөрөлтэй малын мах (Animal.isExport) ачигдана, харин дотоод
+          ачилтад ямар ч мах ачих боломжтой тул "Дотоодод ачих боломжтой" нь
+          нийт махны нөөцтэй тэнцүү (экспортын хэсгийг багтаасан). Босго
           давсан үед админ шинэ ачилт дуудна. ─────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">Экспортод ачих боломжтой</CardTitle>
+            <CardTitle className="text-base">
+              Экспортод ачих боломжтой
+            </CardTitle>
             {exportAlert ? (
               <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                 Босго давсан
@@ -223,17 +180,6 @@ export default async function InventoryPage() {
           <CardContent className="space-y-1">
             <div className="text-2xl font-semibold tabular-nums">
               {formatNumber(exportEligible)} кг
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Нийт махны {exportEligiblePct}% (экспортын зөвшөөрөлтэй мал)
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Босго:{" "}
-              <span className="font-medium text-foreground">
-                {exportThreshold > 0
-                  ? `${formatNumber(exportThreshold)} кг`
-                  : "идэвхгүй"}
-              </span>
             </div>
           </CardContent>
         </Card>
@@ -253,18 +199,7 @@ export default async function InventoryPage() {
           </CardHeader>
           <CardContent className="space-y-1">
             <div className="text-2xl font-semibold tabular-nums">
-              {formatNumber(domesticOnly)} кг
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Нийт махны {domesticOnlyPct}% (экспортын зөвшөөрөлгүй мал)
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Босго:{" "}
-              <span className="font-medium text-foreground">
-                {domesticThreshold > 0
-                  ? `${formatNumber(domesticThreshold)} кг`
-                  : "идэвхгүй"}
-              </span>
+              {formatNumber(domesticAvailable)} кг
             </div>
           </CardContent>
         </Card>

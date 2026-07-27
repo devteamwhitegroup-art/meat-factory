@@ -27,6 +27,12 @@ export default {
       ({ id }: { id: string }) => SalesTransactionController.markPaid(id),
       "Sales transaction marked paid",
     ),
+    setSalesLineItemPrice: wrapOne(
+      "lineItem",
+      ({ id, unitPrice }: { id: string; unitPrice?: number | null }) =>
+        SalesTransactionController.setLineItemPrice(id, unitPrice ?? null),
+      "Үнэ хадгалагдлаа",
+    ),
     addSalesInstallment: wrapOne(
       "installment",
       (

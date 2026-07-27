@@ -64,23 +64,20 @@ export default `#graphql
     }
 
     # Aggregate stats for the inventory dashboard: current totals + the
-    # configured thresholds + alert state + suggested cargo count. Bundled
-    # together to keep the page render to a single round-trip.
+    # configured export/domestic thresholds + alert state. Bundled together
+    # to keep the page render to a single round-trip.
     type InventoryStats {
         meatStockKg: Float
         byproductStockKg: Float
         meatCapacityKg: Float
-        meatAlertThresholdKg: Float
-        cargoCapacityKg: Float
-        alertActive: Boolean
-        cargosToClear: Int
-        lastAlertedAt: Date
-        # meatStockKg split by the animal's export eligibility (Animal.isExport)
-        # — the full physical total on each side, not reduced by what's
-        # already loaded on a truck. exportEligibleMeatKg + domesticOnlyMeatKg
-        # == meatStockKg.
+        # exportEligibleMeatKg: meat from export-flagged animals (Animal.
+        # isExport) — the only meat an EXPORT shipment can load. A subset of
+        # meatStockKg, full physical total not reduced by what's already
+        # loaded on a truck.
+        # domesticAvailableMeatKg: a DOMESTIC shipment accepts any meat, so
+        # this always equals meatStockKg (not a separate subset).
         exportEligibleMeatKg: Float
-        domesticOnlyMeatKg: Float
+        domesticAvailableMeatKg: Float
         exportAlertThresholdKg: Float
         domesticAlertThresholdKg: Float
         exportAlertActive: Boolean

@@ -1,9 +1,11 @@
-import { UniqueConstraintError, WhereOptions } from "sequelize";
+import { Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
 import { SalesInstallmentModel } from "../../models/sales/sales-installment.model";
 import { CustomerModel } from "../../models/customer/customer.model";
+import { ShipmentModel } from "../../models/shipment/shipment.model";
+import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
 import {
   PAYMENT_STATUS,
   PRODUCT_TYPE,
@@ -129,8 +131,133 @@ export class SalesTransactionController {
     throw new Error("Failed to generate a unique transaction code");
   }
 
+  // Called by ShipmentController.updateStatus when a shipment is marked
+  // DELIVERED — auto-creates the invoice so admin doesn't have to manually
+  // re-enter weight/customer/product breakdown that are already known from
+  // the shipment's cargo manifest. One line item per ShipmentSaleLine group,
+  // carrying over whatever price (if any) was set pre-delivery; amount stays
+  // null until every line is priced (see _recomputeAmount). Runs inside the
+  // caller's transaction so it's atomic with the inventory-out + status
+  // update.
+  static async createFromShipment(
+    shipment: ShipmentModel,
+    t: Transaction,
+  ): Promise<SalesTransactionModel | null> {
+    if (!shipment.customerId) return null; // no customer to bill — skip
+
+    const existing = await SalesTransactionModel.findOne({
+      where: { shipmentId: shipment.id },
+      transaction: t,
+    });
+    if (existing) return existing; // idempotent
+
+    const groups = await ShipmentSaleLineModel.findAll({
+      where: { shipmentId: shipment.id },
+      transaction: t,
+    });
+    if (groups.length === 0) return null; // nothing to invoice
+
+    const lineRows = groups.map((g) => {
+      const qty = Number(g.totalWeightKg);
+      const price = g.pricePerKg != null ? Number(g.pricePerKg) : null;
+      return {
+        productType: g.productType,
+        animalType: g.animalType,
+        byproductName: g.byproductName,
+        quantityKg: qty,
+        unitPrice: price,
+        lineAmount: price != null ? Number((qty * price).toFixed(2)) : null,
+      };
+    });
+    const totalWeightKg = Number(
+      lineRows.reduce((s, r) => s + r.quantityKg, 0).toFixed(2),
+    );
+    const allPriced = lineRows.every((r) => r.unitPrice != null);
+    const amount = allPriced
+      ? Number(lineRows.reduce((s, r) => s + (r.lineAmount ?? 0), 0).toFixed(2))
+      : null;
+
+    for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt++) {
+      try {
+        const tx = await SalesTransactionModel.create(
+          {
+            transactionCode: this._generateCode(),
+            customerId: shipment.customerId,
+            shipmentId: shipment.id,
+            totalWeightKg,
+            amount,
+            paymentStatus: PAYMENT_STATUS.PENDING,
+            transactionDate: new Date(),
+            createdById: shipment.loadedById,
+            notes: `Ачилт ${shipment.shipmentCode}-с автоматаар үүсгэсэн`,
+          },
+          { transaction: t },
+        );
+        await SalesLineItemModel.bulkCreate(
+          lineRows.map((r) => ({ ...r, salesTransactionId: tx.id })),
+          { transaction: t },
+        );
+        return tx;
+      } catch (err) {
+        if (
+          err instanceof UniqueConstraintError &&
+          attempt < MAX_CODE_RETRIES - 1
+        ) {
+          continue; // collided on transactionCode — retry
+        }
+        throw err;
+      }
+    }
+    throw new Error("Failed to generate a unique transaction code");
+  }
+
+  // Recompute the parent transaction's amount from its line items — null
+  // until every line has a price. Mirrors ShipmentController._recomputeTotal.
+  private static async _recomputeAmount(
+    salesTransactionId: string,
+  ): Promise<void> {
+    const lines = await SalesLineItemModel.findAll({
+      where: { salesTransactionId },
+    });
+    const allPriced = lines.length > 0 && lines.every((l) => l.unitPrice != null);
+    const amount = allPriced
+      ? Number(
+          lines.reduce((s, l) => s + Number(l.lineAmount ?? 0), 0).toFixed(2),
+        )
+      : null;
+    await SalesTransactionModel.update(
+      { amount },
+      { where: { id: salesTransactionId } },
+    );
+  }
+
+  // Fill in (or clear) the per-kg price on one line item — the post-delivery
+  // equivalent of ShipmentController.setSalePrice, for lines that came in
+  // null from an auto-created invoice.
+  static async setLineItemPrice(
+    id: string,
+    unitPrice: number | null,
+  ): Promise<SalesLineItemModel> {
+    const line = await findOrThrow(SalesLineItemModel, id, "Мөр олдсонгүй");
+    if (unitPrice == null) {
+      line.unitPrice = null;
+      line.lineAmount = null;
+    } else {
+      const p = Number(unitPrice);
+      if (!Number.isFinite(p) || p < 0)
+        throw new Error("Үнэ сөрөг байж болохгүй");
+      line.unitPrice = p;
+      line.lineAmount = Number((Number(line.quantityKg) * p).toFixed(2));
+    }
+    await line.save();
+    await this._recomputeAmount(line.salesTransactionId);
+    return line;
+  }
+
   static async markPaid(id: string): Promise<SalesTransactionModel> {
     const tx = await this.findIdCheck(id);
+    if (tx.amount == null)
+      throw new Error("Эхлээд гүйлгээний дүнг тохируулна уу");
     if (tx.paymentStatus === PAYMENT_STATUS.PAID)
       throw new Error("Transaction already paid");
     await tx.update({
@@ -165,6 +292,7 @@ export class SalesTransactionController {
       {
         include: [
           { model: CustomerModel, as: "customer" },
+          { model: ShipmentModel, as: "shipment" },
           { model: SalesLineItemModel, as: "lineItems" },
           {
             model: SalesInstallmentModel,
@@ -187,7 +315,7 @@ export class SalesTransactionController {
     t?: import("sequelize").Transaction,
   ): Promise<void> {
     const tx = await SalesTransactionModel.findByPk(txId, { transaction: t });
-    if (!tx) return;
+    if (!tx || tx.amount == null) return;
     const sum =
       ((await SalesInstallmentModel.sum("amountMnt", {
         where: { salesTransactionId: txId },
@@ -226,6 +354,8 @@ export class SalesTransactionController {
     context: TContext,
   ): Promise<SalesInstallmentModel> {
     const tx = await this.findIdCheck(args.salesTransactionId);
+    if (tx.amount == null)
+      throw new Error("Эхлээд гүйлгээний дүнг тохируулна уу");
     const amt = Number(args.amountMnt);
     if (!Number.isFinite(amt) || amt <= 0)
       throw new Error("Дүн эерэг тоо байх ёстой");

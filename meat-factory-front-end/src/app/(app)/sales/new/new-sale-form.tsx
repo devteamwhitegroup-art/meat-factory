@@ -158,7 +158,7 @@ export function NewSaleForm() {
             <div>
               <div className="mb-1 text-sm font-medium">Харилцагч</div>
               <Select
-                value={customerId || undefined}
+                value={customerId || null}
                 onValueChange={(v) => setCustomerId(v ?? "")}
               >
                 <SelectTrigger className="w-full">
@@ -255,7 +255,7 @@ export function NewSaleForm() {
                     <td className="py-2">
                       {l.productType === "MEAT" ? (
                         <Select
-                          value={l.animalType || undefined}
+                          value={l.animalType || null}
                           onValueChange={(v) => set(i, { animalType: v ?? "" })}
                         >
                           <SelectTrigger className="h-8 w-32">
