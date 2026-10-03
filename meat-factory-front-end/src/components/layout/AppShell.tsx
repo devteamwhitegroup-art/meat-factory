@@ -23,13 +23,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const sidebarCollapsed = jar.get("mf_sidebar")?.value === "1";
+
+  // Fixed-height shell: the row is exactly the viewport, the page itself never
+  // scrolls, and <main> is the only scroll container — so the sidebar keeps
+  // full height regardless of how tall the page content is.
   return (
-    <div className="flex min-h-screen">
-      <Sidebar role={role} />
-      <div className="flex flex-1 flex-col">
-        <Topbar role={role} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
-      </div>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar role={role} defaultCollapsed={sidebarCollapsed} />
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
     </div>
   );
 }

@@ -29,4 +29,15 @@ export default {
     (process.env.POSTGRES_SYNC_ON_START || "false").toLowerCase() === "true",
   DB_SYNC_ALTER:
     (process.env.POSTGRES_SYNC_ALTER || "false").toLowerCase() === "true",
+
+  // 80mm thermal receipt printing (src/controller/print + relay/relay.mjs).
+  // Shared secret the LAN relay sends as X-Print-Relay-Token; claim/ack are
+  // refused unless it matches (and unless this is set at all).
+  PRINT_RELAY_TOKEN: process.env.PRINT_RELAY_TOKEN || "",
+  // Big centred title line on every receipt. Keep ASCII until ESCPOS_CODEPAGE
+  // is tuned for Mongolian, then set your Cyrillic company name here.
+  RECEIPT_HEADER: process.env.RECEIPT_HEADER || "White Group",
+  // `ESC t n` code-page slot. 6 = CP866 (Cyrillic). If Mongolian Ө/Ү print
+  // wrong, run enqueueCodepageSampler and set the slot that renders them.
+  ESCPOS_CODEPAGE: Number(process.env.ESCPOS_CODEPAGE ?? 6),
 };

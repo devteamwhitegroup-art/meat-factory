@@ -31,6 +31,7 @@ import {
   VerifyRegistrationDoc,
 } from "@/lib/queries/registration";
 import { AnimalListDoc } from "@/lib/queries/animal";
+import { EnqueuePrinterTestDoc } from "@/lib/queries/print";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 
@@ -47,6 +48,7 @@ export function VerifyClient({ id }: { id: string }) {
   const [verify] = useMutation(VerifyRegistrationDoc);
   const [setCovered] = useMutation(SetSlaughterCoveredDoc);
   const [setAgreement] = useMutation(SetRegistrationAgreementSignatureDoc);
+  const [testPrint] = useMutation(EnqueuePrinterTestDoc);
   // Admin-configured per-head butcher cost — used to compute the slaughter
   // cost the verifier confirms.
   const { data: bcData } = useQuery(AnimalListDoc, {
@@ -125,6 +127,19 @@ export function VerifyClient({ id }: { id: string }) {
     setBusy(false);
   }
 
+  // End-to-end printer test: queues a short test slip. If a LAN relay is
+  // running for the default printer key, it prints within a few seconds.
+  async function runTestPrint() {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (await testPrint({ variables: { printerKey: null } })).data
+          ?.enqueuePrinterTest,
+      { success: "Хэвлэх даалгавар дараалалд орлоо" },
+    );
+    setBusy(false);
+  }
+
   // Persist the herder's agreement signature (uploaded via SignatureField).
   // Only fires on a real fileId — SignaturePad also emits null while redrawing.
   async function onSaveAgreement(fileId: string | null) {
@@ -157,17 +172,29 @@ export function VerifyClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        {reg.status === "VERIFIED" ? (
-          <Button onClick={() => router.push(`/registrations/${id}/byproduct`)}>
-            Дараах: Дайвар →
-          </Button>
-        ) : reg.status === "PAYMENT_PENDING" || reg.status === "SETTLED" ? (
+        <div className="flex items-center gap-2">
           <Button
-            onClick={() => router.push(`/registrations/${id}/settlement`)}
+            variant="outline"
+            size="sm"
+            onClick={runTestPrint}
+            disabled={busy}
           >
-            Тооцоо үүсгэх →
+            Принтер тест
           </Button>
-        ) : null}
+          {reg.status === "VERIFIED" ? (
+            <Button
+              onClick={() => router.push(`/registrations/${id}/byproduct`)}
+            >
+              Дараах: Дайвар →
+            </Button>
+          ) : reg.status === "PAYMENT_PENDING" || reg.status === "SETTLED" ? (
+            <Button
+              onClick={() => router.push(`/registrations/${id}/settlement`)}
+            >
+              Тооцоо үүсгэх →
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {compact(reg.weighingEntries).length > 0 ? (

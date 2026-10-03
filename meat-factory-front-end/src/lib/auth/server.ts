@@ -9,9 +9,10 @@ import { can, type Capability } from "./roles";
 // redirects to `/` (which routes the user to their role-appropriate home) if
 // the role lacks the required capability. The back-end @auth directive is
 // still the real boundary — this is UX guarding so users don't load screens
-// they can't act on.
-export async function requireCap(cap: Capability): Promise<void> {
+// they can't act on. Returns the role so pages can gate sub-sections.
+export async function requireCap(cap: Capability): Promise<string> {
   const jar = await cookies();
   const role = jar.get(env.ROLE_COOKIE_NAME)?.value ?? null;
   if (!can(role, cap)) redirect("/");
+  return role!;
 }

@@ -19,7 +19,8 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx eslint *)",
       "Bash(npm run *)",
-      "Bash(echo \"TSC_EXIT:$?\")"
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "WebSearch"
     ]
   }
 }

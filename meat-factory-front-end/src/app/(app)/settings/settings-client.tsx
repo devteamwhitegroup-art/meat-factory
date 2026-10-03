@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
+import { PlusIcon, PrinterIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SettingsDoc, UpdateSettingsDoc } from "@/lib/queries/settings";
+import { EnqueuePrinterTestDoc } from "@/lib/queries/print";
 import { runMutation } from "@/lib/runMutation";
+import { compact } from "@/lib/compact";
+
+// id is null until the row is saved (backend assigns it).
+type PrinterRow = { id: string | null; name: string; ip: string };
 
 type Form = {
   meatCapacityKg: string;
   exportAlertThresholdKg: string;
   domesticAlertThresholdKg: string;
+  printers: PrinterRow[];
 };
 
 export function SettingsClient() {
@@ -23,6 +30,7 @@ export function SettingsClient() {
     fetchPolicy: "cache-and-network",
   });
   const [save] = useMutation(UpdateSettingsDoc);
+  const [testPrint] = useMutation(EnqueuePrinterTestDoc);
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -38,8 +46,35 @@ export function SettingsClient() {
           meatCapacityKg: String(s.meatCapacityKg ?? 0),
           exportAlertThresholdKg: String(s.exportAlertThresholdKg ?? 0),
           domesticAlertThresholdKg: String(s.domesticAlertThresholdKg ?? 0),
+          printers: compact(s.printers).map((p) => ({
+            id: p.id ?? null,
+            name: p.name ?? "",
+            ip: p.ip ?? "",
+          })),
         }
       : null);
+
+  function setPrinter(i: number, patch: Partial<PrinterRow>) {
+    if (!effective) return;
+    setForm({
+      ...effective,
+      printers: effective.printers.map((p, j) =>
+        j === i ? { ...p, ...patch } : p,
+      ),
+    });
+  }
+
+  // Test slip goes to the saved IP — save first after editing a row.
+  async function onTest(printerKey: string) {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (await testPrint({ variables: { printerKey } })).data
+          ?.enqueuePrinterTest,
+      { success: "Тест хэвлэлт илгээлээ" },
+    );
+    setBusy(false);
+  }
 
   async function onSave() {
     if (!effective) return;
@@ -59,10 +94,22 @@ export function SettingsClient() {
               meatCapacityKg: m,
               exportAlertThresholdKg: et,
               domesticAlertThresholdKg: dt,
+              printers: effective.printers.map((p) => ({
+                id: p.id,
+                name: p.name,
+                ip: p.ip,
+              })),
             },
           })
         ).data?.updateSettings,
-      { success: "Хадгалагдлаа", onSuccess: refetch },
+      {
+        success: "Хадгалагдлаа",
+        // Drop local edits so new printers pick up their server ids.
+        onSuccess: async () => {
+          await refetch();
+          setForm(null);
+        },
+      },
     );
     setBusy(false);
   }
@@ -135,6 +182,76 @@ export function SettingsClient() {
           </div>
           <p className="text-xs text-muted-foreground">
             Нөөцөд бүртгэгдсэн махны мэдэгдэл хүлээн авах хэсэг
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="sm:col-span-2 lg:col-span-3">
+        <CardHeader>
+          <CardTitle>Принтер</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {effective.printers.map((p, i) => (
+            <div key={p.id ?? `new-${i}`} className="flex flex-wrap gap-2">
+              <Input
+                aria-label="Принтерийн нэр"
+                placeholder="Нэр (ж: Агуулах)"
+                value={p.name}
+                onChange={(e) => setPrinter(i, { name: e.target.value })}
+                className="h-11 min-w-40 flex-1"
+              />
+              <Input
+                aria-label="IP хаяг"
+                placeholder="192.168.1.50"
+                inputMode="decimal"
+                value={p.ip}
+                onChange={(e) => setPrinter(i, { ip: e.target.value })}
+                className="h-11 min-w-40 flex-1 tabular-nums"
+              />
+              {p.id ? (
+                <Button
+                  variant="outline"
+                  className="h-11 gap-2"
+                  disabled={busy}
+                  onClick={() => onTest(p.id!)}
+                >
+                  <PrinterIcon className="size-4" />
+                  Тест
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                className="h-11"
+                aria-label="Устгах"
+                onClick={() =>
+                  setForm({
+                    ...effective,
+                    printers: effective.printers.filter((_, j) => j !== i),
+                  })
+                }
+              >
+                <Trash2Icon className="text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() =>
+              setForm({
+                ...effective,
+                printers: [
+                  ...effective.printers,
+                  { id: null, name: "", ip: "" },
+                ],
+              })
+            }
+          >
+            <PlusIcon className="size-4" />
+            Принтер нэмэх
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Ажилтан хэвлэхдээ эндээс принтер сонгоно. IP нь тогтмол байх ёстой.
           </p>
         </CardContent>
       </Card>

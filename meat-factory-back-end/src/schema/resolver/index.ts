@@ -28,6 +28,9 @@ import monthlyBudgetResolver from "./dashboard/monthly-budget.resolver";
 //Settings
 import settingsResolver from "./settings/settings.resolver";
 
+//Print
+import printResolver from "./print/print.resolver";
+
 export const resolvers = [
   //User
   adminResolver,
@@ -58,6 +61,9 @@ export const resolvers = [
 
   //Settings
   settingsResolver,
+
+  //Print
+  printResolver,
 
   //Global
   {

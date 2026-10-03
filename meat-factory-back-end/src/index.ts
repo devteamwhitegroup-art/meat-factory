@@ -31,7 +31,7 @@ const httpServer = http.createServer(app);
 
     schema = await authDirectiveTransformer(schema);
 
-    const server = new ApolloServer<{ token: string }>({
+    const server = new ApolloServer<{ token: string; relayToken: string }>({
       schema,
       plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
     });
@@ -46,7 +46,10 @@ const httpServer = http.createServer(app);
           // Accept `Bearer <token>` (preferred) or a bare token.
           const raw = (req.headers["authorization"] as string) || "";
           const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
-          return { token };
+          // Print relay shared secret (claimNextPrintJob / ackPrintJob only).
+          const relayToken =
+            (req.headers["x-print-relay-token"] as string) || "";
+          return { token, relayToken };
         },
       }),
     );

@@ -2,7 +2,6 @@
 
 import type { ResultOf } from "@graphql-typed-document-node/core";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -17,6 +16,7 @@ import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
+import { PrintButton } from "@/components/common/PrintButton";
 
 type Reg = NonNullable<
   NonNullable<
@@ -88,9 +88,7 @@ export function WeighSlip({
   return (
     <section data-print="weigh-slip">
       <div className="mb-3 flex justify-end print-hide">
-        <Button variant="outline" onClick={() => window.print()}>
-          Хэвлэх
-        </Button>
+        {reg.id ? <PrintButton type="WEIGH_SLIP" id={reg.id} /> : null}
       </div>
       <Card>
         <CardHeader>

@@ -55,6 +55,8 @@ export const CAPS = {
   // System-wide thresholds: storage capacity, alert threshold, cargo capacity.
   settings: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
   dashboard: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
+  // Staff-account section on /settings (create/update); delete is SUPER_ADMIN.
+  admins: ["SUPER_ADMIN", "MANAGER"],
   deleteAdmin: ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly StaffRole[]>;
 

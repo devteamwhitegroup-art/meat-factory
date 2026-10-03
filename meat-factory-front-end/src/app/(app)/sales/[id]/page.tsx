@@ -12,6 +12,7 @@ import { MarkPaidButton } from "./mark-paid-button";
 import { InstallmentsCard } from "./installments-card";
 import { LineItemsTable } from "./line-items-table";
 import { BackButton } from "@/components/common/BackButton";
+import { PrintButton } from "@/components/common/PrintButton";
 import { requireCap } from "@/lib/auth/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -53,15 +54,18 @@ export default async function SalesDetailPage({ params }: Props) {
             </h1>
           </div>
         </div>
-        <Badge
-          className={
-            t.paymentStatus === "PAID"
-              ? "border-0 bg-emerald-100 text-emerald-800"
-              : "border-0 bg-amber-100 text-amber-800"
-          }
-        >
-          {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ?? t.paymentStatus}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {t.id ? <PrintButton type="SALES_RECEIPT" id={t.id} /> : null}
+          <Badge
+            className={
+              t.paymentStatus === "PAID"
+                ? "border-0 bg-emerald-100 text-emerald-800"
+                : "border-0 bg-amber-100 text-amber-800"
+            }
+          >
+            {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ?? t.paymentStatus}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

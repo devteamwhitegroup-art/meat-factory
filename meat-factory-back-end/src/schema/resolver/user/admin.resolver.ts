@@ -4,13 +4,14 @@ import {
   TAdminLoginInput,
   TCreateAdmin,
 } from "../../../types/user/admin.type";
-import { errorMessage, wrapOne, wrapVoid } from "../../../utils";
+import { errorMessage, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   Query: {
     currentAdmin: wrapOne("admin", (_args, context) =>
       AdminController.currentAdmin(context),
     ),
+    admins: wrapList("admins", () => AdminController.getAdmins()),
   },
   Mutation: {
     // Two-payload envelope (admin + token) — kept explicit; the wrap helpers
@@ -30,17 +31,17 @@ export default {
     },
     createAdmin: wrapOne(
       "admin",
-      (doc: TCreateAdmin) => AdminController.createAdmin(doc),
+      (doc: TCreateAdmin, context) => AdminController.createAdmin(doc, context),
       "Admin created successfully",
     ),
     updateAdmin: wrapOne(
       "admin",
-      (doc: Partial<TAdmin> & { id: string }) =>
-        AdminController.updateAdmin(doc),
+      (doc: Partial<TAdmin> & { id: string }, context) =>
+        AdminController.updateAdmin(doc, context),
       "Admin updated successfully",
     ),
-    deleteAdmin: wrapVoid("Admin deleted successfully", (doc: { id: string }) =>
-      AdminController.deleteAdmin(doc),
+    deleteAdmin: wrapVoid("Admin deleted successfully", (doc: { id: string }, context) =>
+      AdminController.deleteAdmin(doc, context),
     ),
   },
 };

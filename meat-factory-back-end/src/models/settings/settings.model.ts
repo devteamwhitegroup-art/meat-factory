@@ -1,5 +1,5 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
-import { TSettings } from "../../types/settings/settings.type";
+import { TPrinter, TSettings } from "../../types/settings/settings.type";
 
 // Singleton row — there is exactly one Settings record in the DB. The
 // SettingsController.get() helper auto-creates it on first access with safe
@@ -9,6 +9,7 @@ export class SettingsModel extends Model implements TSettings {
   public meatCapacityKg!: number;
   public exportAlertThresholdKg!: number;
   public domesticAlertThresholdKg!: number;
+  public printers!: TPrinter[];
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -38,6 +39,11 @@ export const createSettingsModel = (sequelize: Sequelize) => {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
         defaultValue: 0,
+      },
+      printers: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: [],
       },
     },
     {

@@ -23,6 +23,7 @@ import { formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
 import { SignatureField } from "@/components/common/SignatureField";
+import { PrintButton } from "@/components/common/PrintButton";
 
 // Derive the (deeply-nested) registration + settlement shapes straight from
 // the query document, so the receipt always matches what the page fetches.
@@ -64,9 +65,9 @@ export function SettlementReceipt({
   return (
     <section data-print="settlement">
       <div className="mb-3 flex justify-end print-hide">
-        <Button variant="outline" onClick={() => window.print()}>
-          Хэвлэх
-        </Button>
+        {existing.id ? (
+          <PrintButton type="SETTLEMENT_RECEIPT" id={existing.id} />
+        ) : null}
       </div>
       <div className="hidden print:mb-4 print:block">
         <div className="text-2xl font-semibold">

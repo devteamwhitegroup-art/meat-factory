@@ -55,6 +55,7 @@ export function SignaturePad({
   function start(e: React.PointerEvent<HTMLCanvasElement>) {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
+    e.preventDefault();
     drawing.current = true;
     dirty.current = true;
     if (saved) {
@@ -64,13 +65,20 @@ export function SignaturePad({
     const { x, y } = pos(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
-    canvasRef.current?.setPointerCapture(e.pointerId);
+    // Pin every later move/up for this finger to the canvas even if it strays
+    // outside — without this, a touch drag on a tablet drops mid-stroke.
+    try {
+      canvasRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      /* some browsers reject capture for touch pointers — not fatal */
+    }
   }
 
   function move(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawing.current) return;
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
+    e.preventDefault();
     const { x, y } = pos(e);
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -126,9 +134,12 @@ export function SignaturePad({
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
-        onPointerLeave={end}
+        onPointerCancel={end}
+        onContextMenu={(e) => e.preventDefault()}
         className={`w-full touch-none rounded-lg border bg-white ${big ? "" : "max-w-md"}`}
-        style={{ aspectRatio: `${WIDTH} / ${HEIGHT}` }}
+        // touchAction inline too — the class alone isn't always enough on
+        // Android Chrome, and without it the browser scrolls instead of drawing.
+        style={{ touchAction: "none", aspectRatio: `${WIDTH} / ${HEIGHT}` }}
       />
       <div className="flex items-center gap-2">
         <Button

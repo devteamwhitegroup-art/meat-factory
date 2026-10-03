@@ -36,6 +36,7 @@ export default `#graphql
 
     extend type Query {
         currentAdmin: AdminResponse @authLogin
+        admins: AdminsResponse @auth(permissions: ["SUPER_ADMIN", "MANAGER"])
     }
 
     extend type Mutation {

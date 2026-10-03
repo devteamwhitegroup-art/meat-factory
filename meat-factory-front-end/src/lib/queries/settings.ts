@@ -10,6 +10,11 @@ export const SettingsDoc = graphql(/* GraphQL */ `
         meatCapacityKg
         exportAlertThresholdKg
         domesticAlertThresholdKg
+        printers {
+          id
+          name
+          ip
+        }
       }
     }
   }
@@ -20,11 +25,13 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
     $meatCapacityKg: Float
     $exportAlertThresholdKg: Float
     $domesticAlertThresholdKg: Float
+    $printers: [PrinterInput!]
   ) {
     updateSettings(
       meatCapacityKg: $meatCapacityKg
       exportAlertThresholdKg: $exportAlertThresholdKg
       domesticAlertThresholdKg: $domesticAlertThresholdKg
+      printers: $printers
     ) {
       success
       message
@@ -33,6 +40,11 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
         meatCapacityKg
         exportAlertThresholdKg
         domesticAlertThresholdKg
+        printers {
+          id
+          name
+          ip
+        }
       }
     }
   }

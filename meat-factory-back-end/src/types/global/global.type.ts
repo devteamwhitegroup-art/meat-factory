@@ -4,6 +4,9 @@ import { ADMIN_ROLE } from '../user/admin.type';
 // before the auth directive resolves the bearer token to an admin.
 export type TBaseContext = {
   token: string;
+  // Shared secret from the X-Print-Relay-Token header — used only by the
+  // print relay's claimNextPrintJob / ackPrintJob calls (no JWT).
+  relayToken: string;
 };
 
 // Context seen by guarded resolver fields — the auth directive injects the

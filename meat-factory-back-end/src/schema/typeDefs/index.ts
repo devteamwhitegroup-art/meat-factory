@@ -34,6 +34,9 @@ import monthlyBudgetType from "./dashboard/monthly-budget.type";
 //Settings
 import settingsType from "./settings/settings.type";
 
+//Print
+import printType from "./print/print.type";
+
 export const mergedGQLSchema = mergeTypeDefs([
   globalType,
   fileType,
@@ -67,4 +70,7 @@ export const mergedGQLSchema = mergeTypeDefs([
 
   //Settings
   settingsType,
+
+  //Print
+  printType,
 ]);

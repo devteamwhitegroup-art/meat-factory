@@ -1,8 +1,10 @@
 import { requireCap } from "@/lib/auth/server";
+import { can } from "@/lib/auth/roles";
 import { SettingsClient } from "./settings-client";
+import { AdminsSection } from "./admins-section";
 
 export default async function SettingsPage() {
-  await requireCap("settings");
+  const role = await requireCap("settings");
   return (
     <div className="space-y-6">
       <div>
@@ -12,6 +14,12 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsClient />
+      {can(role, "admins") ? (
+        <AdminsSection
+          canDelete={can(role, "deleteAdmin")}
+          canGrantSuper={role === "SUPER_ADMIN"}
+        />
+      ) : null}
     </div>
   );
 }

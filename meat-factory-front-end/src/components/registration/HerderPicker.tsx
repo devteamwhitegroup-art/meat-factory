@@ -13,13 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Form } from "@/components/ui/form";
 import { CreateHerderDoc, HerderListDoc } from "@/lib/queries/herder";
 import {
@@ -49,14 +43,26 @@ type Props = {
   onSelect?: (herder: PickedHerder | null) => void;
 };
 
+// Type-to-search (register number, name or phone — server-side iLike), no
+// dropdown: matches list inline under the field, Enter picks the top one.
+// Editing the text after a pick clears the selection.
 export function HerderPicker({ value, onChange, onSelect }: Props) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const {
     data,
     loading: fetching,
     refetch,
   } = useQuery(HerderListDoc, {
-    variables: { limit: 50, page: 1 },
+    variables: { search: debounced, limit: 10, page: 1 },
+    skip: !debounced,
   });
   const [createHerder] = useMutation(CreateHerderDoc);
   const form = useForm<HerderFormValues>({
@@ -70,11 +76,21 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
   }, [open, form]);
 
   const herders = compact(data?.herders?.herders);
-  const labelFor = (h: (typeof herders)[number]) =>
-    `${h.name}${h.registrationNo ? ` — ${h.registrationNo}` : ""}`;
-  const itemLabels = Object.fromEntries(
-    herders.filter((h) => h.id).map((h) => [h.id as string, labelFor(h)]),
-  );
+  const showResults = !value && !!debounced;
+
+  function pick(h: PickedHerder) {
+    onChange(h.id);
+    onSelect?.(h);
+    setSearch(h.registrationNo || h.name || "");
+  }
+
+  function onType(text: string) {
+    setSearch(text);
+    if (value) {
+      onChange(null);
+      onSelect?.(null);
+    }
+  }
 
   async function onSubmit(values: HerderFormValues) {
     try {
@@ -82,55 +98,69 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
       const created = unwrap(r.data?.createHerder).herder;
       if (!created?.id) throw new Error("Хариу буцаасангүй");
       toast.success(`Малчин нэмэгдлээ: ${created.name}`);
-      // Refresh the list first so the new herder is in the options before we
-      // set it as the selected value (otherwise the trigger renders blank).
-      await refetch();
-      onChange(created.id);
-      onSelect?.(created as PickedHerder);
+      pick(created as PickedHerder);
       setOpen(false);
+      refetch();
     } catch (e) {
       toast.error((e as Error).message);
     }
   }
 
+  // Not found → the add dialog opens with the typed register number filled in.
+  function openCreate() {
+    form.reset({ ...herderFormDefaults, registrationNo: search.trim() });
+    setOpen(true);
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="min-w-0 flex-1">
-        <Select
-          items={itemLabels}
-          value={value ?? null}
-          onValueChange={(v) => {
-            const id = (v as string) || null;
-            onChange(id);
-            onSelect?.(
-              (herders.find((h) => h.id === id) as PickedHerder | undefined) ??
-                null,
-            );
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Input
+          value={search}
+          onChange={(e) => onType(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            // Inside the intake <form> — Enter must pick, not submit.
+            e.preventDefault();
+            if (showResults && herders[0]) pick(herders[0] as PickedHerder);
           }}
+          placeholder="Регистрийн дугаар, нэр эсвэл утсаар хайх"
+          autoComplete="off"
+          className="h-12 min-w-0 flex-1 text-base"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12 text-base"
+          onClick={openCreate}
         >
-          <SelectTrigger className="h-12 w-full text-base">
-            <SelectValue
-              placeholder={fetching ? "Уншиж байна…" : "Малчин сонгох"}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {herders.map((h) => (
-              <SelectItem key={h.id!} value={h.id!}>
-                {labelFor(h)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          Шинээр нэмэх
+        </Button>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="h-12 text-base"
-        onClick={() => setOpen(true)}
-      >
-        Шинээр нэмэх
-      </Button>
+      {showResults ? (
+        <div className="rounded-md border">
+          {herders.length === 0 ? (
+            <div className="px-3 py-3 text-sm text-muted-foreground">
+              {fetching ? "Хайж байна…" : "Малчин олдсонгүй — «Шинээр нэмэх»"}
+            </div>
+          ) : (
+            herders.map((h) => (
+              <button
+                key={h.id!}
+                type="button"
+                onClick={() => pick(h as PickedHerder)}
+                className="flex w-full items-center justify-between gap-3 border-b px-3 py-3 text-left text-base last:border-b-0 hover:bg-muted"
+              >
+                <span className="truncate font-medium">{h.name}</span>
+                <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
+                  {[h.registrationNo, h.phone].filter(Boolean).join(" · ")}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

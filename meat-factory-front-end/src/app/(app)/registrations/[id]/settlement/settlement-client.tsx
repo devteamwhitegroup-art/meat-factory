@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
+import { PrintButton } from "@/components/common/PrintButton";
 import {
   SettlementPreview,
   type LineInput,
@@ -320,10 +321,17 @@ export function SettlementClient({ id }: { id: string }) {
             </div>
           </div>
         </div>
-        {existing?.isPaid ? (
-          <Link href="/registrations" className={buttonVariants()}>
-            Бүртгэлийн хэсэг рүү буцах →
-          </Link>
+        {existing ? (
+          <div className="flex items-center gap-2">
+            {existing.id ? (
+              <PrintButton type="SETTLEMENT_RECEIPT" id={existing.id} />
+            ) : null}
+            {existing.isPaid ? (
+              <Link href="/registrations" className={buttonVariants()}>
+                Бүртгэлийн хэсэг рүү буцах →
+              </Link>
+            ) : null}
+          </div>
         ) : null}
       </div>
 

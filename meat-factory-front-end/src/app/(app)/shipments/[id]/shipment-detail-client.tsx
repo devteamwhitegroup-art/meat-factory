@@ -23,6 +23,7 @@ import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { cn } from "@/lib/utils";
 import { BackButton } from "@/components/common/BackButton";
+import { PrintButton } from "@/components/common/PrintButton";
 import { LoadingInfoEditor } from "./_components/LoadingInfoEditor";
 import { ShipmentPhotoGallery } from "./_components/ShipmentPhotoGallery";
 import { CargoLineForm } from "./_components/CargoLineForm";
@@ -108,6 +109,7 @@ export function ShipmentDetailClient({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <PrintButton type="SHIPMENT_SLIP" id={id} />
           {category ? (
             <Badge className={CATEGORY_COLOR[category] ?? "border-0 bg-muted"}>
               {SHIPMENT_CATEGORY_MN[category] ?? category}

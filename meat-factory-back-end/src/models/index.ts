@@ -109,6 +109,9 @@ import {
   MonthlyBudgetModel,
 } from "./dashboard/monthly-budget.model";
 
+//Print
+import { createPrintJobModel, PrintJobModel } from "./print/print-job.model";
+
 export const setupModel = (sequelize: Sequelize) => {
   // ── Phase 1: init() every model. Call order is NOT significant here — FK
   // columns and associations are wired in Phase 2 (associate). The load-bearing
@@ -159,6 +162,9 @@ export const setupModel = (sequelize: Sequelize) => {
   //Dashboard
   createMonthlyBudgetModel(sequelize);
 
+  //Print
+  createPrintJobModel(sequelize);
+
   // ── Phase 2: associate() — AFTER all init() (circular-import safety) ──
   //User
   AdminModel.associate();
@@ -205,4 +211,7 @@ export const setupModel = (sequelize: Sequelize) => {
 
   //Dashboard
   MonthlyBudgetModel.associate();
+
+  //Print
+  PrintJobModel.associate();
 };

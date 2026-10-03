@@ -11,7 +11,7 @@ import {
   Order,
   WhereOptions,
 } from "sequelize";
-import { TContext } from "../../types/global/global.type";
+import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { AdminModel } from "../../models/user/admin.model";
 import {
   ADMIN_ROLE,
@@ -98,8 +98,33 @@ export class AdminController {
     return { id, role: admin.role };
   }
 
-  static async createAdmin(doc: TCreateAdmin): Promise<AdminModel> {
+  // Only a SUPER_ADMIN may grant SUPER_ADMIN or touch a SUPER_ADMIN account —
+  // otherwise a MANAGER could escalate by creating one or resetting its password.
+  static _assertCanManage(
+    context: TContext,
+    role?: ADMIN_ROLE | null,
+    target?: TAdmin,
+  ): void {
+    if (context.role === ADMIN_ROLE.SUPER_ADMIN) return;
+    if (
+      role === ADMIN_ROLE.SUPER_ADMIN ||
+      target?.role === ADMIN_ROLE.SUPER_ADMIN
+    ) {
+      throw new Error("Only SUPER_ADMIN can manage SUPER_ADMIN accounts");
+    }
+  }
+
+  // ponytail: unpaginated — staff accounts number in the tens.
+  static async getAdmins(): Promise<TPaginationGeneric<AdminModel>> {
+    return await AdminModel.findAndCountAll({ order: [["createdAt", "ASC"]] });
+  }
+
+  static async createAdmin(
+    doc: TCreateAdmin,
+    context: TContext,
+  ): Promise<AdminModel> {
     const { param, password, role } = doc;
+    this._assertCanManage(context, role);
     if (!param || !param.trim()) throw new Error("param is required");
     if (!password || !password.trim()) throw new Error("password is required");
     if (role && !Object.values(ADMIN_ROLE).includes(role)) {
@@ -156,18 +181,25 @@ export class AdminController {
 
   static async updateAdmin(
     doc: Partial<TAdmin> & { id: string },
+    context: TContext,
   ): Promise<AdminModel> {
     const { id, param, password, role } = doc;
     const admin = await this.findIdCheck(id);
-    if (param) admin.param = param;
+    this._assertCanManage(context, role, admin);
+    // Login matches on the lowercased param — store it the same way.
+    if (param?.trim()) admin.param = param.trim().toLowerCase();
     if (password) admin.password = password;
     if (role) admin.role = role;
 
     return await admin.save();
   }
 
-  static async deleteAdmin(doc: { id: string }): Promise<void> {
+  static async deleteAdmin(
+    doc: { id: string },
+    context: TContext,
+  ): Promise<void> {
     const { id } = doc;
+    if (id === context.id) throw new Error("Cannot delete your own account");
     const admin = await this.findIdCheck(id);
     await admin.destroy();
   }
