@@ -232,6 +232,11 @@ export function SettingsClient() {
               >
                 <Trash2Icon className="text-destructive" />
               </Button>
+              {p.id ? (
+                <p className="w-full select-all font-mono text-xs text-muted-foreground">
+                  ID: {p.id}
+                </p>
+              ) : null}
             </div>
           ))}
           <Button

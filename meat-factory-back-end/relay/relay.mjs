@@ -16,6 +16,13 @@ const MF_GRAPHQL_URL = must("MF_GRAPHQL_URL"); // https://api.example.com/graphq
 const PRINT_RELAY_TOKEN = must("PRINT_RELAY_TOKEN"); // must match backend
 // Printer IPs come from each job (admin sets name + IP in app Settings), so
 // one relay serves every printer on this LAN.
+// PRINTER_KEYS = comma-separated printer IDs (shown in Settings → Принтер) on
+// THIS LAN. Required when factories are on separate networks, otherwise this
+// relay would grab the other factory's jobs. Unset = claim every printer's jobs.
+const PRINTER_KEYS = (process.env.PRINTER_KEYS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const PRINTER_PORT = Number(process.env.PRINTER_PORT || "9100");
 const POLL_MS = Number(process.env.POLL_MS || "2000");
 const CONNECT_TIMEOUT_MS = Number(process.env.CONNECT_TIMEOUT_MS || "10000");
@@ -44,8 +51,8 @@ async function gql(query, variables) {
   return json.data;
 }
 
-const CLAIM = `mutation Claim {
-  claimNextPrintJob {
+const CLAIM = `mutation Claim($printerKeys: [String!]) {
+  claimNextPrintJob(printerKeys: $printerKeys) {
     success message printJob { id printerIp payloadBase64 }
   }
 }`;
@@ -78,7 +85,9 @@ function sendToPrinter(ip, bytes) {
 let lastEmpty = false;
 
 async function tick() {
-  const data = await gql(CLAIM, {});
+  const data = await gql(CLAIM, {
+    printerKeys: PRINTER_KEYS.length ? PRINTER_KEYS : null,
+  });
   const job = data.claimNextPrintJob?.printJob;
   if (!job) {
     if (!lastEmpty) console.log("queue empty, waiting…");
@@ -113,6 +122,6 @@ async function loop() {
 }
 
 console.log(
-  `relay up → ${MF_GRAPHQL_URL}  printer port ${PRINTER_PORT}  poll ${POLL_MS}ms`,
+  `relay up → ${MF_GRAPHQL_URL}  printers ${PRINTER_KEYS.join(",") || "ALL"}  port ${PRINTER_PORT}  poll ${POLL_MS}ms`,
 );
 loop();

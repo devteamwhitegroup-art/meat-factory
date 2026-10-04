@@ -71,15 +71,17 @@ export class PrintController {
     });
   }
 
-  // Relay: atomically take the oldest PENDING job for any printer (or requeue
-  // one left CLAIMED by a relay that died mid-print, > 2 min ago). The job
-  // carries printerIp, so the relay knows where to send it.
-  static claimNext(): Promise<PrintJobModel | null> {
+  // Relay: atomically take the oldest PENDING job (or requeue one left CLAIMED
+  // by a relay that died mid-print, > 2 min ago). The job carries printerIp,
+  // so the relay knows where to send it. printerKeys = the printers on that
+  // relay's LAN (one relay per factory); empty = any printer (single-LAN setup).
+  static claimNext(printerKeys?: string[] | null): Promise<PrintJobModel | null> {
     return sequelize.transaction(async (t) => {
       const staleBefore = new Date(Date.now() - 120_000);
       const job = await PrintJobModel.findOne({
         where: {
           printerIp: { [Op.ne]: null },
+          ...(printerKeys?.length && { printerKey: { [Op.in]: printerKeys } }),
           [Op.or]: [
             { status: PRINT_JOB_STATUS.PENDING },
             {

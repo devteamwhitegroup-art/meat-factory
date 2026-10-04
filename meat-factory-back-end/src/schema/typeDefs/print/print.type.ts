@@ -72,8 +72,9 @@ export default `#graphql
         enqueuePrinterTest(printerKey: String!): PrintJobResponse @authLogin
 
         # Relay-only (guarded by the X-Print-Relay-Token header, not a JWT).
-        # Returns the oldest job for any printer; the job carries printerIp.
-        claimNextPrintJob: PrintJobResponse
+        # Returns the oldest job; the job carries printerIp. printerKeys limits
+        # it to that relay's printers (one relay per factory LAN); omit = any.
+        claimNextPrintJob(printerKeys: [String!]): PrintJobResponse
         ackPrintJob(id: ID!, ok: Boolean!, error: String): PrintJobResponse
     }
 `;

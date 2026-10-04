@@ -65,9 +65,32 @@ printer with a name and its fixed IP. When a worker prints, the dialog asks
 which printer; the job stores that printer's IP and **one relay** sends it
 there. Adding a third printer = add a row in Settings. No relay change.
 
-The relay machine must be able to reach every printer IP (same LAN). Printers
-on separate networks would need a relay per network plus a filter — not
-built yet.
+The relay machine must be able to reach every printer IP (same LAN).
+
+## Printers in different factories (separate networks)
+
+One relay **per factory LAN**, each limited to its own printers with
+`PRINTER_KEYS`. Example — two factories, one on Starlink, one on Univision:
+
+1. Settings → Принтер: add `Starlink үйлдвэр` (its LAN IP) and
+   `Univision үйлдвэр` (its LAN IP) → Save. Each row now shows an **ID**.
+2. Starlink factory relay `.env`:
+   ```
+   MF_GRAPHQL_URL=https://<backend>/graphql
+   PRINT_RELAY_TOKEN=<same secret as backend>
+   PRINTER_KEYS=<ID of Starlink printer>
+   ```
+3. Univision factory relay `.env`: same, with `PRINTER_KEYS=<ID of Univision printer>`.
+4. Start both; each logs `printers <its ID>` (not `ALL`). Hit **Тест** on each
+   row — the slip must come out at the matching factory.
+
+Both relays **must** set `PRINTER_KEYS`. An unfiltered relay claims the other
+factory's jobs and sends them to an IP on the wrong LAN (fails, or prints on
+whatever printer happens to have that IP there). Several printers in one
+factory: `PRINTER_KEYS=id1,id2`.
+
+The relay only makes outbound HTTPS calls, so it works behind Starlink's CGNAT
+and any ISP router — no port forwarding, no public IP needed.
 
 ## Printer setup (one time)
 

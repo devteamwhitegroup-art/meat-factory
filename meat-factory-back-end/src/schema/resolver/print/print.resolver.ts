@@ -45,10 +45,14 @@ export default {
         PrintController.enqueuePrinterTest(printerKey),
       "Тест хэвлэлт дараалалд орлоо",
     ),
-    claimNextPrintJob: async (_: unknown, __: unknown, ctx: TBaseContext) => {
+    claimNextPrintJob: async (
+      _: unknown,
+      args: { printerKeys?: string[] | null },
+      ctx: TBaseContext,
+    ) => {
       try {
         assertRelay(ctx);
-        const printJob = await PrintController.claimNext();
+        const printJob = await PrintController.claimNext(args.printerKeys);
         return {
           success: true,
           message: printJob ? "claimed" : "empty",
