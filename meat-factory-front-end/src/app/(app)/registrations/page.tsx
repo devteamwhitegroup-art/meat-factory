@@ -7,11 +7,17 @@ import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
-import { REGISTRATION_STATUS_MN } from "@/lib/format/enum";
+import { FACTORY_MN, REGISTRATION_STATUS_MN } from "@/lib/format/enum";
+import { Badge } from "@/components/ui/badge";
+import { FactoryFilter } from "@/components/common/FactoryFilter";
+import { isCrossFactoryRole } from "@/lib/auth/roles";
+import { cookies } from "next/headers";
+import { env } from "@/lib/env";
 
 type Props = {
   searchParams: Promise<{
     stage?: string;
+    factory?: string;
     page?: string;
     from?: string;
     to?: string;
@@ -36,7 +42,13 @@ const STAGES: Array<{
 ];
 
 export default async function RegistrationsPage({ searchParams }: Props) {
+  // Owner/admin get a factory filter + per-card badge; staff are BE-scoped.
+  const crossFactory = isCrossFactoryRole(
+    (await cookies()).get(env.ROLE_COOKIE_NAME)?.value,
+  );
   const sp = await searchParams;
+  const factory =
+    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
   const stage = STAGES.find((s) => s.value === (sp.stage ?? "")) ?? STAGES[0];
   const { page, dateRange } = pageAndRange(sp);
 
@@ -45,6 +57,7 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   const stageHref = (stageVal: string) => {
     const params = new URLSearchParams();
     if (stageVal) params.set("stage", stageVal);
+    if (factory) params.set("factory", factory);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
     const qs = params.toString();
@@ -55,6 +68,7 @@ export default async function RegistrationsPage({ searchParams }: Props) {
     query: RegistrationListDoc,
     variables: {
       statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
+      factory,
       dateRange,
       limit: 24,
       page,
@@ -78,6 +92,8 @@ export default async function RegistrationsPage({ searchParams }: Props) {
           </Link>
         </div>
       </div>
+
+      {crossFactory ? <FactoryFilter /> : null}
 
       <div className="flex flex-wrap gap-2">
         {STAGES.map((s) => {
@@ -113,17 +129,26 @@ export default async function RegistrationsPage({ searchParams }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((r) => (
-            <RegistrationCard
-              key={r.id}
-              id={r.id!}
-              registrationCode={r.registrationCode ?? null}
-              status={r.status ?? "REGISTERED"}
-              herderName={r.herder?.name ?? null}
-              animalLines={compact(r.animalLines).map((l) => ({
-                animalType: l.animalType ?? "",
-                count: l.count ?? 0,
-              }))}
-            />
+            <div key={r.id} className="relative">
+              <RegistrationCard
+                id={r.id!}
+                registrationCode={r.registrationCode ?? null}
+                status={r.status ?? "REGISTERED"}
+                herderName={r.herder?.name ?? null}
+                animalLines={compact(r.animalLines).map((l) => ({
+                  animalType: l.animalType ?? "",
+                  count: l.count ?? 0,
+                }))}
+              />
+              {crossFactory ? (
+                <Badge
+                  variant="outline"
+                  className="pointer-events-none absolute top-3 right-3 bg-background"
+                >
+                  {FACTORY_MN[r.factory ?? ""] ?? "—"}
+                </Badge>
+              ) : null}
+            </div>
           ))}
         </div>
       )}

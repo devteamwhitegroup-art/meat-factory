@@ -104,8 +104,8 @@ export default `#graphql
             customerId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): SalesTransactionsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        salesTransaction(id: ID!): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionsResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        salesTransaction(id: ID!): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
     }
 
     extend type Mutation {
@@ -115,11 +115,11 @@ export default `#graphql
             transactionDate: Date
             notes: String
             lineItems: [SalesLineItemInput!]
-        ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         markSalesTransactionPaid(
             id: ID!
-        ): SalesTransactionResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         # Fill in (or clear, pass null) the per-kg price on one line item —
         # the post-delivery equivalent of setShipmentSalePrice, for lines
@@ -129,15 +129,15 @@ export default `#graphql
         setSalesLineItemPrice(
             id: ID!
             unitPrice: Float
-        ): SalesLineItemResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesLineItemResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         addSalesInstallment(
             salesTransactionId: ID!
             amountMnt: Float!
             paidAt: Date
             notes: String
-        ): SalesInstallmentResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SalesInstallmentResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
-        removeSalesInstallment(id: ID!): Response @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        removeSalesInstallment(id: ID!): Response @auth(permissions: ["ADMIN", "ACCOUNTANT"])
     }
 `;

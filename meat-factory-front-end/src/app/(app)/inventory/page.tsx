@@ -11,9 +11,15 @@ import { ByproductWrapperListDoc } from "@/lib/queries/byproduct-wrapper";
 import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { formatNumber } from "@/lib/format/money";
-import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
+import {
+  BYPRODUCT_FACTORY,
+  FACTORY_MN,
+  PRODUCT_TYPE_MN,
+} from "@/lib/format/enum";
+import { FactoryFilter } from "@/components/common/FactoryFilter";
+import { can, isCrossFactoryRole } from "@/lib/auth/roles";
 
-import { requireCap } from "@/lib/auth/server";
+import { requireCap, sessionFactory } from "@/lib/auth/server";
 
 // Human-readable SKU built FE-side (the BE sku doesn't carry the byproduct path).
 //   Meat       →  Мах:<animal>                    e.g. Мах:Үхэр
@@ -40,15 +46,31 @@ function buildSku(
     .join(":");
 }
 
-export default async function InventoryPage() {
-  await requireCap("inventory");
+type Props = { searchParams: Promise<{ factory?: string }> };
+
+export default async function InventoryPage({ searchParams }: Props) {
+  const role = await requireCap("inventory");
+  const crossFactory = isCrossFactoryRole(role);
+  // F1/F2 send counted гэдэс to the byproduct factory; F3 itself doesn't.
+  const showTransfer =
+    can(role, "byproductTransfer") &&
+    (crossFactory || (await sessionFactory()) !== BYPRODUCT_FACTORY);
+  // Owner/admin filter (empty = both factories); staff are BE-scoped.
+  const sp = await searchParams;
+  const factory =
+    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
   const client = getClient();
   const [stockResp, statsResp, wrapResp] = await Promise.all([
     client.query({
       query: InventoryStockDoc,
-      variables: { productType: null, animalId: null, byproductName: null },
+      variables: {
+        factory,
+        productType: null,
+        animalId: null,
+        byproductName: null,
+      },
     }),
-    client.query({ query: InventoryStatsDoc }),
+    client.query({ query: InventoryStatsDoc, variables: { factory } }),
     client.query({
       query: ByproductWrapperListDoc,
       variables: { animalType: null, isActive: null },
@@ -95,7 +117,15 @@ export default async function InventoryPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Нөөц</h1>
-        <div>
+        <div className="flex flex-wrap gap-2">
+          {showTransfer ? (
+            <Link
+              href="/inventory/transfer"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Дайвар илгээх → {FACTORY_MN[BYPRODUCT_FACTORY]}
+            </Link>
+          ) : null}
           <Link href="/shipments/export/new" className={buttonVariants()}>
             Экспортын шинэ ачилт
           </Link>
@@ -106,6 +136,7 @@ export default async function InventoryPage() {
       </div>
 
       <InventoryTabs />
+      {crossFactory ? <FactoryFilter /> : null}
 
       {/* ─── Analytics tiles ──────────────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -218,11 +249,15 @@ export default async function InventoryPage() {
         <StockSplit
           items={items.map((i) => ({
             id: i.id!,
-            sku: buildSku(i, wrapperByKey),
+            sku:
+              crossFactory && !factory
+                ? `${FACTORY_MN[i.factory ?? ""] ?? ""} · ${buildSku(i, wrapperByKey)}`
+                : buildSku(i, wrapperByKey),
             productType: (i.productType ?? "MEAT") as "MEAT" | "BYPRODUCT",
             animalType: i.animal?.name ?? null,
             byproductName: i.byproductName ?? null,
             quantityKg: Number(i.quantityKg ?? 0),
+            quantityCount: Number(i.quantityCount ?? 0),
           }))}
         />
       )}

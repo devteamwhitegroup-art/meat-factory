@@ -41,26 +41,27 @@ export function SettlementReceipt({
   reg,
   existing,
   busy,
-  canApproveMedical,
-  canSettle,
+  canPay,
+  canSign,
   onMarkPaid,
   onReleaseHold,
-  onApproveMedical,
   onSetStorekeeperSignature,
 }: {
   reg: Reg;
   existing: Settlement;
   busy: boolean;
-  canApproveMedical: boolean;
-  canSettle: boolean;
+  canPay: boolean;
+  canSign: boolean;
   // heldAmount null → pay in full; >0 → partial settlement.
   onMarkPaid: (heldAmount: number | null) => void;
   onReleaseHold: () => void;
-  onApproveMedical: (medicalNumber: string | null) => void;
   onSetStorekeeperSignature: (fileId: string | null) => void;
 }) {
   const herderSignatureUrl = reg.agreementSignature?.url ?? null;
   const storekeeperSignatureUrl = existing.storekeeperSignature?.url ?? null;
+  const bundles = compact(reg.byproductBundles).filter(
+    (b) => Number(b.count ?? 0) > 0,
+  );
 
   return (
     <section data-print="settlement">
@@ -101,6 +102,7 @@ export function SettlementReceipt({
                 <TableHead>Хүлээн авсан</TableHead>
                 <TableHead>Үнэ/кг</TableHead>
                 <TableHead>Мах</TableHead>
+                <TableHead>Дайвар</TableHead>
                 <TableHead>Бой зардал</TableHead>
               </TableRow>
             </TableHeader>
@@ -111,11 +113,45 @@ export function SettlementReceipt({
                   <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                   <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
                   <TableCell>{formatNumber(l.meatAmount)}</TableCell>
+                  <TableCell>{formatNumber(l.byproductAmount)}</TableCell>
                   <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          {/* Herder-facing: гэдэс bundles only, never the items inside. */}
+          {bundles.length > 0 ? (
+            <div className="space-y-0.5 rounded-md border bg-muted/20 p-3">
+              <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                Дайвар (гэдэс)
+              </div>
+              {bundles.map((b) => {
+                const kept = Number(b.count ?? 0) - Number(b.herderCount ?? 0);
+                const price = Number(b.unitPrice ?? 0);
+                return (
+                  <div key={b.wrapperId} className="space-y-0.5">
+                    {kept > 0 ? (
+                      <div className="flex justify-between gap-3">
+                        <span>
+                          {b.animalType} · {b.wrapperName} {kept} ×{" "}
+                          {formatNumber(price)}
+                        </span>
+                        <span className="tabular-nums">
+                          {formatNumber(kept * price)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {Number(b.herderCount ?? 0) > 0 ? (
+                      <div className="flex justify-between gap-3 text-muted-foreground">
+                        <span>{b.wrapperName} малчинд</span>
+                        <span className="tabular-nums">{b.herderCount} ш</span>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <Separator />
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Нийт мах</div>
@@ -124,11 +160,20 @@ export function SettlementReceipt({
             </div>
             <div className="text-muted-foreground">Бой зардал</div>
             <div className="text-right">
-              {formatNumber(existing.totalSlaughterCost)}
+              −{formatNumber(existing.totalSlaughterCost)}
             </div>
-            <div className="font-medium">Нийт төлбөр</div>
+            <div className="text-muted-foreground">
+              Дайвар (гэдэс) — бой зардлаас хасна
+            </div>
+            <div className="text-right">
+              +{formatNumber(existing.totalByproductAmount)}
+            </div>
+            <div className="font-medium">Цэвэр бой зардал</div>
             <div className="text-right font-medium">
-              {formatNumber(existing.grossAmount)}
+              {formatNumber(
+                Number(existing.totalSlaughterCost ?? 0) -
+                  Number(existing.totalByproductAmount ?? 0),
+              )}
             </div>
             <div className="text-base font-semibold">Малчинд өгөх дүн</div>
             <div className="text-right text-base font-semibold">
@@ -314,25 +359,9 @@ export function SettlementReceipt({
 
           {/* ── Actions (never printed) ── */}
           <div className="print-hide space-y-3">
-            {/* Medical-number approval — gated to office roles. Shown while the
-                number is still unapproved and the settlement is in a payable
-                state. */}
-            {!reg.medicalNumberApproved &&
-            canApproveMedical &&
-            (reg.status === "PAYMENT_PENDING" ||
-              reg.status === "PARTIALLY_SETTLED") ? (
-              <MedicalApprovalBlock
-                medicalNumber={reg.medicalNumber ?? null}
-                busy={busy}
-                onApprove={onApproveMedical}
-              />
-            ) : null}
-
             {/* Pay screen — full pay when medical approved, otherwise a partial
                 pay that withholds an amount. */}
-            {canSettle &&
-            !existing.isPaid &&
-            reg.status === "PAYMENT_PENDING" ? (
+            {canPay && !existing.isPaid && reg.status === "PAYMENT_PENDING" ? (
               <PayBlock
                 netPayable={Number(existing.netPayable ?? 0)}
                 medicalApproved={!!reg.medicalNumberApproved}
@@ -342,7 +371,7 @@ export function SettlementReceipt({
             ) : null}
 
             {/* Release screen — for a partially-settled registration. */}
-            {canSettle && reg.status === "PARTIALLY_SETTLED" ? (
+            {canPay && reg.status === "PARTIALLY_SETTLED" ? (
               <ReleaseBlock
                 held={Number(existing.heldAmount ?? 0)}
                 paid={Number(existing.paidAmount ?? 0)}
@@ -354,7 +383,7 @@ export function SettlementReceipt({
 
             {/* Storekeeper signature — drawn once, reused on every printed
                 receipt from then on (see herderSignatureUrl above). */}
-            {canSettle ? (
+            {canSign ? (
               <SignatureField
                 value={existing.storekeeperSignatureFileId ?? null}
                 onChange={onSetStorekeeperSignature}
@@ -442,11 +471,11 @@ function PayBlock({
   return (
     <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
       <div className="text-sm font-medium text-amber-800">
-        Мал эмнэлгийн дугаар батлагдаагүй
+        Мал эмнэлгийн дугаар баталгаажаагүй
       </div>
       <p className="text-xs text-amber-700">
-        Мал эмнэлгийн дугаар батлагдах хүртэл тодорхой дүнг суутгаж, үлдсэнийг
-        төлнө. Суутгасан дүн нь дугаар батлагдсаны дараа олгогдоно.
+        Мал эмнэлгийн дугаар баталгаажих хүртэл тодорхой дүнг суутгаж, үлдсэнийг
+        төлнө. Суутгасан дүн нь дугаар баталгаажсаны дараа олгогдоно.
       </p>
       <div className="space-y-1.5">
         <Label className="text-xs">Суутгах дүн (₮)</Label>
@@ -515,52 +544,6 @@ function ReleaseBlock({
         className="w-full"
       >
         {busy ? "..." : "Суутгасан дүнг олгох"}
-      </Button>
-    </div>
-  );
-}
-
-// ── Medical-number approval ──
-function MedicalApprovalBlock({
-  medicalNumber,
-  busy,
-  onApprove,
-}: {
-  medicalNumber: string | null;
-  busy: boolean;
-  onApprove: (medicalNumber: string | null) => void;
-}) {
-  const [num, setNum] = useState("");
-  const hasNumber = !!medicalNumber?.trim();
-  const typed = num.trim();
-  // If there's a number on file we just approve it; if not, one must be entered.
-  const canSubmit = hasNumber || typed !== "";
-
-  return (
-    <div className="space-y-2 rounded-md border border-dashed p-3">
-      <div className="text-sm font-medium">Мал эмнэлгийн дугаар</div>
-      {hasNumber ? (
-        <div className="text-sm">
-          Дугаар: <span className="font-mono">{medicalNumber}</span>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          <Label className="text-xs">Мал эмнэлгийн дугаар оруулах</Label>
-          <Input
-            value={num}
-            onChange={(e) => setNum(e.target.value)}
-            placeholder="Мал эмнэлгийн дугаар"
-            className="h-10"
-          />
-        </div>
-      )}
-      <Button
-        variant="outline"
-        onClick={() => onApprove(hasNumber ? null : typed || null)}
-        disabled={busy || !canSubmit}
-        className="w-full"
-      >
-        {busy ? "..." : "Мал эмнэлгийн дугаар батлах"}
       </Button>
     </div>
   );

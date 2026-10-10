@@ -72,8 +72,6 @@ export class AnimalController {
       if (typeof doc.isExport === "boolean") existing.isExport = doc.isExport;
       if (doc.pricePerAnimal !== undefined)
         existing.pricePerAnimal = Number(doc.pricePerAnimal);
-      if (typeof doc.canCoverSlaughterCost === "boolean")
-        existing.canCoverSlaughterCost = doc.canCoverSlaughterCost;
       if (doc.yieldPercent !== undefined)
         existing.yieldPercent = Number(doc.yieldPercent);
       if (typeof doc.isActive === "boolean") existing.isActive = doc.isActive;
@@ -85,7 +83,6 @@ export class AnimalController {
       isExport: !!doc.isExport,
       pricePerAnimal:
         doc.pricePerAnimal !== undefined ? Number(doc.pricePerAnimal) : 0,
-      canCoverSlaughterCost: !!doc.canCoverSlaughterCost,
       yieldPercent:
         doc.yieldPercent !== undefined ? Number(doc.yieldPercent) : 100,
       isActive: doc.isActive ?? true,

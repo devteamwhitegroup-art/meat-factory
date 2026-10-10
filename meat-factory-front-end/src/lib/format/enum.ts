@@ -2,14 +2,30 @@
 // truth — UI components must NOT hardcode Cyrillic enum strings.
 
 export const ROLE_MN: Record<string, string> = {
-  SUPER_ADMIN: "Систем админ",
   ADMIN: "Админ",
-  MODERATOR: "Модератор",
-  MANAGER: "Менежер",
-  GUARD: "Харуул",
-  SCALE: "Жинч",
   STOREKEEPER: "Нярав",
+  ACCOUNTANT: "Нягтлан",
+  DOCTOR: "Эмч",
 };
+
+// Factory display names — rename here, never in the BE enum.
+export const FACTORY_MN: Record<string, string> = {
+  FACTORY_1: "Урд үйлдвэр",
+  FACTORY_2: "Хойт үйлдвэр",
+  FACTORY_3: "Дайвар үйлдвэр",
+};
+
+// FACTORY_3 is the byproduct factory: it receives counted гэдэс from 1 & 2 and
+// disassembles/weighs it; it never receives livestock. Mirrors BE.
+export const BYPRODUCT_FACTORY = "FACTORY_3";
+// Factories that take livestock intake (registration form picker).
+export const INTAKE_FACTORIES = ["FACTORY_1", "FACTORY_2"];
+
+// FACTORY_2 only receives pre-butchered meat: no stamp, no slaughter cost, no
+// verify step — meat + гэдэс are stocked when weighing is finished and
+// finance settles later. Mirrors BE isPreButchered().
+export const isPreButchered = (factory?: string | null): boolean =>
+  factory === "FACTORY_2";
 
 // Animal labels are not enums: the catalogue stores the Mongolian name as
 // `Animal.name`, which is the value carried by `animalType` on every record —
@@ -23,6 +39,20 @@ export const REGISTRATION_STATUS_MN: Record<string, string> = {
   PARTIALLY_SETTLED: "Хэсэгчлэн төлсөн",
   SETTLED: "Төлбөр хийгдсэн",
   CANCELLED: "Цуцлагдсан",
+};
+
+// Vet's ruling on one medical certificate number (checked against the
+// government service).
+export const MEDICAL_NUMBER_STATUS_MN: Record<string, string> = {
+  PENDING: "Баталгаажилт хийгдээгүй",
+  APPROVED: "Баталгаажсан",
+  REJECTED: "Татгалзсан",
+};
+
+export const MEDICAL_NUMBER_STATUS_COLOR: Record<string, string> = {
+  PENDING: "border-0 bg-amber-100 text-amber-800",
+  APPROVED: "border-0 bg-emerald-100 text-emerald-800",
+  REJECTED: "border-0 bg-red-100 text-red-800",
 };
 
 export const PAYMENT_STATUS_MN: Record<string, string> = {
@@ -69,6 +99,9 @@ export const MOVEMENT_SOURCE_MN: Record<string, string> = {
   VERIFICATION: "Баталгаажуулалт",
   SETTLEMENT: "Тооцоо",
   BYPRODUCT: "Дайвар хадгалалт",
+  WEIGHING: "Жинлэлт (Үйлдвэр 2)",
+  TRANSFER: "Дайвар шилжүүлэг",
+  PROCESSING: "Дайвар задлалт",
   SHIPMENT: "Ачилт",
   MANUAL: "Гар тохируулга",
 };

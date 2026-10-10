@@ -21,23 +21,37 @@ import { unwrap } from "@/lib/unwrap";
 import { MOVEMENT_TYPE_MN, PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { ByproductNamePicker } from "@/components/common/ByproductNamePicker";
+import { FactoryPicker } from "@/components/common/FactoryFilter";
 
-export function AdjustForm() {
+// crossFactory = owner/admin: stock is per factory, so they pick which one.
+// Staff adjust their own factory (BE-stamped) and see no picker.
+export function AdjustForm({ crossFactory }: { crossFactory: boolean }) {
   const router = useRouter();
   const { animals } = useAnimalCatalog();
   const [adjust] = useMutation(AdjustInventoryDoc);
   const [productType, setProductType] = useState<"MEAT" | "BYPRODUCT">("MEAT");
   const [animalId, setAnimalId] = useState("");
   const [byproductName, setByproductName] = useState("");
+  // Byproduct stock is per animal (SKU Дайвар:<animal>:<name>).
+  const [byproductAnimal, setByproductAnimal] = useState("");
   const [quantityKg, setQuantityKg] = useState("");
+  // Pieces — byproduct only (counted гэдэс); meat is always kg.
+  const [quantityCount, setQuantityCount] = useState("");
   const [direction, setDirection] = useState<"IN" | "OUT" | "ADJUSTMENT">("IN");
   const [notes, setNotes] = useState("");
+  const [factory, setFactory] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function onSubmit() {
-    const q = Number(quantityKg);
-    if (!q || q <= 0) {
-      toast.error("Хэмжээ эерэг тоо");
+    const q = Number(quantityKg) || 0;
+    const c =
+      productType === "BYPRODUCT" ? Math.floor(Number(quantityCount) || 0) : 0;
+    if (q < 0 || c < 0 || (q <= 0 && c <= 0)) {
+      toast.error(
+        productType === "BYPRODUCT"
+          ? "Жин (кг) эсвэл тоо (ш) эерэг байх ёстой"
+          : "Хэмжээ эерэг тоо",
+      );
       return;
     }
     if (productType === "BYPRODUCT" && !byproductName) {
@@ -48,14 +62,23 @@ export function AdjustForm() {
       toast.error("Малын төрөл сонгоно уу");
       return;
     }
+    if (crossFactory && !factory) {
+      toast.error("Үйлдвэр сонгоно уу");
+      return;
+    }
     setBusy(true);
     try {
       const r = await adjust({
         variables: {
+          factory: crossFactory ? (factory as never) : null,
           productType: productType as never,
-          animalId: productType === "MEAT" ? animalId : null,
+          animalId:
+            productType === "MEAT"
+              ? animalId
+              : (animals.find((a) => a.name === byproductAnimal)?.id ?? null),
           byproductName: productType === "BYPRODUCT" ? byproductName : null,
-          quantityKg: q,
+          quantityKg: q > 0 ? q : null,
+          quantityCount: c > 0 ? c : null,
           direction: direction as never,
           notes: notes.trim() || null,
         },
@@ -74,6 +97,12 @@ export function AdjustForm() {
     <Card>
       <CardContent className="space-y-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2">
+          {crossFactory ? (
+            <div className="sm:col-span-2">
+              <div className="mb-1 text-sm font-medium">Үйлдвэр</div>
+              <FactoryPicker value={factory} onChange={setFactory} />
+            </div>
+          ) : null}
           <div>
             <div className="mb-1 text-sm font-medium">Бараа төрөл</div>
             <Select
@@ -117,6 +146,8 @@ export function AdjustForm() {
               <ByproductNamePicker
                 value={byproductName}
                 onChange={setByproductName}
+                onAnimalChange={setByproductAnimal}
+                allowWrapper
               />
             )}
           </div>
@@ -148,6 +179,16 @@ export function AdjustForm() {
               onChange={(e) => setQuantityKg(e.target.value)}
             />
           </div>
+          {productType === "BYPRODUCT" ? (
+            <div>
+              <div className="mb-1 text-sm font-medium">Тоо (ш)</div>
+              <Input
+                inputMode="numeric"
+                value={quantityCount}
+                onChange={(e) => setQuantityCount(e.target.value)}
+              />
+            </div>
+          ) : null}
         </div>
         <div>
           <div className="mb-1 text-sm font-medium">Тэмдэглэл</div>

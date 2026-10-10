@@ -8,6 +8,8 @@ export default `#graphql
         animal: Animal
         animalType: String
         name: String
+        # Credited to the herder per bundle the factory keeps.
+        price: Float
         isActive: Boolean
         items: [ByproductConstant]
         createdAt: Date
@@ -33,23 +35,25 @@ export default `#graphql
             search: String
             isActive: Boolean
             ${PaginationSchema}
-        ): ByproductWrappersResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN", "STOREKEEPER"])
-        byproductWrapper(id: ID!): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN", "STOREKEEPER"])
+        ): ByproductWrappersResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        byproductWrapper(id: ID!): ByproductWrapperResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
     }
 
     extend type Mutation {
         createByproductWrapper(
             animalType: String!
             name: String!
-        ): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+            price: Float
+        ): ByproductWrapperResponse @auth(permissions: ["ADMIN"])
 
         updateByproductWrapper(
             id: ID!
             animalType: String
             name: String
+            price: Float
             isActive: Boolean
-        ): ByproductWrapperResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): ByproductWrapperResponse @auth(permissions: ["ADMIN"])
 
-        deleteByproductWrapper(id: ID!): Response @auth(permissions: ["ADMIN", "SUPER_ADMIN"])
+        deleteByproductWrapper(id: ID!): Response @auth(permissions: ["ADMIN"])
     }
 `;

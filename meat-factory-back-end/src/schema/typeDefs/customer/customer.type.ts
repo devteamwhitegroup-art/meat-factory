@@ -43,8 +43,8 @@ export default `#graphql
             isActive: Boolean
             kind: CUSTOMER_KIND
             ${PaginationSchema}
-        ): CustomersResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        customer(id: ID!): CustomerResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): CustomersResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        customer(id: ID!): CustomerResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
     }
 
     extend type Mutation {
@@ -56,7 +56,7 @@ export default `#graphql
             bankAccount: String
             registrationNumber: String
             taxId: String
-        ): CustomerResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): CustomerResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         updateCustomer(
             id: ID!
@@ -68,10 +68,10 @@ export default `#graphql
             registrationNumber: String
             taxId: String
             isActive: Boolean
-        ): CustomerResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): CustomerResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         deleteCustomer(
             id: ID!
-        ): Response @auth(permissions: ["ADMIN", "SUPER_ADMIN"])
+        ): Response @auth(permissions: ["ADMIN"])
     }
 `;

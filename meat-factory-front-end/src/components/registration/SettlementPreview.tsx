@@ -14,16 +14,18 @@ type Props = {
   receivedByType: Record<string, number>;
   // meat[animalType] = Σ (weighingEntry.weightKg × weighingEntry.pricePerKg)
   meatByType: Record<string, number>;
+  // byproduct[animalType] = Σ kept гэдэс × price (credited to the herder)
+  byproductByType?: Record<string, number>;
   lines: LineInput[];
 };
 
 // Meat income is fixed by the per-entry negotiated prices (set at weighing).
-// Slaughter cost is fixed by the admin Бой зардал config × counts (with the
-// verifier's per-animal cover toggle applied at prefill time) — display-only
-// here. Net = Σmeat − Σslaughter.
+// Бой зардал is fixed per head (set at intake). The kept гэдэс price is
+// deducted from the бой зардал: net = Σmeat − (Σбой − Σгэдэс).
 export function SettlementPreview({
   receivedByType,
   meatByType,
+  byproductByType = {},
   lines,
 }: Props) {
   const totalReceived = Object.values(receivedByType).reduce(
@@ -36,12 +38,14 @@ export function SettlementPreview({
     const meat = meatByType[l.animalType] ?? 0;
     const avgPrice = received > 0 ? meat / received : 0;
     const slaughter = Number(l.slaughterCost) || 0;
-    return { ...l, received, meat, avgPrice, slaughter };
+    const byproduct = byproductByType[l.animalType] ?? 0;
+    return { ...l, received, meat, avgPrice, slaughter, byproduct };
   });
 
   const totalMeat = rows.reduce((sum, r) => sum + r.meat, 0);
+  const totalByproduct = rows.reduce((sum, r) => sum + r.byproduct, 0);
   const totalSlaughter = rows.reduce((sum, r) => sum + r.slaughter, 0);
-  const net = totalMeat - totalSlaughter;
+  const net = totalMeat + totalByproduct - totalSlaughter;
 
   return (
     <Card>
@@ -56,6 +60,7 @@ export function SettlementPreview({
               <th className="pb-2">Хүлээн авсан (кг)</th>
               <th className="pb-2">Дундаж үнэ / кг</th>
               <th className="pb-2">Махны дүн</th>
+              <th className="pb-2">Дайвар</th>
               <th className="pb-2">Бой зардал</th>
             </tr>
           </thead>
@@ -66,6 +71,7 @@ export function SettlementPreview({
                 <td className="py-2">{formatNumber(r.received)}</td>
                 <td className="py-2">{formatNumber(r.avgPrice)}</td>
                 <td className="py-2">{formatNumber(r.meat)}</td>
+                <td className="py-2">{formatNumber(r.byproduct)}</td>
                 <td className="py-2 tabular-nums">
                   {formatNumber(r.slaughter)}
                 </td>
@@ -81,8 +87,16 @@ export function SettlementPreview({
           <div className="text-right">{formatNumber(totalReceived)} кг</div>
           <div className="text-muted-foreground">Нийт мах</div>
           <div className="text-right">{formatNumber(totalMeat)}</div>
-          <div className="text-muted-foreground">Нийт бой зардал</div>
-          <div className="text-right">{formatNumber(totalSlaughter)}</div>
+          <div className="text-muted-foreground">Бой зардал</div>
+          <div className="text-right">−{formatNumber(totalSlaughter)}</div>
+          <div className="text-muted-foreground">
+            Дайвар (гэдэс) — бой зардлаас хасна
+          </div>
+          <div className="text-right">+{formatNumber(totalByproduct)}</div>
+          <div className="text-muted-foreground">Цэвэр бой зардал</div>
+          <div className="text-right">
+            {formatNumber(totalSlaughter - totalByproduct)}
+          </div>
           <div className="text-base font-semibold">Малчинд өгөх дүн</div>
           <div className="text-right text-base font-semibold">
             {formatNumber(net)}

@@ -113,6 +113,7 @@ export default `#graphql
         totalPrice: Float
         pricedAt: Date
         status: SHIPMENT_STATUS
+        factory: FACTORY
         shippedAt: Date
         loadedById: ID
         loadedBy: Admin
@@ -159,20 +160,24 @@ export default `#graphql
 
     extend type Query {
         shipments(
+            # Owner/admin only — factory staff always see their own.
+            factory: FACTORY
             status: SHIPMENT_STATUS
             category: SHIPMENT_CATEGORY
             domesticMarket: DOMESTIC_MARKET
             customerId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): ShipmentsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
-        shipment(id: ID!): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        shipment(id: ID!): ShipmentResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
         # Preview the next loading serial (does not consume the sequence).
-        nextShipmentSerial: NextShipmentSerialResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        nextShipmentSerial: NextShipmentSerialResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
     }
 
     extend type Mutation {
         createShipment(
+            # Owner/admin must pick; factory staff ship from their own.
+            factory: FACTORY
             category: SHIPMENT_CATEGORY!
             # Required when category = DOMESTIC; ignored for EXPORT.
             domesticMarket: DOMESTIC_MARKET
@@ -187,19 +192,19 @@ export default `#graphql
             sealNumber: String
             notes: String
             photoFileId: ID
-        ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         updateShipmentStatus(
             id: ID!
             status: SHIPMENT_STATUS!
-        ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         # End-of-load pricing: insert a per-kg selling price on one product
         # group (sale line). Nullable — agreed on the spot or set later.
         setShipmentSalePrice(
             id: ID!
             pricePerKg: Float
-        ): ShipmentSaleLineResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentSaleLineResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         addCargoEntry(
             shipmentId: ID!
@@ -218,9 +223,9 @@ export default `#graphql
             tareKg: Float
             # Direct net — required only when grossKg+tareKg both omitted.
             weightKg: Float
-        ): ShipmentCargoEntryResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentCargoEntryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
-        deleteCargoEntry(id: ID!): Response @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        deleteCargoEntry(id: ID!): Response @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         # Unified loading-info update (driver, vehicle plate, seal number).
         # Pass only the fields you want to change — null clears.
@@ -230,13 +235,13 @@ export default `#graphql
             driverName: String
             driverPhone: String
             sealNumber: String
-        ): ShipmentResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         addShipmentPhoto(
             shipmentId: ID!
             fileId: ID!
-        ): ShipmentPhotoResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): ShipmentPhotoResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
-        removeShipmentPhoto(id: ID!): Response @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        removeShipmentPhoto(id: ID!): Response @auth(permissions: ["ADMIN", "STOREKEEPER"])
     }
 `;

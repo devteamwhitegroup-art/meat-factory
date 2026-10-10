@@ -37,6 +37,9 @@ export default {
   // Big centred title line on every receipt. Keep ASCII until ESCPOS_CODEPAGE
   // is tuned for Mongolian, then set your Cyrillic company name here.
   RECEIPT_HEADER: process.env.RECEIPT_HEADER || "White Group",
+  // Factory contact phone(s) printed under the title, e.g. "9911-2233,
+  // 8800-1122". Empty = line omitted.
+  RECEIPT_PHONE: process.env.RECEIPT_PHONE || "",
   // `ESC t n` code-page slot. 6 = CP866 (Cyrillic). If Mongolian Ө/Ү print
   // wrong, run enqueueCodepageSampler and set the slot that renders them.
   ESCPOS_CODEPAGE: Number(process.env.ESCPOS_CODEPAGE ?? 6),

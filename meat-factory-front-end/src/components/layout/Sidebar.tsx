@@ -13,13 +13,15 @@ import { navItemsFor, navIsActive, type StaffRole } from "@/lib/auth/roles";
 
 export function Sidebar({
   role,
+  factory,
   defaultCollapsed = false,
 }: {
   role: StaffRole | null;
+  factory: string | null;
   defaultCollapsed?: boolean;
 }) {
   const pathname = usePathname();
-  const items = navItemsFor(role);
+  const items = navItemsFor(role, factory);
   const logout = useLogout();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 

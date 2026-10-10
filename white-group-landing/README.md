@@ -1,9 +1,9 @@
 # white-group-landing
 
-Public marketing site for **“Вайт групп” ХХК (White Group LLC)** — separate from
+Public marketing site for **“Вайт грүпп” ХХК (White Group LLC)** — separate from
 the operational ERP (`../meat-factory-front-end`).
 
-- **Stack:** Next.js 16 (App Router) · Tailwind v4 · shadcn/ui (base-ui) · lucide · sonner
+- **Stack:** Next.js 16 (App Router) · Tailwind v4 · shadcn/ui (base-ui) · lucide
 - **Intended domain:** `whitegroup.mn` (the dashboard deploys separately to `dashboard.whitegroup.mn`)
 - The landing is a single static page at `/` — fully prerendered, no backend/auth.
 

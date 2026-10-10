@@ -24,6 +24,7 @@ import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { CustomerController } from "../customer/customer.controller";
 import { AnimalController } from "../livestock/animal.controller";
 import { InventoryController } from "../inventory/inventory.controller";
+import { AdminController } from "../user/admin.controller";
 import { SalesTransactionController } from "../sales/sales-transaction.controller";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { FileController } from "../global/file.controller";
@@ -65,6 +66,7 @@ export class ShipmentController {
     context: TContext,
   ): Promise<ShipmentModel> {
     if (!doc.category) throw new Error("Ачилтын төрөл шаардлагатай");
+    const factory = AdminController.writeFactory(context, doc.factory);
 
     // DOMESTIC shipments carry a sub-market (LOCAL / ULAANBAATAR); EXPORT does
     // not. Force the value to match the category.
@@ -96,6 +98,7 @@ export class ShipmentController {
         return await ShipmentModel.create({
           shipmentCode: `${prefix}${counter}`,
           serialNumber: counter,
+          factory,
           category: doc.category,
           domesticMarket,
           customerId: doc.customerId,
@@ -125,7 +128,8 @@ export class ShipmentController {
 
   // Dedup/grouping key for a load line: one key per inventory SKU.
   //   MEAT      → "MEAT:<animalType>"
-  //   BYPRODUCT → "BYPN:<byproductName>"
+  //   BYPRODUCT → "BYPN:<animalType>:<byproductName>" (animal-less free-form /
+  //               legacy cargo keeps "BYPN:<byproductName>")
   private static _groupKey(
     productType: PRODUCT_TYPE,
     animalType: string | null,
@@ -133,7 +137,7 @@ export class ShipmentController {
   ): string {
     return productType === PRODUCT_TYPE.MEAT
       ? `MEAT:${animalType}`
-      : `BYPN:${byproductName}`;
+      : `BYPN:${animalType ? `${animalType}:` : ""}${byproductName}`;
   }
 
   // Aggregate the cargo manifest into one row per product group (meat type or
@@ -162,8 +166,7 @@ export class ShipmentController {
     >();
     for (const r of rows) {
       const productType = r.productType;
-      const animalType =
-        productType === PRODUCT_TYPE.MEAT ? r.animalType : null;
+      const animalType = r.animalType;
       const byproductName =
         productType === PRODUCT_TYPE.BYPRODUCT ? r.byproductName : null;
       const key = this._groupKey(productType, animalType, byproductName);
@@ -192,21 +195,23 @@ export class ShipmentController {
     shipment: ShipmentModel,
   ): Promise<TStockLine[]> {
     const groups = await this._groupEntries(shipment.id);
-    const meatTypes = groups
-      .filter((g) => g.productType === PRODUCT_TYPE.MEAT && g.totalWeightKg > 0)
-      .map((g) => g.animalType as string);
+    const animalTypes = Array.from(
+      new Set(
+        groups
+          .filter((g) => g.animalType && g.totalWeightKg > 0)
+          .map((g) => g.animalType as string),
+      ),
+    );
     const typeToId =
-      meatTypes.length > 0
-        ? await AnimalController.mapNamesToIds(meatTypes)
+      animalTypes.length > 0
+        ? await AnimalController.mapNamesToIds(animalTypes)
         : {};
     const lines = groups
       .filter((g) => g.totalWeightKg > 0)
       .map((g) => ({
+        factory: shipment.factory,
         productType: g.productType,
-        animalId:
-          g.productType === PRODUCT_TYPE.MEAT
-            ? typeToId[g.animalType as string]
-            : null,
+        animalId: g.animalType ? typeToId[g.animalType] : null,
         byproductName:
           g.productType === PRODUCT_TYPE.BYPRODUCT ? g.byproductName : null,
         quantityKg: g.totalWeightKg,
@@ -303,8 +308,11 @@ export class ShipmentController {
 
   static async list(
     doc: TGetShipments,
+    context: TContext,
   ): Promise<TPaginationGeneric<TShipment>> {
     const where: WhereOptions = {};
+    const factory = AdminController.readFactory(context, doc.factory);
+    if (factory) Object.assign(where, { factory });
     if (doc.status) Object.assign(where, { status: doc.status });
     if (doc.category) Object.assign(where, { category: doc.category });
     if (doc.domesticMarket)
@@ -513,6 +521,7 @@ export class ShipmentController {
         );
         byproductName = constant.name;
         sourceConstantId = constant.id;
+        animalType = constant.wrapper?.animal?.name ?? null;
       } else {
         const n = (args.byproductName ?? "").trim();
         if (!n) throw new Error("Дайвар бүтээгдэхүүний нэр шаардлагатай");

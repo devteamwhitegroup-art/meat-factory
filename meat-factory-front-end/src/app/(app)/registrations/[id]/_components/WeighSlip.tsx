@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { formatNumber } from "@/lib/format/money";
+import { isPreButchered } from "@/lib/format/enum";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
 import { PrintButton } from "@/components/common/PrintButton";
@@ -27,18 +28,11 @@ type Reg = NonNullable<
 // Printable weigh/agreement slip (status WEIGHED, before VERIFIED). Numbers are
 // derived from the same data settlement will use — meat = Σ(weightKg×pricePerKg),
 // бой = animalLines.slaughterCost — so the slip and the final settlement agree.
-// When the verifier marks the slaughter cost covered by byproducts, the бой of
-// the coverable animal types is offset to 0 here too (matches the summary).
-export function WeighSlip({
-  reg,
-  covered = false,
-  coverByType = {},
-}: {
-  reg: Reg;
-  covered?: boolean;
-  coverByType?: Record<string, boolean>;
-}) {
+// The гэдэс credit is decided after verify and shows on the settlement receipt.
+// FACTORY_2 (pre-butchered) has no бой зардал, so its column is hidden.
+export function WeighSlip({ reg }: { reg: Reg }) {
   const entries = compact(reg.weighingEntries);
+  const showBoy = !isPreButchered(reg.factory);
 
   // Meat income per type from per-entry negotiated price.
   const meatByType: Record<string, { weight: number; meat: number }> = {};
@@ -66,9 +60,7 @@ export function WeighSlip({
   const rows = types.map((t) => {
     const weight = meatByType[t]?.weight ?? 0;
     const meat = meatByType[t]?.meat ?? 0;
-    // Coverable types' бой is offset to 0 when the verifier enabled cover.
-    const offset = covered && !!coverByType[t];
-    const boy = offset ? 0 : (boyByType[t] ?? 0);
+    const boy = boyByType[t] ?? 0;
     gross += meat;
     totalBoy += boy;
     return {
@@ -77,8 +69,6 @@ export function WeighSlip({
       pricePerKg: weight > 0 ? meat / weight : 0,
       meat,
       boy,
-      rawBoy: boyByType[t] ?? 0,
-      offset,
       net: meat - boy,
     };
   });
@@ -99,6 +89,8 @@ export function WeighSlip({
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Малчин</div>
             <div>{reg.herder?.name ?? "—"}</div>
+            <div className="text-muted-foreground">Утас</div>
+            <div>{reg.herder?.phone ?? "—"}</div>
             <div className="text-muted-foreground">Бүртгэлийн код</div>
             <div className="font-mono">{reg.registrationCode ?? "—"}</div>
             <div className="text-muted-foreground">Огноо</div>
@@ -116,7 +108,9 @@ export function WeighSlip({
                 <TableHead className="text-right">Жин (кг)</TableHead>
                 <TableHead className="text-right">Үнэ/кг</TableHead>
                 <TableHead className="text-right">Махны дүн</TableHead>
-                <TableHead className="text-right">Бой зардал</TableHead>
+                {showBoy && (
+                  <TableHead className="text-right">Бой зардал</TableHead>
+                )}
                 <TableHead className="text-right">Цэвэр</TableHead>
               </TableRow>
             </TableHeader>
@@ -133,18 +127,11 @@ export function WeighSlip({
                   <TableCell className="text-right tabular-nums">
                     {formatNumber(r.meat)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.offset ? (
-                      <span className="text-amber-700">
-                        <span className="text-muted-foreground line-through">
-                          {formatNumber(r.rawBoy)}
-                        </span>{" "}
-                        0
-                      </span>
-                    ) : (
-                      formatNumber(r.boy)
-                    )}
-                  </TableCell>
+                  {showBoy && (
+                    <TableCell className="text-right tabular-nums">
+                      {formatNumber(r.boy)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatNumber(r.net)}
                   </TableCell>
@@ -158,10 +145,14 @@ export function WeighSlip({
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Нийт мах</div>
             <div className="text-right tabular-nums">{formatNumber(gross)}</div>
-            <div className="text-muted-foreground">Нийт бой зардал</div>
-            <div className="text-right tabular-nums">
-              {formatNumber(totalBoy)}
-            </div>
+            {showBoy && (
+              <>
+                <div className="text-muted-foreground">Нийт бой зардал</div>
+                <div className="text-right tabular-nums">
+                  {formatNumber(totalBoy)}
+                </div>
+              </>
+            )}
             <div className="text-base font-semibold">Малчинд өгөх дүн</div>
             <div className="text-right text-base font-semibold tabular-nums">
               {formatNumber(netPayable)}

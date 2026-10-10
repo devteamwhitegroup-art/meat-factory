@@ -1,4 +1,5 @@
 import { requireCap } from "@/lib/auth/server";
+import { isCrossFactoryRole } from "@/lib/auth/roles";
 import {
   ShipmentListView,
   type ShipmentListSearchParams,
@@ -7,7 +8,13 @@ import {
 type Props = { searchParams: Promise<ShipmentListSearchParams> };
 
 export default async function DomesticShipmentsPage({ searchParams }: Props) {
-  await requireCap("shipments");
+  const role = await requireCap("shipments");
   const sp = await searchParams;
-  return <ShipmentListView category="DOMESTIC" searchParams={sp} />;
+  return (
+    <ShipmentListView
+      category="DOMESTIC"
+      searchParams={sp}
+      crossFactory={isCrossFactoryRole(role)}
+    />
+  );
 }

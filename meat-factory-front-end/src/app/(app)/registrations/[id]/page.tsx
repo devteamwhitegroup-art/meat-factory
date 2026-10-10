@@ -17,12 +17,13 @@ import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/money";
+import { FACTORY_MN, isPreButchered } from "@/lib/format/enum";
 import { compact } from "@/lib/compact";
 import { BackButton } from "@/components/common/BackButton";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { can } from "@/lib/auth/roles";
-import { MedicalNumberEditor } from "./_components/MedicalNumberEditor";
+import { MedicalNumbersCard } from "./_components/MedicalNumbersCard";
 import { HerderInfoCard } from "./_components/HerderInfoCard";
 
 type Props = { params: Promise<{ id: string }> };
@@ -44,6 +45,10 @@ export default async function RegistrationDetailPage({ params }: Props) {
   const r = wrap.registration;
   const status = r.status ?? "REGISTERED";
   const isOpen = status === "REGISTERED";
+  // FACTORY_2 (pre-butchered): no verify / byproduct steps — гэдэс is counted
+  // on the weigh page and finance settles straight from WEIGHED.
+  const pre = isPreButchered(r.factory);
+  const bundles = compact(r.byproductBundles).filter((b) => b.id);
 
   // Only render next-step buttons the current role can actually use. The
   // back-end + page gates would block navigation anyway, but hiding the
@@ -62,6 +67,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 {r.registrationCode ?? "—"}
               </h1>
               <StatusBadge status={status} />
+              {r.factory ? (
+                <Badge variant="outline">{FACTORY_MN[r.factory]}</Badge>
+              ) : null}
             </div>
           </div>
         </div>
@@ -85,7 +93,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 Жин засах
               </Link>
             )}
-          {status === "VERIFIED" && can(role, "byproduct") && (
+          {status === "VERIFIED" && !pre && can(role, "byproduct") && (
             <Link
               href={`/registrations/${r.id}/byproduct`}
               className={buttonVariants()}
@@ -95,6 +103,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
           )}
           {status !== "REGISTERED" &&
             status !== "CANCELLED" &&
+            !pre &&
             can(role, "verify") && (
               <Link
                 href={`/registrations/${r.id}/verify`}
@@ -106,6 +115,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
               </Link>
             )}
           {(status === "VERIFIED" ||
+            (pre && status === "WEIGHED") ||
             status === "PAYMENT_PENDING" ||
             status === "PARTIALLY_SETTLED" ||
             status === "SETTLED") &&
@@ -147,21 +157,12 @@ export default async function RegistrationDetailPage({ params }: Props) {
           <CardContent className="grid grid-cols-2 gap-2 text-sm">
             <div className="text-muted-foreground">Машины дугаар</div>
             <div>{r.vehicleNumber ?? "—"}</div>
-            <div className="text-muted-foreground">Тамга</div>
-            <div>{r.stamp ?? "—"}</div>
-            <div className="text-muted-foreground">Мал эмнэлгийн дугаар</div>
-            <div className="flex items-center gap-2">
-              <span>{r.medicalNumber ?? "—"}</span>
-              <Badge
-                className={
-                  r.medicalNumberApproved
-                    ? "border-0 bg-emerald-100 text-emerald-800"
-                    : "border-0 bg-amber-100 text-amber-800"
-                }
-              >
-                {r.medicalNumberApproved ? "Батлагдсан" : "Батлагдаагүй"}
-              </Badge>
-            </div>
+            {!pre && (
+              <>
+                <div className="text-muted-foreground">Тамга</div>
+                <div>{r.stamp ?? "—"}</div>
+              </>
+            )}
             <div className="text-muted-foreground">Он сар</div>
             <div>{fmtDate(r.intakeDate)}</div>
             <div className="text-muted-foreground">Харуул</div>
@@ -181,13 +182,18 @@ export default async function RegistrationDetailPage({ params }: Props) {
         </Card>
       </div>
 
-      {can(role, "medicalNumber") && (
-        <MedicalNumberEditor
-          registrationId={r.id!}
-          medicalNumber={r.medicalNumber ?? null}
-          approved={!!r.medicalNumberApproved}
-        />
-      )}
+      <MedicalNumbersCard
+        registrationId={r.id!}
+        numbers={compact(r.medicalNumbers).map((n) => ({
+          id: n.id!,
+          number: n.number ?? "",
+          status: n.status ?? "PENDING",
+        }))}
+        approved={!!r.medicalNumberApproved}
+        closed={status === "CANCELLED" || status === "SETTLED"}
+        canEdit={can(role, "medicalNumber")}
+        canCheck={can(role, "medicalCheck")}
+      />
 
       <Card>
         <CardHeader>
@@ -266,47 +272,32 @@ export default async function RegistrationDetailPage({ params }: Props) {
         </Card>
       )}
 
-      {compact(r.byproductLogs).length > 0 && (
+      {bundles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Дайвар бүтээгдэхүүн</CardTitle>
+            <CardTitle>Гэдэс</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Дайвар</TableHead>
+                  <TableHead>Гэдэс</TableHead>
                   <TableHead>Мал</TableHead>
                   <TableHead>Тоо</TableHead>
-                  <TableHead>Нийт жин</TableHead>
-                  <TableHead>Нярав</TableHead>
-                  <TableHead>Зураг</TableHead>
+                  {!pre && <TableHead>Малчин авсан</TableHead>}
+                  <TableHead>Үнэ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {compact(r.byproductLogs).map((b) => (
+                {bundles.map((b) => (
                   <TableRow key={b.id!}>
                     <TableCell className="font-medium">
-                      {b.name ?? "—"}
+                      {b.wrapperName}
                     </TableCell>
-                    <TableCell>{b.animalType ? b.animalType : "—"}</TableCell>
+                    <TableCell>{b.animalType}</TableCell>
                     <TableCell>{b.count}</TableCell>
-                    <TableCell>
-                      {b.totalWeightKg != null
-                        ? formatNumber(b.totalWeightKg)
-                        : "—"}
-                    </TableCell>
-                    <TableCell>{b.loggedBy?.param ?? "—"}</TableCell>
-                    <TableCell>
-                      {b.photo?.url ? (
-                        <ImagePreviewLink
-                          url={b.photo.url}
-                          title={`Дайвар — ${b.name ?? "Зураг"}`}
-                        />
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
+                    {!pre && <TableCell>{b.herderCount}</TableCell>}
+                    <TableCell>{formatNumber(b.unitPrice)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -347,6 +338,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                   <TableHead>Хүлээн авсан</TableHead>
                   <TableHead>Үнэ/кг</TableHead>
                   <TableHead>Мах</TableHead>
+                  <TableHead>Дайвар</TableHead>
                   <TableHead>Бой зардал</TableHead>
                 </TableRow>
               </TableHeader>
@@ -357,6 +349,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                     <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
                     <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
                     <TableCell>{formatNumber(l.meatAmount)}</TableCell>
+                    <TableCell>{formatNumber(l.byproductAmount)}</TableCell>
                     <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
                   </TableRow>
                 ))}
@@ -367,6 +360,10 @@ export default async function RegistrationDetailPage({ params }: Props) {
               <div className="text-muted-foreground">Нийт мах</div>
               <div className="text-right">
                 {formatNumber(r.settlement.totalMeatAmount)}
+              </div>
+              <div className="text-muted-foreground">Нийт дайвар (гэдэс)</div>
+              <div className="text-right">
+                {formatNumber(r.settlement.totalByproductAmount)}
               </div>
               <div className="text-muted-foreground">Нийт бой зардал</div>
               <div className="text-right">

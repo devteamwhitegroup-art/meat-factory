@@ -1,58 +1,45 @@
-import { Card } from "@/components/ui/card";
-import { PARTNERS, SOCIAL_STATS } from "./data";
+import Image from "next/image";
+
+import type { Copy } from "./data";
 import { SectionHeading } from "./section-heading";
 
-export function LandingPartners() {
+export function LandingPartners({ t }: { t: Copy }) {
+  const p = t.partners;
   return (
-    <section id="partners" className="scroll-mt-20 py-16 md:py-20">
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
-        <SectionHeading
-          kicker="Хамтрагчид ба хэрэглэгчид"
-          title="Итгэлээ хүлээлгэсэн түншүүд"
-        />
-        <div className="grid gap-12 md:grid-cols-[1.3fr_0.7fr]">
-          <div className="grid gap-3.5 sm:grid-cols-2">
-            {PARTNERS.map((p) => (
-              <Card
-                key={p.name}
-                className="flex-row items-center gap-3.5 rounded-2xl bg-white p-5 ring-brand-line"
-              >
-                <div className="grid size-10 flex-none place-items-center rounded-xl bg-brand-cream-2 font-display text-[15px] font-extrabold text-brand-gold-deep">
-                  {p.code}
-                </div>
-                <div>
-                  <b className="text-[15px] font-semibold text-brand-ink">
-                    {p.name}
-                  </b>
-                  {p.sub && (
-                    <span className="block text-[13px] text-brand-muted">
-                      {p.sub}
-                    </span>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="gap-0 rounded-2xl bg-brand-ink p-8 ring-0 text-white">
-            <h3 className="text-lg font-extrabold">Нийгмийн хариуцлага</h3>
-            <p className="mt-1.5 mb-6 text-[14.5px] text-white/65">
-              Үндсэн ажлын байр бий болгож, орон нутгийн хөгжилд хувь нэмрээ
-              оруулж байна.
-            </p>
-            {SOCIAL_STATS.map((s) => (
-              <div
-                key={s.label}
-                className="flex items-baseline gap-3 border-t border-white/10 py-4"
-              >
-                <span className="font-display text-3xl font-extrabold text-brand-gold-bright">
-                  {s.value}
-                </span>
-                <span className="text-sm text-white/80">{s.label}</span>
-              </div>
-            ))}
-          </Card>
+    <section
+      id="partners"
+      className="grid scroll-mt-20 grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] items-start gap-x-[clamp(32px,6vw,96px)] gap-y-14 py-26"
+    >
+      <div>
+        <SectionHeading kicker={p.kicker} title={p.title} />
+        <ul className="mt-9 border-t border-line">
+          {p.items.map((item) => (
+            <li key={item.name} className="flex justify-between gap-4 border-b border-line py-4">
+              <span className="font-heading text-xl leading-[1.3] font-semibold">{item.name}</span>
+              <span className="text-right text-[13.5px] text-ink/70">{item.note}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <figure className="plate relative aspect-4/3 overflow-hidden">
+          <Image
+            src="/photos/worker-portrait.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 768px) 50vw, 100vw"
+            className="object-cover object-[65%_center]"
+          />
+        </figure>
+        <div className="mt-8 grid grid-cols-2 gap-6">
+          {p.jobs.map((j) => (
+            <div key={j.l}>
+              <div className="font-heading text-[52px] leading-none tabular-nums">{j.n}</div>
+              <div className="mt-2.5 text-[13px] tracking-[0.08em] text-ink/72 uppercase">{j.l}</div>
+            </div>
+          ))}
         </div>
+        <p className="mt-[22px] text-[15.5px] leading-[1.65] text-ink/78">{p.csr}</p>
       </div>
     </section>
   );

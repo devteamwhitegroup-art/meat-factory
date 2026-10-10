@@ -1,75 +1,64 @@
-export type StaffRole =
-  | "SUPER_ADMIN"
-  | "ADMIN"
-  | "MODERATOR"
-  | "MANAGER"
-  | "GUARD"
-  | "SCALE"
-  | "STOREKEEPER";
+// ADMIN — everything, every factory. STOREKEEPER (нярав) — all data entry:
+// intake, weighing, гэдэс, price negotiation, stock, shipments. ACCOUNTANT
+// (нягтлан) — money. DOCTOR (эмч) — medical number.
+export type StaffRole = "ADMIN" | "STOREKEEPER" | "ACCOUNTANT" | "DOCTOR";
 
-// Match the back-end @adminAuth(permissions:[...]) lists exactly.
+// Match the back-end @auth(permissions:[...]) lists exactly.
 export const CAPS = {
-  createRegistration: [
-    "GUARD",
-    "STOREKEEPER",
-    "MANAGER",
-    "SUPER_ADMIN",
-    "SCALE",
-  ],
-  // Anyone on the floor except the gate guard can run the scale — cover for
-  // shifts where the named SCALE operator isn't around.
-  weigh: [
-    "SCALE",
-    "STOREKEEPER",
-    "MODERATOR",
-    "MANAGER",
-    "ADMIN",
-    "SUPER_ADMIN",
-  ],
+  createRegistration: ["STOREKEEPER", "ADMIN"],
+  weigh: ["STOREKEEPER", "ADMIN"],
   // Fixing a weighing entry once the registration is past REGISTERED —
-  // matches WeighingController._assertWeighingEditable's privileged set for
-  // that window (WEIGHED/VERIFIED/PAYMENT_PENDING). Narrower than `weigh`
-  // (open floor, REGISTERED only) — shown as a distinct "fix" nav button.
-  weighFix: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  byproduct: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"],
-  verify: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
-  medicalNumber: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"],
-  settle: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN"],
-  // Read-only access to the settlement page — SCALE included so weighers can
-  // verify their own per-entry name is correct on the final receipt.
-  settleView: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"],
-  cancelRegistration: ["MANAGER", "SUPER_ADMIN"],
-  herders: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"],
-  // Inline edit of "Малчны мэдээлэл" on the registration detail page —
-  // narrower than `herders` (the standalone /herders CRUD page) by request:
-  // just admin + storekeeper ("нярав" = store manager), not manager/guard.
-  herderEdit: ["ADMIN", "SUPER_ADMIN", "STOREKEEPER"],
-  herderAddresses: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  customers: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  sales: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  shipments: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"],
-  inventory: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"],
-  inventoryAdjust: ["MANAGER", "STOREKEEPER", "SUPER_ADMIN"],
-  byproductConstants: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  animals: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
+  // matches WeighingController._assertWeighingEditable.
+  weighFix: ["ADMIN"],
+  byproduct: ["STOREKEEPER", "ADMIN"],
+  verify: ["STOREKEEPER", "ADMIN"],
+  // Add / remove (unchecked) medical numbers on a registration.
+  medicalNumber: ["STOREKEEPER", "DOCTOR", "ADMIN"],
+  // Rule on numbers (gov-service check) + the /medical-numbers worklist.
+  medicalCheck: ["DOCTOR", "ADMIN"],
+  // Create the herder invoice; view the settlement page.
+  settle: ["STOREKEEPER", "ACCOUNTANT", "ADMIN"],
+  // Pay / release hold / payment proofs.
+  pay: ["ACCOUNTANT", "ADMIN"],
+  storekeeperSign: ["STOREKEEPER", "ADMIN"],
+  cancelRegistration: ["ADMIN"],
+  herders: ["STOREKEEPER", "ADMIN"],
+  herderEdit: ["STOREKEEPER", "ADMIN"],
+  herderAddresses: ["STOREKEEPER", "ADMIN"],
+  customers: ["ACCOUNTANT", "ADMIN"],
+  sales: ["ACCOUNTANT", "ADMIN"],
+  shipments: ["STOREKEEPER", "ADMIN"],
+  inventory: ["STOREKEEPER", "ADMIN"],
+  inventoryAdjust: ["STOREKEEPER", "ADMIN"],
+  byproductConstants: ["ADMIN"],
+  animals: ["ADMIN"],
   // System-wide thresholds: storage capacity, alert threshold, cargo capacity.
-  settings: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  dashboard: ["MANAGER", "ADMIN", "SUPER_ADMIN"],
-  // Staff-account section on /settings (create/update); delete is SUPER_ADMIN.
-  admins: ["SUPER_ADMIN", "MANAGER"],
-  deleteAdmin: ["SUPER_ADMIN"],
+  settings: ["ADMIN"],
+  dashboard: ["ACCOUNTANT", "ADMIN"],
+  // Byproduct factory (FACTORY_3) disassembly batches; F1/F2 → F3 transfer.
+  byproductProcessing: ["STOREKEEPER", "ADMIN"],
+  byproductTransfer: ["STOREKEEPER", "ADMIN"],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type Capability = keyof typeof CAPS;
+
+// Admin spans every factory; every other role belongs to one.
+// Mirrors BE CROSS_FACTORY_ROLES.
+const CROSS_FACTORY_ROLES: readonly StaffRole[] = ["ADMIN"];
+
+export function isCrossFactoryRole(role: string | null | undefined): boolean {
+  if (!role) return false;
+  return (CROSS_FACTORY_ROLES as readonly string[]).includes(role);
+}
 
 export function can(role: string | null | undefined, cap: Capability): boolean {
   if (!role) return false;
   return (CAPS[cap] as readonly string[]).includes(role);
 }
 
-// Operator roles are single-purpose, on-site stations (gate / scale / store).
-// They get a minimal "kiosk" shell. Office roles get the full sidebar.
-const OPERATOR_ROLES: readonly StaffRole[] = ["GUARD", "SCALE", "STOREKEEPER"];
+// Single-purpose roles get a minimal "kiosk" shell (top-bar links only).
+// Everyone else gets the full sidebar.
+const OPERATOR_ROLES: readonly StaffRole[] = ["DOCTOR"];
 
 export function isOperatorRole(role: string | null | undefined): boolean {
   if (!role) return false;
@@ -84,6 +73,7 @@ export type NavItem = { href: string; label: string };
 const OFFICE_NAV: NavItem[] = [
   { href: "/dashboard", label: "Тайлан" },
   { href: "/registrations", label: "Бүртгэл" },
+  { href: "/medical-numbers", label: "Эмнэлгийн дугаар" },
   { href: "/herders", label: "Малчид" },
   { href: "/herder-addresses", label: "Малчны хаягууд" },
   { href: "/customers", label: "Харилцагч" },
@@ -96,32 +86,50 @@ const OFFICE_NAV: NavItem[] = [
   { href: "/settings", label: "Систем тохиргоо" },
 ];
 
+const PROCESSING_NAV: NavItem = {
+  href: "/byproduct-processing",
+  label: "Дайвар задлалт",
+};
+
+// FACTORY_3 never touches livestock — its storekeepers get this menu.
+const BYPRODUCT_FACTORY_NAV: NavItem[] = [
+  PROCESSING_NAV,
+  { href: "/inventory", label: "Нөөц" },
+  { href: "/shipments/domestic", label: "Дотоод ачилт" },
+];
+
 export const NAV_BY_ROLE: Record<StaffRole, NavItem[]> = {
-  SUPER_ADMIN: OFFICE_NAV,
-  ADMIN: OFFICE_NAV,
-  MANAGER: OFFICE_NAV,
-  MODERATOR: [{ href: "/registrations", label: "Бүртгэл" }],
-  GUARD: [
-    { href: "/registrations/new", label: "Шинэ бүртгэл" },
-    { href: "/registrations", label: "Миний бүртгэл" },
-  ],
-  SCALE: [
-    { href: "/registrations?stage=registered", label: "Жинлэх дараалал" },
-    { href: "/registrations", label: "Бүртгэл" },
-    { href: "/registrations/new", label: "Шинэ бүртгэл" },
-  ],
+  ADMIN: [...OFFICE_NAV, PROCESSING_NAV],
   STOREKEEPER: [
     { href: "/registrations/new", label: "Шинэ бүртгэл" },
+    { href: "/registrations?stage=registered", label: "Жинлэх дараалал" },
     { href: "/registrations?stage=in_process", label: "Тооцоо хүлээгдэж буй" },
     { href: "/registrations", label: "Бүртгэл" },
+    { href: "/herders", label: "Малчид" },
+    { href: "/herder-addresses", label: "Малчны хаягууд" },
     { href: "/inventory", label: "Нөөц" },
     { href: "/shipments/export", label: "Экспортын ачилт" },
     { href: "/shipments/domestic", label: "Дотоод ачилт" },
   ],
+  ACCOUNTANT: [
+    { href: "/sales", label: "Гүйлгээ" },
+    { href: "/registrations", label: "Бүртгэл" },
+    { href: "/customers", label: "Харилцагч" },
+    { href: "/dashboard", label: "Тайлан" },
+  ],
+  DOCTOR: [
+    { href: "/medical-numbers", label: "Эмнэлгийн дугаар" },
+    { href: "/registrations", label: "Бүртгэл" },
+  ],
 };
 
-export function navItemsFor(role: string | null | undefined): NavItem[] {
+export function navItemsFor(
+  role: string | null | undefined,
+  factory?: string | null,
+): NavItem[] {
   if (!role) return [];
+  if (factory === "FACTORY_3" && can(role, "byproductProcessing"))
+    return BYPRODUCT_FACTORY_NAV;
   return NAV_BY_ROLE[role as StaffRole] ?? [];
 }
 

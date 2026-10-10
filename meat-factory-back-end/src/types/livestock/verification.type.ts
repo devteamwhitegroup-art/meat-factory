@@ -6,9 +6,6 @@ export type TVerification = {
   firstVerifiedAt: Date | null;
   notes: string | null;
   photoFileId: string | null;
-  // Verifier may decide the slaughter cost is offset by coverable byproducts
-  // (e.g. адууны өлөн гэдэс). When true the settlement pre-fills slaughter = 0.
-  slaughterCoveredByByproduct: boolean;
   createdAt: Date;
   updatedAt: Date;
 };

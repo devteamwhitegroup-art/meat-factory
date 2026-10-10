@@ -1,8 +1,10 @@
 import { TDateRange, TPagination } from '../global/global.type';
+import { FACTORY } from '../user/admin.type';
 
+// Бой зардал is not an input: it is fixed per head (Animal.pricePerAnimal ×
+// count, snapshotted on the animal line at intake).
 export type TSettlementLineInput = {
   animalType: string;
-  slaughterCost?: number; // Бой зардал (default 0)
 };
 
 export type TCreateSettlement = {
@@ -25,7 +27,7 @@ export type TSettlementLine = {
   receivedWeightKg: number; // Хүлээн авсан
   pricePerKg: number;
   meatAmount: number;
-  byproductAmount: number; // Дайвар
+  byproductAmount: number; // Дайвар — Σ kept гэдэс × price
   slaughterCost: number; // Бой зардал
   createdAt: Date;
   updatedAt: Date;
@@ -60,26 +62,8 @@ export type TSettlement = {
 };
 
 export type TGetSettlements = {
+  factory?: FACTORY;
   isPaid?: boolean;
   herderId?: string;
   dateRange?: TDateRange;
 } & TPagination;
-
-// Plain DTO handed to InventoryController on settlement-paid.
-// Defined here so livestock never imports the inventory module.
-export type TRegistrationIngestLine = {
-  productType: 'MEAT' | 'BYPRODUCT';
-  animalId?: string | null;
-  byproductType?: string | null;
-  // Free-form byproduct name (e.g. "Адууны хэл"). Set for BYPRODUCT lines
-  // coming from the post-Phase-3 catalogue; mutually exclusive with
-  // byproductType.
-  byproductName?: string | null;
-  quantityKg: number;
-};
-
-export type TRegistrationIngestDTO = {
-  registrationId: string;
-  settledAt: Date;
-  lines: TRegistrationIngestLine[];
-};

@@ -1,53 +1,58 @@
-import { Minus } from "lucide-react";
+import Image from "next/image";
 
-import { Card } from "@/components/ui/card";
-import { CAPACITY_CARDS, FACILITY_SPECS } from "./data";
+import type { Copy } from "./data";
 import { SectionHeading } from "./section-heading";
 
-export function LandingCapacity() {
+export function LandingCapacity({ t }: { t: Copy }) {
+  const c = t.cap;
   return (
-    <section id="capacity" className="scroll-mt-20 bg-brand-cream py-16 md:py-20">
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
-        <SectionHeading
-          kicker="Үйлдвэрийн чадамж"
-          title="Бойноос хадгалалт хүртэл бүрэн цогц үйлдвэр"
-          description="2020 онд Чойбалсангаас зүүн 12 км-т ашиглалтад орсон, 2312 м² талбай бүхий орчин үеийн үйлдвэр."
-        />
+    <section id="capacity" className="scroll-mt-20 py-26">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] items-end gap-x-[clamp(32px,6vw,96px)] gap-y-8">
+        <SectionHeading kicker={c.kicker} title={c.title} />
+        <p className="text-justify hyphens-auto text-ink/80">{c.sub}</p>
+      </div>
 
-        <div className="mb-10 grid gap-5 md:grid-cols-3">
-          {CAPACITY_CARDS.map((card) => (
-            <Card
-              key={card.tag + card.value}
-              className="relative gap-0 rounded-2xl bg-white p-7 ring-brand-line"
-            >
-              <div className="pointer-events-none absolute -top-8 -right-8 size-32 rounded-full bg-[radial-gradient(circle,rgba(217,178,74,0.28),transparent_70%)]" />
-              <div className="text-xs font-semibold tracking-[0.14em] text-brand-gold-deep uppercase">
-                {card.tag}
-              </div>
-              <div className="mt-3.5 mb-1.5 font-display text-[42px] leading-none font-extrabold text-brand-ink">
-                {card.value}
-                <span className="ml-1 text-lg font-semibold text-brand-muted">
-                  {card.unit}
-                </span>
-              </div>
-              <p className="text-[14.5px] text-brand-muted">{card.desc}</p>
-            </Card>
+      <figure className="plate relative mt-12 aspect-[21/9] overflow-hidden">
+        <Image
+          src="/photos/cutting-team.jpg"
+          alt=""
+          fill
+          sizes="(min-width: 1200px) 1100px, 100vw"
+          className="object-cover object-[center_55%]"
+        />
+      </figure>
+
+      <div className="mt-14 grid gap-x-[clamp(32px,5vw,80px)] gap-y-12 lg:grid-cols-3">
+        <div className="flex flex-col gap-7">
+          {c.big.map((b) => (
+            <div key={b.l} className="flex items-baseline gap-[18px] border-b border-line pb-[22px]">
+              <span className="min-w-[4.2ch] font-heading text-[52px] leading-none tabular-nums">{b.n}</span>
+              <span className="text-[13px] tracking-[0.08em] text-ink/72 uppercase">{b.l}</span>
+            </div>
           ))}
         </div>
-
-        <Card className="rounded-2xl bg-white p-8 ring-brand-line md:px-9">
-          <div className="grid gap-x-10 gap-y-1 sm:grid-cols-2">
-            {FACILITY_SPECS.map((spec) => (
-              <div
-                key={spec}
-                className="flex items-start gap-3.5 border-b border-dashed border-brand-line py-2.5 last:border-0 sm:[&:nth-last-child(2)]:border-0"
-              >
-                <Minus className="mt-1 size-4 flex-none text-brand-gold" />
-                <span className="text-[15px] text-brand-ink-2">{spec}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <div className="min-w-0 overflow-x-auto lg:col-span-2">
+          <table className="w-full min-w-[460px] text-[15.5px] tabular-nums">
+            <thead>
+              <tr className="border-b border-ink text-left text-[12.5px] tracking-[0.08em] text-ink/72 uppercase">
+                {c.th.map((h, i) => (
+                  <th key={h} className={`pb-3 font-normal ${i === 2 ? "text-right" : ""}`}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {c.rows.map(([area, size, cap]) => (
+                <tr key={area} className="border-b border-line">
+                  <td className="py-[15px] pr-4">{area}</td>
+                  <td className="py-[15px] pr-4 text-ink/75">{size}</td>
+                  <td className="py-[15px] text-right">{cap}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

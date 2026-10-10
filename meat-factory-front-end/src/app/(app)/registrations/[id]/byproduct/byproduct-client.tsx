@@ -1,36 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
-import { formatNumber } from "@/lib/format/money";
+import { formatMNT } from "@/lib/format/money";
+import { isPreButchered } from "@/lib/format/enum";
 import {
-  DerivedByproductsDoc,
   RegistrationDetailDoc,
   SetRegistrationByproductsDoc,
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 
-type Row = {
-  name: string;
-  animalType: string | null;
-  wrapperName: string | null;
-  // From the wrapper config. Drives the handoff ownership rule:
-  //   false → factory storage always
-  //   true  → herder may keep (unless verifier toggles cover at verify)
-  canCoverSlaughterCost: boolean;
-  quantity: string;
-  unitWeightKg: number | null;
+// Herder-facing гэдэс bundle: the factory keeps count − herderCount of them
+// and credits each kept one at unitPrice to the settlement.
+type Bundle = {
+  wrapperId: string;
+  wrapperName: string;
+  animalType: string;
+  count: string;
+  herderCount: string;
+  unitPrice: number;
 };
+
+const kept = (b: Pick<Bundle, "count" | "herderCount">) =>
+  Math.max(0, (Number(b.count) || 0) - (Number(b.herderCount) || 0));
 
 export function ByproductClient({ id }: { id: string }) {
   const router = useRouter();
@@ -42,130 +45,83 @@ export function ByproductClient({ id }: { id: string }) {
     variables: { id },
     fetchPolicy: "cache-and-network",
   });
-  const { data: derived, loading: derivedLoading } = useQuery(
-    DerivedByproductsDoc,
-    {
-      variables: { registrationId: id },
-      fetchPolicy: "cache-and-network",
-    },
-  );
   const [save] = useMutation(SetRegistrationByproductsDoc);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState(false);
 
   const reg = data?.registration?.registration;
 
-  // Seed editable rows: standard yield from constants, with quantities
-  // overridden by anything already saved on the registration.
-  const derivedItems = useMemo(
-    () => compact(derived?.derivedByproducts?.items),
-    [derived],
-  );
-  const savedLogs = useMemo(() => compact(reg?.byproductLogs), [reg]);
-
+  // Seed once after the registration lands: bundles come from the server
+  // (saved, or defaults where the factory keeps everything).
   useEffect(() => {
     if (seeded) return;
     if (!reg) return;
-    // Wait for the derived query to settle — otherwise a cache-warm
-    // registration can race us and we'd lock in an empty rows array
-    // before the catalogue arrives.
-    if (derivedLoading && !derived) return;
-    const savedByKey = new Map(
-      savedLogs
-        .filter((l) => l.name)
-        .map((l) => [`${l.animalType ?? ""}|${l.name}`, l]),
-    );
-    const base: Row[] =
-      derivedItems.length > 0
-        ? derivedItems.map((d) => {
-            const saved = savedByKey.get(`${d.animalType ?? ""}|${d.name}`);
-            return {
-              name: d.name!,
-              animalType: d.animalType ?? null,
-              wrapperName: d.wrapperName ?? null,
-              canCoverSlaughterCost: !!d.canCoverSlaughterCost,
-              quantity: String(saved?.count ?? d.quantity ?? 0),
-              unitWeightKg: d.unitWeightKg ?? null,
-            };
-          })
-        : savedLogs
-            .filter((l) => l.name)
-            .map((l) => ({
-              name: l.name!,
-              animalType: l.animalType ?? null,
-              wrapperName: null,
-              canCoverSlaughterCost: !!l.canCoverSlaughterCost,
-              quantity: String(l.count ?? 0),
-              unitWeightKg:
-                l.averageWeightKg != null ? Number(l.averageWeightKg) : null,
-            }));
-    // Seed editable rows once, after the derived/saved queries settle (the
-    // `seeded` guard runs this a single time) — a legitimate async-data seed.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRows(base);
-    setSeeded(true);
-  }, [reg, derivedItems, savedLogs, derived, derivedLoading, seeded]);
-
-  // Nest rows: Animal → Wrappers (багц) → Items. Keep the original row index
-  // so each input still updates the right entry. MUST be declared before any
-  // conditional early-return (Rules of Hooks).
-  const grouped = useMemo(() => {
-    const m = new Map<string, Map<string, { row: Row; index: number }[]>>();
-    rows.forEach((r, i) => {
-      const animal = r.animalType ?? "OTHER";
-      const wrapper = r.wrapperName ?? "—";
-      if (!m.has(animal)) m.set(animal, new Map());
-      const wmap = m.get(animal)!;
-      if (!wmap.has(wrapper)) wmap.set(wrapper, []);
-      wmap.get(wrapper)!.push({ row: r, index: i });
-    });
-    return Array.from(m.entries()).map(([animalType, wmap]) => ({
-      animalType,
-      wrappers: Array.from(wmap.entries()).map(([wrapperName, items]) => ({
-        wrapperName,
-        items,
-      })),
+    const b: Bundle[] = compact(reg.byproductBundles).map((x) => ({
+      wrapperId: x.wrapperId!,
+      wrapperName: x.wrapperName ?? "",
+      animalType: x.animalType ?? "",
+      count: String(x.count ?? 0),
+      herderCount: String(x.herderCount ?? 0),
+      unitPrice: Number(x.unitPrice ?? 0),
     }));
-  }, [rows]);
-
-  function totalKg(items: { row: Row }[]) {
-    return items.reduce((s, { row }) => {
-      const q = Number(row.quantity) || 0;
-      return s + (row.unitWeightKg != null ? q * row.unitWeightKg : 0);
-    }, 0);
-  }
+    // Seed editable state once after async data lands (guarded by `seeded`).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBundles(b);
+    setSeeded(true);
+  }, [reg, seeded]);
 
   if (fetching && !data) return <Skeleton className="h-72 w-full" />;
   if (!reg) return <div className="text-muted-foreground">Олдсонгүй</div>;
 
-  function setQty(i: number, v: string) {
-    setRows((s) => s.map((r, idx) => (idx === i ? { ...r, quantity: v } : r)));
+  // FACTORY_2 records гэдэс only, while receiving — on the weigh page.
+  if (isPreButchered(reg.factory)) {
+    return (
+      <div className="space-y-4">
+        <BackButton href={`/registrations/${id}`} />
+        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+          Үйлдвэр 2-т гэдэсийг жинлэх хуудсан дээр бүртгэнэ.{" "}
+          <Link
+            href={`/registrations/${id}/weigh`}
+            className="font-medium text-primary underline"
+          >
+            Жинлэх хуудас руу
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  async function onSave(): Promise<boolean> {
-    const items = rows
-      .map((r) => {
-        const quantity = Math.floor(Number(r.quantity) || 0);
-        const weightKg =
-          r.unitWeightKg != null
-            ? Number((quantity * r.unitWeightKg).toFixed(2))
-            : null;
-        return {
-          name: r.name,
-          animalType: r.animalType || null,
-          quantity,
-          weightKg,
-          canCoverSlaughterCost: r.canCoverSlaughterCost,
-        };
-      })
-      .filter((i) => i.quantity > 0);
+  function setBundle(i: number, patch: Partial<Bundle>) {
+    setBundles((s) => s.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
+  }
 
+  const totalCredit = bundles.reduce((s, b) => s + kept(b) * b.unitPrice, 0);
+
+  async function onSave(): Promise<boolean> {
+    for (const b of bundles) {
+      const c = Number(b.count) || 0;
+      const h = Number(b.herderCount) || 0;
+      if (c < 0 || h < 0 || h > c) {
+        toast.error(`${b.wrapperName}: малчны авах тоо 0–${c} байх ёстой`);
+        return false;
+      }
+    }
     setBusy(true);
     const ok = await runMutation(
       async () =>
-        (await save({ variables: { registrationId: id, items } })).data
-          ?.setRegistrationByproducts,
+        (
+          await save({
+            variables: {
+              registrationId: id,
+              bundles: bundles.map((b) => ({
+                wrapperId: b.wrapperId,
+                count: Math.floor(Number(b.count) || 0),
+                herderCount: Math.floor(Number(b.herderCount) || 0),
+              })),
+            },
+          })
+        ).data?.setRegistrationByproducts,
       { success: "Дайвар хадгалагдлаа", onSuccess: refetch },
     );
     setBusy(false);
@@ -174,10 +130,8 @@ export function ByproductClient({ id }: { id: string }) {
 
   const editable = reg.status === "VERIFIED";
 
-  // "Дараах" always saves first so nobody skips past this page without
-  // logging byproducts by simply never clicking "Дайвар хадгалах". When the
-  // page is read-only (already past VERIFIED) there's nothing to save, so
-  // just navigate.
+  // "Дараах" always saves first so nobody skips logging byproducts. When the
+  // page is read-only (already past VERIFIED) there's nothing to save.
   async function onNext() {
     if (editable) {
       const ok = await onSave();
@@ -206,139 +160,75 @@ export function ByproductClient({ id }: { id: string }) {
         </Button>
       </div>
 
-      {rows.length === 0 ? (
+      {bundles.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
           Энэ малын төрөлд тохируулсан дайвар норм алга. «Дайвар норм» хэсэгт
           нэмнэ үү.
         </div>
       ) : (
         <>
-          <div className="text-sm text-muted-foreground">
-            Багц тус бүрд тоо ширхэгийг шалгаж, шаардлагатай бол өөрчилнө үү.
-          </div>
-
-          <div className="space-y-4">
-            {grouped.map((animalGroup) => {
-              const animalTotal = animalGroup.wrappers.reduce(
-                (a, w) => a + totalKg(w.items),
-                0,
-              );
-              // Ownership lives on the Animal config, so it's the same for
-              // every wrapper/item under this animal — show the badge once,
-              // on the animal card header. Three states, matching the
-              // backend rule (!canCoverSlaughterCost || slaughterCovered):
-              //   not coverable            → always factory
-              //   coverable, not covered   → herder pays cash, keeps it
-              //   coverable, covered       → herder opted to offset with it,
-              //                              so it goes to factory instead
-              const coverable =
-                !!animalGroup.wrappers[0]?.items[0]?.row.canCoverSlaughterCost;
-              const covered = !!reg.verification?.slaughterCoveredByByproduct;
-              return (
-                <Card key={animalGroup.animalType}>
-                  <CardHeader className="flex flex-row items-center gap-3 space-y-0">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-lg">
-                          {animalGroup.animalType}
-                        </CardTitle>
-                        {!coverable ? (
-                          <Badge className="border-0 bg-sky-100 text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-                            Үйлдвэрийн нөөц
-                          </Badge>
-                        ) : covered ? (
-                          <Badge
-                            className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
-                            title="Малчин бой зардлыг дайвараар нөхсөн тул үйлдвэрт орно"
-                          >
-                            Үйлдвэрт (нөхөлт)
-                          </Badge>
-                        ) : (
-                          <Badge
-                            className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                            title="Малчин бой зардлыг мөнгөөр төлж, дайвараа өөртөө авна; нөхвөл үйлдвэрт орно"
-                          >
-                            Малчны эзэмшил
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {animalGroup.wrappers.length} багц
-                      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Гэдэс</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                Малчин авахгүй гэдэс бүр үйлдвэрт үлдэж, үнээрээ бой зардлаас
+                хасагдана.
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="hidden grid-cols-[1fr_5rem_5rem_6rem_7rem] gap-3 px-1 text-xs text-muted-foreground sm:grid">
+                <span>Нэр</span>
+                <span className="text-center">Тоо</span>
+                <span className="text-center">Малчин авах</span>
+                <span className="text-right">Үнэ</span>
+                <span className="text-right">Үйлдвэрт / дүн</span>
+              </div>
+              {bundles.map((b, i) => (
+                <div
+                  key={b.wrapperId}
+                  className="grid grid-cols-2 items-center gap-3 rounded-md border bg-muted/30 px-3 py-2 sm:grid-cols-[1fr_5rem_5rem_6rem_7rem]"
+                >
+                  <div className="col-span-2 sm:col-span-1">
+                    <div className="font-medium">{b.wrapperName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {b.animalType}
                     </div>
-                    {animalTotal > 0 ? (
-                      <Badge className="border-0 bg-primary/10 text-primary">
-                        {formatNumber(animalTotal)} кг
-                      </Badge>
-                    ) : null}
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {animalGroup.wrappers.map((w) => {
-                      const wTotal = totalKg(w.items);
-                      return (
-                        <div
-                          key={w.wrapperName}
-                          className="rounded-md border bg-muted/30"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-                            <div className="text-sm font-semibold">
-                              {w.wrapperName}
-                            </div>
-                            {wTotal > 0 ? (
-                              <Badge className="border bg-background text-foreground">
-                                {formatNumber(wTotal)} кг
-                              </Badge>
-                            ) : null}
-                          </div>
-                          <ul className="divide-y">
-                            {w.items.map(({ row, index }) => {
-                              const qty = Number(row.quantity) || 0;
-                              const weight =
-                                row.unitWeightKg != null
-                                  ? qty * row.unitWeightKg
-                                  : null;
-                              return (
-                                <li
-                                  key={`${row.animalType}|${row.name}`}
-                                  className="flex items-center gap-3 px-3 py-2.5"
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate text-base font-medium">
-                                      {row.name}
-                                    </div>
-                                    {row.unitWeightKg != null ? (
-                                      <div className="text-xs text-muted-foreground">
-                                        ~{formatNumber(row.unitWeightKg)}{" "}
-                                        кг/ширхэг
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                  <Input
-                                    inputMode="numeric"
-                                    value={row.quantity}
-                                    disabled={!editable}
-                                    onChange={(e) =>
-                                      setQty(index, e.target.value)
-                                    }
-                                    className="h-11 w-20 shrink-0 text-center text-lg tabular-nums"
-                                  />
-                                  <div className="w-20 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
-                                    {weight != null
-                                      ? `${formatNumber(weight)} кг`
-                                      : "—"}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                  </div>
+                  <Input
+                    aria-label="Тоо"
+                    inputMode="numeric"
+                    value={b.count}
+                    disabled={!editable}
+                    onChange={(e) => setBundle(i, { count: e.target.value })}
+                    className="h-11 text-center text-lg tabular-nums"
+                  />
+                  <Input
+                    aria-label="Малчин авах"
+                    inputMode="numeric"
+                    value={b.herderCount}
+                    disabled={!editable}
+                    onChange={(e) =>
+                      setBundle(i, { herderCount: e.target.value })
+                    }
+                    className="h-11 text-center text-lg tabular-nums"
+                  />
+                  <div className="text-right text-sm tabular-nums">
+                    {formatMNT(b.unitPrice)}
+                  </div>
+                  <div className="text-right text-sm tabular-nums">
+                    <div>{kept(b)} ш</div>
+                    <div className="font-medium">
+                      {formatMNT(kept(b) * b.unitPrice)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between border-t pt-2 text-sm font-semibold">
+                <span>Дайварын дүн (бой зардлаас хасна)</span>
+                <span className="tabular-nums">{formatMNT(totalCredit)}</span>
+              </div>
+            </CardContent>
+          </Card>
 
           <Button
             onClick={onSave}

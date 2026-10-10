@@ -4,23 +4,26 @@ import {
   TGetStock,
   TManualAdjustInput,
 } from "../../../types/inventory/inventory.type";
+import { FACTORY } from "../../../types/user/admin.type";
 import { wrapList, wrapOne } from "../../../utils";
 
 export default {
   Query: {
-    inventoryStock: wrapList("inventoryItems", (doc: TGetStock) =>
-      InventoryController.getStock(doc),
+    inventoryStock: wrapList("inventoryItems", (doc: TGetStock, ctx) =>
+      InventoryController.getStock(doc, ctx),
     ),
-    inventoryMovements: wrapList("movements", (doc: TGetMovements) =>
-      InventoryController.listMovements(doc),
+    inventoryMovements: wrapList("movements", (doc: TGetMovements, ctx) =>
+      InventoryController.listMovements(doc, ctx),
     ),
-    inventoryStats: wrapOne("stats", () => InventoryController.stats()),
+    inventoryStats: wrapOne("stats", (doc: { factory?: FACTORY }, ctx) =>
+      InventoryController.stats(ctx, doc.factory),
+    ),
   },
   Mutation: {
     adjustInventory: wrapOne(
       "inventoryItem",
       (doc: TManualAdjustInput, ctx) =>
-        InventoryController.manualAdjust(doc, ctx.id),
+        InventoryController.manualAdjust(doc, ctx),
       "Inventory adjusted",
     ),
   },

@@ -1,10 +1,14 @@
 import sequelize from "../../config/db-connection";
 import { VerificationModel } from "../../models/livestock/verification.model";
-import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
-import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
+import { WeighingController } from "./weighing.controller";
+import {
+  isPreButchered,
+  REGISTRATION_STATUS,
+} from "../../types/livestock/registration.type";
+import { MOVEMENT_SOURCE } from "../../types/inventory/inventory.type";
 import { TVerifyInput } from "../../types/livestock/verification.type";
 import { TContext } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
@@ -18,14 +22,16 @@ export class VerificationController {
     context: TContext,
   ): Promise<VerificationModel> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.SCALE,
       ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
-    const reg = await RegistrationController.findIdCheck(doc.registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      doc.registrationId,
+      context,
+    );
+    if (isPreButchered(reg))
+      throw new Error("Үйлдвэр 2-т баталгаажуулалт хийгдэхгүй");
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.WEIGHED]);
 
     // The herder must have signed the weighed slip (agreeing to price/cost)
@@ -40,18 +46,11 @@ export class VerificationController {
     // Meat becomes factory inventory right here — slaughtered + weighed +
     // verified is "officially factory meat" regardless of when the herder
     // is actually paid (see InventoryController.
-    // ingestMeatFromVerifiedRegistration). Grouped by animalId straight from
-    // WeighingEntry; no Settlement needs to exist yet.
-    const weighing = await WeighingEntryModel.findAll({
-      where: { registrationId: doc.registrationId },
-    });
-    const byAnimal: Record<string, number> = {};
-    for (const w of weighing)
-      byAnimal[w.animalId] = (byAnimal[w.animalId] ?? 0) + Number(w.weightKg);
-    const meatLines = Object.entries(byAnimal).map(([animalId, kg]) => ({
-      animalId,
-      quantityKg: Number(kg.toFixed(2)),
-    }));
+    // ingestFromRegistration). No Settlement needs to exist yet.
+    const meatLines = await WeighingController.meatStockLines(
+      doc.registrationId,
+      reg.factory,
+    );
 
     return await sequelize.transaction(async (t) => {
       const [verification] = await VerificationModel.findOrCreate({
@@ -77,48 +76,14 @@ export class VerificationController {
         { transaction: t },
       );
 
-      await InventoryController.ingestMeatFromVerifiedRegistration(
+      await InventoryController.ingestFromRegistration(
         doc.registrationId,
+        MOVEMENT_SOURCE.VERIFICATION,
         meatLines,
         t,
       );
 
       return verification;
     });
-  }
-
-  // Verifier toggles whether the slaughter cost is offset by coverable
-  // byproducts (e.g. адууны өлөн гэдэс given to the factory in lieu of
-  // payment). Allowed while WEIGHED (during verify) or VERIFIED (post-sign
-  // adjustment before settlement).
-  static async setSlaughterCovered(
-    registrationId: string,
-    covered: boolean,
-    context: TContext,
-  ): Promise<VerificationModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
-    ]);
-    const reg = await RegistrationController.findIdCheck(registrationId);
-    // Cover toggling is allowed up until the settlement is created — at
-    // PAYMENT_PENDING the amounts are locked.
-    RegistrationController.assertStatus(reg, [
-      REGISTRATION_STATUS.WEIGHED,
-      REGISTRATION_STATUS.VERIFIED,
-    ]);
-    const [v] = await VerificationModel.findOrCreate({
-      where: { registrationId },
-      defaults: {
-        registrationId,
-        slaughterCoveredByByproduct: !!covered,
-      },
-    });
-    v.slaughterCoveredByByproduct = !!covered;
-    await v.save();
-    return v;
   }
 }

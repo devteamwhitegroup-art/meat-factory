@@ -6,6 +6,7 @@ import {
   TShipment,
 } from "../../types/shipment/shipment.type";
 import { CustomerModel } from "../customer/customer.model";
+import { FACTORY } from "../../types/user/admin.type";
 import { AdminModel } from "../user/admin.model";
 import { FileModel } from "../global/file.model";
 import { ShipmentCargoEntryModel } from "./shipment-cargo-entry.model";
@@ -25,6 +26,7 @@ export class ShipmentModel extends Model implements TShipment {
   public totalPrice!: number | null;
   public pricedAt!: Date | null;
   public status!: SHIPMENT_STATUS;
+  public factory!: FACTORY;
   public shippedAt!: Date | null;
   public loadedById!: string;
   // e.g. "УНО0223" — the truck identifier copied from the notebook.
@@ -129,6 +131,12 @@ export const createShipmentModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: SHIPMENT_STATUS.PENDING,
       },
+      // Pre-split shipments all left FACTORY_1.
+      factory: {
+        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        allowNull: false,
+        defaultValue: FACTORY.FACTORY_1,
+      },
       shippedAt: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -173,6 +181,7 @@ export const createShipmentModel = (sequelize: Sequelize) => {
         { fields: ["domestic_market"] },
         { fields: ["customer_id"] },
         { fields: ["status"] },
+        { fields: ["factory"] },
       ],
     },
   );

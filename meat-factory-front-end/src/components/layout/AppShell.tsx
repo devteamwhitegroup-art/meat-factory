@@ -3,11 +3,14 @@ import { env } from "@/lib/env";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { isOperatorRole, navItemsFor, type StaffRole } from "@/lib/auth/roles";
+import { FACTORY_COOKIE } from "@/lib/auth/server";
+import { FACTORY_MN } from "@/lib/format/enum";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const jar = await cookies();
   const role = (jar.get(env.ROLE_COOKIE_NAME)?.value ??
     null) as StaffRole | null;
+  const factory = jar.get(FACTORY_COOKIE)?.value ?? null;
 
   // Operator roles (gate / scale / store) get a minimal single-purpose shell:
   // no sidebar, a slim top bar with just their task links, and a centered
@@ -15,7 +18,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   if (isOperatorRole(role)) {
     return (
       <div className="flex min-h-screen flex-col">
-        <Topbar role={role} navItems={navItemsFor(role)} brand="Plant 01" />
+        <Topbar
+          role={role}
+          navItems={navItemsFor(role, factory)}
+          brand={FACTORY_MN[factory ?? ""] ?? "Plant 01"}
+        />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto w-full max-w-4xl">{children}</div>
         </main>
@@ -30,7 +37,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // full height regardless of how tall the page content is.
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar role={role} defaultCollapsed={sidebarCollapsed} />
+      <Sidebar
+        role={role}
+        factory={factory}
+        defaultCollapsed={sidebarCollapsed}
+      />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
     </div>
   );

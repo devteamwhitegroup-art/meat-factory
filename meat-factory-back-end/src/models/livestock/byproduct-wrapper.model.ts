@@ -7,6 +7,7 @@ export class ByproductWrapperModel extends Model implements TByproductWrapper {
   public id!: string;
   public animalId!: string;
   public name!: string;
+  public price!: number;
   public isActive!: boolean;
   public createdAt!: Date;
   public updatedAt!: Date;
@@ -42,6 +43,11 @@ export const createByproductWrapperModel = (sequelize: Sequelize) => {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      price: {
+        type: DataTypes.DECIMAL(14, 2),
+        allowNull: false,
+        defaultValue: 0,
       },
       isActive: {
         type: DataTypes.BOOLEAN,

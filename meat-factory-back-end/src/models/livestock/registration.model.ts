@@ -3,11 +3,12 @@ import {
   REGISTRATION_STATUS,
   TRegistration,
 } from "../../types/livestock/registration.type";
+import { FACTORY } from "../../types/user/admin.type";
 import { HerderModel } from "./herder.model";
 import { RegistrationAnimalLineModel } from "./registration-animal-line.model";
 import { WeighingEntryModel } from "./weighing-entry.model";
 import { WeighingEntryAuditModel } from "./weighing-entry-audit.model";
-import { ByproductLogModel } from "./byproduct-log.model";
+import { ByproductBundleModel } from "./byproduct-bundle.model";
 import { VerificationModel } from "./verification.model";
 import { SettlementModel } from "./settlement.model";
 import { FileModel } from "../global/file.model";
@@ -20,9 +21,12 @@ export class RegistrationModel extends Model implements TRegistration {
   public herderId!: string;
   public vehicleNumber!: string;
   public stamp!: string | null;
+  // ponytail: legacy single number, superseded by MedicalNumbers. Kept only so
+  // sync-alter doesn't drop the column before the one-time copy into
+  // MedicalNumbers; delete this attribute once that has run everywhere.
   public medicalNumber!: string | null;
-  // Factory confirmation of the medical number — gates release of the held
-  // settlement portion.
+  // All MedicalNumbers APPROVED (MedicalNumberController.syncApproval) —
+  // gates release of the held settlement portion.
   public medicalNumberApproved!: boolean;
   public photoFileId!: string | null;
   public signatureFileId!: string | null;
@@ -34,10 +38,8 @@ export class RegistrationModel extends Model implements TRegistration {
   public intakeDate!: Date;
   public guardId!: string;
   public status!: REGISTRATION_STATUS;
-  // Pre-butchered intake — the herder delivers ready-cut meat instead of
-  // live animals. When true, slaughter cost is treated as 0 in settlement
-  // and the per-animal "cover slaughter from byproducts" toggle is hidden.
-  public isPreButchered!: boolean;
+  // Receiving factory — see isPreButchered() in the registration type.
+  public factory!: FACTORY;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -50,7 +52,7 @@ export class RegistrationModel extends Model implements TRegistration {
   public animalLines?: RegistrationAnimalLineModel[];
   public weighingEntries?: WeighingEntryModel[];
   public weighingAuditLog?: WeighingEntryAuditModel[];
-  public byproductLogs?: ByproductLogModel[];
+  public byproductBundles?: ByproductBundleModel[];
   public verification?: VerificationModel;
   public settlement?: SettlementModel;
 
@@ -91,8 +93,8 @@ export class RegistrationModel extends Model implements TRegistration {
       as: "weighingAuditLog",
       foreignKey: { name: "registrationId", allowNull: false },
     });
-    this.hasMany(ByproductLogModel, {
-      as: "byproductLogs",
+    this.hasMany(ByproductBundleModel, {
+      as: "byproductBundles",
       foreignKey: { name: "registrationId", allowNull: false },
     });
     this.hasOne(VerificationModel, {
@@ -149,10 +151,11 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: REGISTRATION_STATUS.REGISTERED,
       },
-      isPreButchered: {
-        type: DataTypes.BOOLEAN,
+      // Pre-split rows were all live-animal intake → FACTORY_1.
+      factory: {
+        type: DataTypes.ENUM(...Object.values(FACTORY)),
         allowNull: false,
-        defaultValue: false,
+        defaultValue: FACTORY.FACTORY_1,
       },
     },
     {
@@ -166,6 +169,7 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         { fields: ["status"] },
         { fields: ["herder_id"] },
         { fields: ["intake_date"] },
+        { fields: ["factory"] },
       ],
     },
   );

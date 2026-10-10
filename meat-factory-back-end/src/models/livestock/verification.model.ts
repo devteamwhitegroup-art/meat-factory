@@ -15,7 +15,6 @@ export class VerificationModel extends Model implements TVerification {
   public firstVerifiedAt!: Date | null;
   public notes!: string | null;
   public photoFileId!: string | null;
-  public slaughterCoveredByByproduct!: boolean;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -57,11 +56,6 @@ export const createVerificationModel = (sequelize: Sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
         defaultValue: null,
-      },
-      slaughterCoveredByByproduct: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
       },
     },
     {

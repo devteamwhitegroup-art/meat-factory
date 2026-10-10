@@ -8,7 +8,6 @@ export default `#graphql
         # Meat allowed on export shipments (horse only, for now).
         isExport: Boolean
         pricePerAnimal: Float
-        canCoverSlaughterCost: Boolean
         # Carcass-to-saleable yield (%) applied when meat is ingested into
         # inventory. Horse 70 (bone-out); others 100.
         yieldPercent: Float
@@ -42,9 +41,8 @@ export default `#graphql
             name: String!
             isExport: Boolean
             pricePerAnimal: Float
-            canCoverSlaughterCost: Boolean
             yieldPercent: Float
             isActive: Boolean
-        ): AnimalResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): AnimalResponse @auth(permissions: ["ADMIN"])
     }
 `;

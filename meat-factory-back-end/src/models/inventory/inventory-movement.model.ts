@@ -17,6 +17,8 @@ export class InventoryMovementModel
   public source!: MOVEMENT_SOURCE;
   public quantityKg!: number;
   public balanceAfterKg!: number;
+  public quantityCount!: number;
+  public balanceAfterCount!: number;
   public sourceRegistrationId!: string | null;
   public sourceShipmentId!: string | null;
   public createdById!: string | null;
@@ -63,6 +65,16 @@ export const createInventoryMovementModel = (sequelize: Sequelize) => {
       balanceAfterKg: {
         type: DataTypes.DECIMAL(14, 2),
         allowNull: false,
+      },
+      quantityCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      balanceAfterCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
       },
       // Soft reference to a livestock Registration (no FK, no association)
       // so the inventory module never imports the livestock module.

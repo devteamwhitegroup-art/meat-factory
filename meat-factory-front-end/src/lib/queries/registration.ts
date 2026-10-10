@@ -6,6 +6,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
     $statuses: [REGISTRATION_STATUS!]
     $herderId: ID
     $registrationCode: String
+    $factory: FACTORY
     $dateRange: DateRangeInput
     $limit: Int
     $page: Int
@@ -15,6 +16,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
       statuses: $statuses
       herderId: $herderId
       registrationCode: $registrationCode
+      factory: $factory
       dateRange: $dateRange
       limit: $limit
       page: $page
@@ -26,6 +28,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
         id
         registrationCode
         status
+        factory
         intakeDate
         vehicleNumber
         herder {
@@ -51,10 +54,16 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
         id
         registrationCode
         status
+        factory
         intakeDate
         vehicleNumber
         stamp
-        medicalNumber
+        medicalNumbers {
+          id
+          number
+          status
+          checkedAt
+        }
         medicalNumberApproved
         agreementSignatureFileId
         agreementSignature {
@@ -127,30 +136,20 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
             param
           }
         }
-        byproductLogs {
+        byproductBundles {
           id
-          name
+          wrapperId
+          wrapperName
           animalType
-          canCoverSlaughterCost
           count
-          averageWeightKg
-          totalWeightKg
-          createdAt
-          loggedBy {
-            id
-            param
-          }
-          photo {
-            id
-            url
-          }
+          herderCount
+          unitPrice
         }
         verification {
           id
           firstVerifierId
           firstVerifiedAt
           notes
-          slaughterCoveredByByproduct
           firstVerifier {
             id
             param
@@ -223,24 +222,24 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
     $herderId: ID!
     $vehicleNumber: String!
     $stamp: String
-    $medicalNumber: String
+    $medicalNumbers: [String!]
     $photoFileId: ID
     $signatureFileId: ID
     $stampFileId: ID
     $intakeDate: Date
-    $isPreButchered: Boolean
+    $factory: FACTORY
     $animalLines: [RegistrationAnimalLineInput!]!
   ) {
     createRegistration(
       herderId: $herderId
       vehicleNumber: $vehicleNumber
       stamp: $stamp
-      medicalNumber: $medicalNumber
+      medicalNumbers: $medicalNumbers
       photoFileId: $photoFileId
       signatureFileId: $signatureFileId
       stampFileId: $stampFileId
       intakeDate: $intakeDate
-      isPreButchered: $isPreButchered
+      factory: $factory
       animalLines: $animalLines
     ) {
       success
@@ -249,7 +248,7 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
         id
         registrationCode
         status
-        isPreButchered
+        factory
       }
     }
   }
@@ -334,48 +333,20 @@ export const FinishWeighingDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const DerivedByproductsDoc = graphql(/* GraphQL */ `
-  query DerivedByproducts($registrationId: ID!) {
-    derivedByproducts(registrationId: $registrationId) {
-      success
-      message
-      items {
-        animalType
-        wrapperName
-        name
-        quantity
-        unitWeightKg
-        weightKg
-        canCoverSlaughterCost
-      }
-    }
-  }
-`);
-
 export const SetRegistrationByproductsDoc = graphql(/* GraphQL */ `
   mutation SetRegistrationByproducts(
     $registrationId: ID!
-    $items: [ByproductItemInput!]!
+    $bundles: [ByproductBundleInput!]!
   ) {
-    setRegistrationByproducts(registrationId: $registrationId, items: $items) {
+    setRegistrationByproducts(
+      registrationId: $registrationId
+      bundles: $bundles
+    ) {
       success
       message
       registration {
         id
         status
-      }
-    }
-  }
-`);
-
-export const SetSlaughterCoveredDoc = graphql(/* GraphQL */ `
-  mutation SetSlaughterCovered($registrationId: ID!, $covered: Boolean!) {
-    setSlaughterCovered(registrationId: $registrationId, covered: $covered) {
-      success
-      message
-      verification {
-        id
-        slaughterCoveredByByproduct
       }
     }
   }
@@ -472,48 +443,6 @@ export const ReleaseSettlementHoldDoc = graphql(/* GraphQL */ `
         heldAmount
         paidAmount
         heldReleasedAt
-      }
-    }
-  }
-`);
-
-export const ApproveMedicalNumberDoc = graphql(/* GraphQL */ `
-  mutation ApproveMedicalNumber($registrationId: ID!, $medicalNumber: String) {
-    approveMedicalNumber(
-      registrationId: $registrationId
-      medicalNumber: $medicalNumber
-    ) {
-      success
-      message
-      registration {
-        id
-        medicalNumber
-        medicalNumberApproved
-        status
-      }
-    }
-  }
-`);
-
-export const SetRegistrationSlaughterCostsDoc = graphql(/* GraphQL */ `
-  mutation SetRegistrationSlaughterCosts(
-    $registrationId: ID!
-    $lines: [SlaughterCostInput!]!
-  ) {
-    setRegistrationSlaughterCosts(
-      registrationId: $registrationId
-      lines: $lines
-    ) {
-      success
-      message
-      registration {
-        id
-        status
-        animalLines {
-          id
-          animalType
-          slaughterCost
-        }
       }
     }
   }

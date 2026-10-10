@@ -2,11 +2,13 @@ import { graphql } from "@/lib/gql/gql";
 
 export const InventoryStockDoc = graphql(/* GraphQL */ `
   query InventoryStock(
+    $factory: FACTORY
     $productType: PRODUCT_TYPE
     $animalId: ID
     $byproductName: String
   ) {
     inventoryStock(
+      factory: $factory
       productType: $productType
       animalId: $animalId
       byproductName: $byproductName
@@ -16,6 +18,7 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
       count
       inventoryItems {
         id
+        factory
         sku
         productType
         animalId
@@ -26,6 +29,7 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
         }
         byproductName
         quantityKg
+        quantityCount
         updatedAt
       }
     }
@@ -34,6 +38,7 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
 
 export const InventoryMovementsDoc = graphql(/* GraphQL */ `
   query InventoryMovements(
+    $factory: FACTORY
     $inventoryItemId: ID
     $movementType: MOVEMENT_TYPE
     $source: MOVEMENT_SOURCE
@@ -42,6 +47,7 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
     $page: Int
   ) {
     inventoryMovements(
+      factory: $factory
       inventoryItemId: $inventoryItemId
       movementType: $movementType
       source: $source
@@ -58,10 +64,13 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
         source
         quantityKg
         balanceAfterKg
+        quantityCount
+        balanceAfterCount
         createdAt
         notes
         item {
           id
+          factory
           sku
         }
       }
@@ -70,8 +79,8 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
 `);
 
 export const InventoryStatsDoc = graphql(/* GraphQL */ `
-  query InventoryStats {
-    inventoryStats {
+  query InventoryStats($factory: FACTORY) {
+    inventoryStats(factory: $factory) {
       success
       message
       stats {
@@ -91,18 +100,22 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
 
 export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   mutation AdjustInventory(
+    $factory: FACTORY
     $productType: PRODUCT_TYPE!
     $animalId: ID
     $byproductName: String
-    $quantityKg: Float!
+    $quantityKg: Float
+    $quantityCount: Int
     $direction: MOVEMENT_TYPE!
     $notes: String
   ) {
     adjustInventory(
+      factory: $factory
       productType: $productType
       animalId: $animalId
       byproductName: $byproductName
       quantityKg: $quantityKg
+      quantityCount: $quantityCount
       direction: $direction
       notes: $notes
     ) {
@@ -112,6 +125,7 @@ export const AdjustInventoryDoc = graphql(/* GraphQL */ `
         id
         sku
         quantityKg
+        quantityCount
       }
     }
   }

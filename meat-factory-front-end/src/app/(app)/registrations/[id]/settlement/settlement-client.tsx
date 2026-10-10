@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
-import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,13 +21,12 @@ import {
   CreateSettlementDoc,
   MarkSettlementPaidDoc,
   ReleaseSettlementHoldDoc,
-  ApproveMedicalNumberDoc,
   SetSettlementStorekeeperSignatureDoc,
   RegistrationDetailDoc,
 } from "@/lib/queries/registration";
-import { AnimalListDoc } from "@/lib/queries/animal";
 import { runMutation } from "@/lib/runMutation";
 import { formatMoney } from "@/lib/format/money";
+import { isPreButchered } from "@/lib/format/enum";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
@@ -52,26 +50,33 @@ export function SettlementClient({ id }: { id: string }) {
   const [createSettlement] = useMutation(CreateSettlementDoc);
   const [markPaid] = useMutation(MarkSettlementPaidDoc);
   const [releaseHold] = useMutation(ReleaseSettlementHoldDoc);
-  const [approveMedical] = useMutation(ApproveMedicalNumberDoc);
   const [setStorekeeperSignature] = useMutation(
     SetSettlementStorekeeperSignatureDoc,
   );
 
-  // Client-readable role cookie gates the medical-approval action to office
-  // roles (MANAGER/ADMIN/SUPER_ADMIN). Read post-mount to avoid hydration skew.
+  // Client-readable role cookie gates the actions. Read post-mount to avoid
+  // hydration skew.
   const [role, setRole] = useState<string | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setRole(readRoleCookie()), []);
-  const canApproveMedical = can(role, "medicalNumber");
-  // Pay / release actions are settle-only; read-only roles (e.g. SCALE) just view.
-  const canSettle = can(role, "settle");
-  // Admin-configured per-head slaughter cost — pre-fills the line slaughter
-  // cost = pricePerAnimal × count.
-  const { data: bcData } = useQuery(AnimalListDoc, {
-    fetchPolicy: "cache-and-network",
-  });
+  const canPay = can(role, "pay");
+  const canSign = can(role, "storekeeperSign");
 
   const reg = data?.registration?.registration;
+  // FACTORY_2 (pre-butchered): no verify step, no slaughter cost.
+  const pre = isPreButchered(reg?.factory);
+  const bundles = useMemo(() => compact(reg?.byproductBundles), [reg]);
+  // Дайвар credit per animal = Σ kept гэдэс × price (BE computes the same at
+  // createSettlement from the saved bundles).
+  const byproductByType = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const b of bundles) {
+      const t = b.animalType ?? "";
+      const k = Number(b.count ?? 0) - Number(b.herderCount ?? 0);
+      m[t] = (m[t] ?? 0) + k * Number(b.unitPrice ?? 0);
+    }
+    return m;
+  }, [bundles]);
   const types = useMemo(
     () => compact(reg?.animalLines).map((l) => l.animalType as string),
     [reg],
@@ -106,32 +111,8 @@ export function SettlementClient({ id }: { id: string }) {
   const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const butcherMap = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const c of compact(bcData?.animals?.animals)) {
-      if (c.name) m[c.name] = Number(c.pricePerAnimal ?? 0);
-    }
-    return m;
-  }, [bcData]);
-  // Per-animal cover flag — only types where canCover=true are zeroed when
-  // the verifier toggles slaughterCoveredByByproduct.
-  const coverByType = useMemo(() => {
-    const m: Record<string, boolean> = {};
-    for (const c of compact(bcData?.animals?.animals)) {
-      if (c.name) m[c.name] = !!c.canCoverSlaughterCost;
-    }
-    return m;
-  }, [bcData]);
-  const countsByType = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const a of compact(reg?.animalLines)) {
-      const t = a.animalType ?? "";
-      if (t) m[t] = a.count ?? 0;
-    }
-    return m;
-  }, [reg]);
-  // Бой cost captured at weigh time (animalLines.slaughterCost). When present it
-  // pre-fills the settlement line directly — still overridable below.
+  // Бой зардал is fixed at intake (per-head price × count on animalLines) —
+  // display-only; the BE uses the same stored figure.
   const capturedByType = useMemo(() => {
     const m: Record<string, number> = {};
     for (const a of compact(reg?.animalLines)) {
@@ -157,32 +138,17 @@ export function SettlementClient({ id }: { id: string }) {
     setPayoutAccountHolderName((v) => v || h.accountHolderName || h.name || "");
   }, [reg?.herder]);
 
-  // Seed builder lines once: pre-fill slaughterCost = pricePerAnimal × count
-  // from the admin Бой зардал config. When the verifier marked the slaughter
-  // cost as covered, ONLY animals where canCover=true pre-fill at 0 — others
-  // still charge (e.g. cow can't be offset). Storekeeper can still override.
-  const covered = !!reg?.verification?.slaughterCoveredByByproduct;
+  // Seed builder lines once with the fixed бой зардал. FACTORY_2 has none.
   useEffect(() => {
     if (lines.length > 0) return;
     if (!types.length) return;
     if (reg?.settlement) return;
-    if (!bcData) return; // wait for butcher costs to land
-    // Seed builder lines once from the admin Бой зардал config (guarded by the
-    // lines.length / settlement checks above) — a legitimate async-data seed.
+    // Seed builder lines once (guarded by the lines.length / settlement checks
+    // above) — a legitimate async-data seed.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLines(
       types.map((t) => {
-        const coverable = !!coverByType[t];
-        const captured = capturedByType[t];
-        // Cover wins: a coverable type's бой is offset to 0 when the verifier
-        // marked it covered — otherwise use the captured cost, falling back to
-        // the admin per-head config.
-        const cost =
-          covered && coverable
-            ? 0
-            : captured != null
-              ? captured
-              : (butcherMap[t] ?? 0) * (countsByType[t] ?? 0);
+        const cost = pre ? 0 : (capturedByType[t] ?? 0);
         return {
           animalType: t,
           slaughterCost: cost > 0 ? String(cost) : "",
@@ -190,29 +156,18 @@ export function SettlementClient({ id }: { id: string }) {
       }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    types.length,
-    bcData,
-    reg?.settlement?.id,
-    butcherMap,
-    coverByType,
-    countsByType,
-    capturedByType,
-    covered,
-  ]);
+  }, [types.length, reg?.settlement?.id, capturedByType, pre]);
 
   if (fetching && !data) return <Skeleton className="h-72 w-full" />;
   if (!reg) return <div className="text-muted-foreground">Олдсонгүй</div>;
 
   const existing = reg.settlement;
+  const readyStatus = pre ? "WEIGHED" : "VERIFIED";
+  // FACTORY_1 must save the herder's гэдэс take first (BE rejects otherwise);
+  // unsaved bundles come back with a null id.
+  const bundlesUnsaved = !pre && bundles.length > 0 && !bundles[0].id;
 
   async function onCreate() {
-    for (const l of lines) {
-      if (Number(l.slaughterCost) < 0) {
-        toast.error("Бой зардал сөрөг байж болохгүй");
-        return;
-      }
-    }
     setBusy(true);
     await runMutation(
       async () =>
@@ -222,10 +177,7 @@ export function SettlementClient({ id }: { id: string }) {
               registrationId: id,
               notes: notes.trim() || null,
               photoFileId: photoFileId ?? null,
-              lines: lines.map((l) => ({
-                animalType: l.animalType,
-                slaughterCost: l.slaughterCost ? Number(l.slaughterCost) : 0,
-              })),
+              lines: lines.map((l) => ({ animalType: l.animalType })),
               // Only send override fields when the storekeeper toggled it on.
               payoutBankAccount: overrideBank
                 ? payoutBankAccount.trim() || null
@@ -288,20 +240,6 @@ export function SettlementClient({ id }: { id: string }) {
           })
         ).data?.setSettlementStorekeeperSignature,
       { success: "Няравын гарын үсэг хадгалагдлаа", onSuccess: refetch },
-    );
-    setBusy(false);
-  }
-
-  async function onApproveMedical(medicalNumber: string | null) {
-    setBusy(true);
-    await runMutation(
-      async () =>
-        (
-          await approveMedical({
-            variables: { registrationId: id, medicalNumber },
-          })
-        ).data?.approveMedicalNumber,
-      { success: "Мал эмнэлгийн дугаар батлагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }
@@ -371,11 +309,10 @@ export function SettlementClient({ id }: { id: string }) {
             reg={reg}
             existing={existing}
             busy={busy}
-            canApproveMedical={canApproveMedical}
-            canSettle={canSettle}
+            canPay={canPay}
+            canSign={canSign}
             onMarkPaid={onMarkPaid}
             onReleaseHold={onReleaseHold}
-            onApproveMedical={onApproveMedical}
             onSetStorekeeperSignature={onSetStorekeeperSignature}
           />
 
@@ -383,7 +320,7 @@ export function SettlementClient({ id }: { id: string }) {
           {Number(existing.paidAmount ?? 0) > 0 ? (
             <PaymentProofGallery
               registrationId={id}
-              canAdd={Number(existing.paidAmount ?? 0) > 0}
+              canAdd={canPay && Number(existing.paidAmount ?? 0) > 0}
               proofs={compact(existing.paymentProofs).map((p) => ({
                 id: p.id!,
                 sequenceNo: Number(p.sequenceNo ?? 0),
@@ -401,8 +338,20 @@ export function SettlementClient({ id }: { id: string }) {
           <SettlementPreview
             receivedByType={receivedByType}
             meatByType={meatByType}
+            byproductByType={byproductByType}
             lines={lines}
           />
+          {bundlesUnsaved ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+              Малчны авах гэдэс бүртгэгдээгүй байна.{" "}
+              <Link
+                href={`/registrations/${id}/byproduct`}
+                className="font-medium underline"
+              >
+                Дайвар бүртгэх
+              </Link>
+            </div>
+          ) : null}
           <div className="space-y-3">
             <Textarea
               placeholder="Тэмдэглэл (заавал биш)"
@@ -474,14 +423,16 @@ export function SettlementClient({ id }: { id: string }) {
             />
             <Button
               onClick={onCreate}
-              disabled={busy || reg.status !== "VERIFIED"}
+              disabled={busy || reg.status !== readyStatus || bundlesUnsaved}
               className="w-full"
             >
               {busy ? "..." : "Тооцоо үүсгэх"}
             </Button>
-            {reg.status !== "VERIFIED" ? (
+            {reg.status !== readyStatus ? (
               <div className="text-xs text-muted-foreground">
-                {'Тооцоо үүсгэхийн тулд статус "Баталгаажсан" байх ёстой.'}
+                {pre
+                  ? 'Тооцоо үүсгэхийн тулд статус "Жинлэсэн" байх ёстой.'
+                  : 'Тооцоо үүсгэхийн тулд статус "Баталгаажсан" байх ёстой.'}
               </div>
             ) : null}
           </div>

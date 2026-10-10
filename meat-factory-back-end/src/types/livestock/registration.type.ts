@@ -1,4 +1,11 @@
 import { TDateRange, TPagination } from '../global/global.type';
+import { FACTORY } from '../user/admin.type';
+
+// FACTORY_2 only ever receives pre-butchered meat: no stamp, no slaughter
+// cost, no verify step — meat + гэдэс go to stock at finishWeighing and
+// finance settles later. FACTORY_1 is the live-animal slaughter flow.
+export const isPreButchered = (reg: { factory: FACTORY }): boolean =>
+  reg.factory === FACTORY.FACTORY_2;
 
 export enum REGISTRATION_STATUS {
   REGISTERED = 'REGISTERED', // intake created by guard (weighing happens in-place)
@@ -23,9 +30,10 @@ export type TRegistration = {
   herderId: string;
   vehicleNumber: string;
   stamp: string | null;
+  // Legacy single number — superseded by MedicalNumbers (see model).
   medicalNumber: string | null;
-  // Factory confirmation of the medical number. While false, the settlement's
-  // held portion can't be released (paid out).
+  // Every MedicalNumber is APPROVED (kept in sync by MedicalNumberController).
+  // While false, the settlement's held portion can't be released (paid out).
   medicalNumberApproved: boolean;
   photoFileId: string | null;
   signatureFileId: string | null;
@@ -35,7 +43,7 @@ export type TRegistration = {
   intakeDate: Date;
   guardId: string;
   status: REGISTRATION_STATUS;
-  isPreButchered: boolean;
+  factory: FACTORY;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -44,12 +52,14 @@ export type TCreateRegistration = {
   herderId: string;
   vehicleNumber: string;
   stamp?: string | null;
-  medicalNumber?: string | null;
+  // 7-digit medical certificate numbers (bulk intake often has several).
+  medicalNumbers?: string[] | null;
   photoFileId?: string | null;
   signatureFileId?: string | null;
   stampFileId?: string | null;
   intakeDate?: Date | null;
-  isPreButchered?: boolean;
+  // Owner/admin pick it; factory staff are always stamped with their own.
+  factory?: FACTORY | null;
   animalLines: TRegistrationAnimalLineInput[];
 };
 
@@ -60,6 +70,8 @@ export type TGetRegistrations = {
   statuses?: REGISTRATION_STATUS[];
   herderId?: string;
   registrationCode?: string;
+  // Owner/admin only — factory staff are always scoped to their own.
+  factory?: FACTORY;
   // Filters on intakeDate (livestock arrival), inclusive both ends.
   dateRange?: TDateRange;
 } & TPagination;
@@ -76,7 +88,3 @@ export type TRegistrationAnimalLine = {
   updatedAt: Date;
 };
 
-export type TSlaughterCostInput = {
-  animalType: string;
-  slaughterCost: number;
-};

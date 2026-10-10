@@ -24,7 +24,6 @@ type Form = {
   name: string;
   isExport: boolean;
   price: string;
-  cover: boolean;
   yield: string;
   isActive: boolean;
 };
@@ -33,7 +32,6 @@ const EMPTY: Form = {
   name: "",
   isExport: false,
   price: "0",
-  cover: false,
   yield: "",
   isActive: true,
 };
@@ -43,7 +41,6 @@ function fromAnimal(a: Animal): Form {
     name: a.name ?? "",
     isExport: !!a.isExport,
     price: String(a.pricePerAnimal ?? 0),
-    cover: !!a.canCoverSlaughterCost,
     yield: a.yieldPercent != null ? String(a.yieldPercent) : "",
     isActive: a.isActive ?? true,
   };
@@ -88,7 +85,6 @@ export function AnimalsClient() {
               name,
               isExport: f.isExport,
               pricePerAnimal: price,
-              canCoverSlaughterCost: f.cover,
               yieldPercent,
               isActive: f.isActive,
             },
@@ -196,13 +192,6 @@ function AnimalCard({
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={form.cover}
-            onCheckedChange={(c) => onChange({ cover: !!c })}
-          />
-          <span>Дайвараар бой зардлыг нөхөх боломжтой</span>
-        </label>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox
             checked={form.isExport}

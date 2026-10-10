@@ -11,6 +11,7 @@ import adminType from "./user/admin.type";
 import herderType from "./livestock/herder.type";
 import herderAddressType from "./livestock/herder-address.type";
 import registrationType from "./livestock/registration.type";
+import medicalNumberType from "./livestock/medical-number.type";
 import byproductWrapperType from "./livestock/byproduct-wrapper.type";
 import byproductConstantType from "./livestock/byproduct-constant.type";
 import animalType from "./livestock/animal.type";
@@ -26,6 +27,7 @@ import shipmentType from "./shipment/shipment.type";
 
 //Inventory
 import inventoryType from "./inventory/inventory.type";
+import byproductProcessingType from "./inventory/byproduct-processing.type";
 
 //Dashboard
 import dashboardType from "./dashboard/dashboard.type";
@@ -48,6 +50,7 @@ export const mergedGQLSchema = mergeTypeDefs([
   herderType,
   herderAddressType,
   registrationType,
+  medicalNumberType,
   byproductWrapperType,
   byproductConstantType,
   animalType,
@@ -63,6 +66,7 @@ export const mergedGQLSchema = mergeTypeDefs([
 
   //Inventory
   inventoryType,
+  byproductProcessingType,
 
   //Dashboard
   dashboardType,

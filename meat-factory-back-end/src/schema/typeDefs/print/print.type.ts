@@ -58,7 +58,7 @@ export default `#graphql
             status: PRINT_JOB_STATUS
             printerKey: String
             ${PaginationSchema}
-        ): PrintJobsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): PrintJobsResponse @auth(permissions: ["ADMIN"])
 
         previewReceipt(type: PRINT_JOB_TYPE!, id: ID!): PrintPreviewResponse @authLogin
     }

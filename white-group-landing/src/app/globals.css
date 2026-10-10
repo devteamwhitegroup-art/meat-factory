@@ -1,30 +1,61 @@
 @import "tailwindcss";
 
-/* The landing site is a fixed light brand design (no dark mode). */
+/* "Classical" design system (client redesign): Cormorant Garamond over Lora,
+   hairline rules, gold as stroke not fill, photos matted as .plate.
+   Fixed light design (no dark mode). */
 :root {
-  --radius: 0.625rem;
-  --background: #fcfaf5;
-  --foreground: #211a0e;
-  --card: #ffffff;
-  --card-foreground: #211a0e;
-  --popover: #ffffff;
-  --popover-foreground: #211a0e;
-  --primary: #211a0e;
-  --primary-foreground: #ffffff;
-  --secondary: #f5efe2;
-  --secondary-foreground: #211a0e;
-  --muted: #f5efe2;
-  --muted-foreground: #6f6753;
-  --accent: #f5efe2;
-  --accent-foreground: #211a0e;
+  --paper: #f3f2f2;
+  --surface: #eae9e9;
+  --ink: #201f1d;
+  --line: color-mix(in srgb, #201f1d 16%, transparent);
+  --gold: #b68235;
+  --gold-100: #fff3e4;
+  --gold-300: #facb8d;
+  --gold-400: #e1ad66;
+  --gold-600: #a06f24;
+  --gold-700: #7d5411;
+  --gold-800: #5a3b0a;
+  --night: #2d2b2b;
+  --night-deep: #252323; /* night mixed 82% with black */
+
+  /* shadcn tokens — used by ui/sheet + ui/button */
+  --radius: 0.25rem;
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface);
+  --muted-foreground: #605d5d;
+  --accent: var(--surface);
+  --accent-foreground: var(--ink);
   --destructive: #b3261e;
   --destructive-foreground: #ffffff;
-  --border: rgba(33, 26, 14, 0.1);
-  --input: rgba(33, 26, 14, 0.14);
-  --ring: #b6892a;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--gold);
 }
 
 @theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-gold: var(--gold);
+  --color-gold-100: var(--gold-100);
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-600: var(--gold-600);
+  --color-gold-700: var(--gold-700);
+  --color-gold-800: var(--gold-800);
+  --color-night: var(--night);
+  --color-night-deep: var(--night-deep);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,38 +76,141 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Вайт групп brand palette */
-  --color-brand-bg: #fcfaf5;
-  --color-brand-cream: #f5efe2;
-  --color-brand-cream-2: #f0e8d6;
-  --color-brand-ink: #211a0e;
-  --color-brand-ink-2: #3b3322;
-  --color-brand-muted: #6f6753;
-  --color-brand-gold: #b6892a;
-  --color-brand-gold-bright: #d9b24a;
-  --color-brand-gold-deep: #8a6516;
-  --color-brand-line: rgba(33, 26, 14, 0.1);
-
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-manrope), var(--font-geist-sans), sans-serif;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-@utility brand-gold-gradient {
-  background-image: linear-gradient(150deg, #ecce58 0%, #c69a33 48%, #8a6516 100%);
+  --font-heading: var(--font-cormorant), Georgia, serif;
+  --font-sans: var(--font-lora), Georgia, serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 7px;
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
-    outline-color: var(--color-ring);
+  }
+  html {
+    scroll-behavior: smooth;
   }
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--gold) 30%, transparent);
+  }
+}
+
+/* Ported from the design system's styles.css. Utilities still override these. */
+@layer components {
+  .plate {
+    filter: sepia(0.22) saturate(0.82) contrast(1.05);
+    border: 6px solid var(--surface);
+    outline: 1px solid var(--line);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 9.2px 16.5px;
+    border-radius: 4px;
+  }
+  .btn-primary {
+    color: var(--gold);
+    border-color: var(--gold);
+  }
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--gold) 12%, transparent);
+  }
+  .btn-primary:active {
+    background: color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+  .btn-secondary {
+    border-color: var(--line);
+  }
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+  .btn-secondary:active {
+    background: color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+  .btn-ghost {
+    color: var(--gold);
+    padding-inline: 4.6px;
+  }
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--gold) 10%, transparent);
+  }
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    padding: 3px 10px;
+    border-radius: 3px;
+  }
+  .tag-accent {
+    background: var(--gold-100);
+    color: var(--gold-800);
+  }
+  .tag-outline {
+    border: 1px solid var(--gold);
+    color: var(--gold);
+  }
+
+  .field > label {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: color-mix(in srgb, var(--ink) 70%, transparent);
+  }
+  .input {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    caret-color: var(--gold);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .input:hover {
+    border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+  }
+  .input:focus-visible {
+    border-color: var(--gold);
+    outline-offset: 0;
   }
 }

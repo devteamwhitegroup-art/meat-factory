@@ -3,9 +3,11 @@ import { TInventoryItem } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { InventoryMovementModel } from "./inventory-movement.model";
 import { AnimalModel } from "../livestock/animal.model";
+import { FACTORY } from "../../types/user/admin.type";
 
 export class InventoryItemModel extends Model implements TInventoryItem {
   public id!: string;
+  public factory!: FACTORY;
   public sku!: string;
   public productType!: PRODUCT_TYPE;
   // Animal catalogue FK for MEAT rows. Null for byproducts. FK (not name) so
@@ -13,6 +15,7 @@ export class InventoryItemModel extends Model implements TInventoryItem {
   public animalId!: string | null;
   public byproductName!: string | null;
   public quantityKg!: number;
+  public quantityCount!: number;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -40,10 +43,15 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
+      // Pre-split stock was all FACTORY_1.
+      factory: {
+        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        allowNull: false,
+        defaultValue: FACTORY.FACTORY_1,
+      },
       sku: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
       },
       productType: {
         type: DataTypes.ENUM(...Object.values(PRODUCT_TYPE)),
@@ -58,6 +66,11 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: 0,
       },
+      quantityCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
     },
     {
       modelName: "InventoryItemModel",
@@ -66,7 +79,7 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
       underscored: true,
       sequelize,
       indexes: [
-        { fields: ["sku"], unique: true },
+        { fields: ["factory", "sku"], unique: true },
         { fields: ["product_type"] },
         { fields: ["animal_id"] },
       ],

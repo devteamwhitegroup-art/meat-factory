@@ -101,10 +101,7 @@ export function HerderInfoCard({
       <CardContent>
         {editing ? (
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-3"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <HerderFormFields form={form} />
               <div className="flex gap-2 pt-2">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -138,9 +135,7 @@ export function HerderInfoCard({
             ) : null}
             {herder?.accountHolderName ? (
               <>
-                <div className="text-muted-foreground">
-                  Эзэмшигчийн нэр
-                </div>
+                <div className="text-muted-foreground">Эзэмшигчийн нэр</div>
                 <div>{herder.accountHolderName}</div>
               </>
             ) : null}

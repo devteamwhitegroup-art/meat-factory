@@ -9,7 +9,6 @@ export class AnimalModel extends Model implements TAnimal {
   // Meat allowed on export shipments (horse only, for now).
   public isExport!: boolean;
   public pricePerAnimal!: number;
-  public canCoverSlaughterCost!: boolean;
   // Carcass-to-saleable yield (%); horse 70 (bone-out), others 100.
   public yieldPercent!: number;
   public isActive!: boolean;
@@ -49,11 +48,6 @@ export const createAnimalModel = (sequelize: Sequelize) => {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
         defaultValue: 0,
-      },
-      canCoverSlaughterCost: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
       },
       yieldPercent: {
         type: DataTypes.DECIMAL(5, 2),

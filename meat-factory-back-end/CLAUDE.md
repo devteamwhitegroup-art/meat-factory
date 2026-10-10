@@ -17,7 +17,7 @@ this is the meat-factory backend. The web UI lives in the **separate**
 - Build: `npx tsc -p .` (must be clean) → `node dist/index.js`.
 - Server: `http://localhost:8086`, GraphQL at `/graphql`.
 - DB: local Postgres `meat_factory` on `:5432` (creds in `.env.local`).
-- Seed: `POST /seed/admin` (SUPER_ADMIN), `POST /seed/staff` (one per role).
+- Seed: `POST /seed/admin` (ADMIN), `POST /seed/staff` (one per role).
 
 ## Layout (per-domain folders under `src/`)
 
@@ -48,7 +48,12 @@ order, include, distinct})` from `src/utils`. `findIdCheck` is a PUBLIC
   Declare each enum/scalar/input exactly ONCE (`mergeTypeDefs` throws on dupes).
 - **Auth**: `@authLogin` (any staff) / `@auth(permissions:[...])` (role-checked vs
   live DB). Roles on `AdminModel.role`. JWT `{id,role}` as `Bearer` in
-  `Authorization`. `TContext = {id, role}` injected by the directive.
+  `Authorization`. `TContext = {id, role, factory}` injected by the directive
+  (role + factory read live from the DB). Roles: ADMIN (all, every factory),
+  STOREKEEPER/нярав (all data entry), ACCOUNTANT/нягтлан (money), DOCTOR/эмч
+  (medical number). Factory boundary:
+  `AdminController.scopeFactory(context)` → null for ADMIN
+  (`CROSS_FACTORY_ROLES`), else the actor's `FACTORY` (throws if unassigned).
 
 ## ⚠️ Schema sync gotcha
 
@@ -70,8 +75,25 @@ plus the changed type). Keep this server running so FE `npm run gen` can introsp
 ## Domain model (orientation)
 
 Livestock aggregate: `Registration` (intake) → animal lines → `WeighingEntry`
-(per-entry negotiated `pricePerKg`) → `ByproductLog` → single-signer
-`Verification` → `Settlement` (meat only). Status: REGISTERED→WEIGHED→VERIFIED→
+(per-entry negotiated `pricePerKg`) → `ByproductBundle` (гэдэс count) → single-signer
+`Verification` → `Settlement`. Status: REGISTERED→WEIGHED→VERIFIED→
 PAYMENT_PENDING→SETTLED (CANCELLED from REGISTERED). Plus Customer,
 SalesTransaction, Shipment (PENDING→LOADED→DELIVERED), Inventory ledger
 (Item+Movement), and a single `dashboard(dateRange)` aggregation query.
+
+Three factories (`FACTORY` enum): FACTORY_1 = live animals (stamp, бой
+зардал, verify). FACTORY_2 = pre-butchered meat — no stamp/бой/verify; meat +
+гэдэс stock at `finishWeighing`, settlement from WEIGHED (`isPreButchered`).
+FACTORY_3 = byproduct factory (`BYPRODUCT_FACTORY`) — never takes livestock.
+Incoming byproduct is COUNT only: `ByproductBundle` per wrapper (гэдэс) —
+count, herderCount, unitPrice; kept × price credits the settlement. Kept гэдэс
+enter stock as pieces (`quantityCount`), are transferred F1/F2 → F3, and F3
+disassembles them in `ByproductProcessing` batches: −N гэдэс, +weighed kg per
+organ, each line storing norm-expected vs actual kg (the matching report).
+Medical certificate numbers: `MedicalNumber` rows per registration (exactly
+7 digits, many per bulk intake); the DOCTOR rules each PENDING→APPROVED/
+REJECTED; `Registration.medicalNumberApproved` = all APPROVED (synced by
+`MedicalNumberController.syncApproval`) and gates the held payout.
+Inventory items, shipments, registrations carry `factory`; stock moves only via
+`InventoryController.applyMovement` (IN from livestock via
+`ingestFromRegistration`).

@@ -12,7 +12,12 @@ import {
 import { getClient } from "@/lib/apollo/server";
 import { ShipmentListDoc } from "@/lib/queries/shipment";
 import { unwrapList } from "@/lib/unwrap";
-import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
+import {
+  SHIPMENT_STATUS_MN,
+  DOMESTIC_MARKET_MN,
+  FACTORY_MN,
+} from "@/lib/format/enum";
+import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { formatNumber, formatMNT } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { pageAndRange } from "@/lib/date/range";
@@ -63,6 +68,7 @@ function tabCls(active: boolean) {
 export type ShipmentCategory = "EXPORT" | "DOMESTIC";
 
 export type ShipmentListSearchParams = {
+  factory?: string;
   status?: string;
   market?: string;
   page?: string;
@@ -76,11 +82,16 @@ export type ShipmentListSearchParams = {
 export async function ShipmentListView({
   category,
   searchParams: sp,
+  crossFactory,
 }: {
   category: ShipmentCategory;
   searchParams: ShipmentListSearchParams;
+  // Owner/admin: factory filter + column. Staff are BE-scoped to their own.
+  crossFactory: boolean;
 }) {
   const isDomestic = category === "DOMESTIC";
+  const factory =
+    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
   const base = `/shipments/${category.toLowerCase()}`;
 
   const status =
@@ -100,6 +111,7 @@ export async function ShipmentListView({
     const mk = overrides.market ?? market ?? "";
     if (st) params.set("status", st);
     if (isDomestic && mk) params.set("market", mk);
+    if (factory) params.set("factory", factory);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
     const qs = params.toString();
@@ -109,6 +121,7 @@ export async function ShipmentListView({
   const { data } = await getClient().query({
     query: ShipmentListDoc,
     variables: {
+      factory,
       category,
       domesticMarket: market as never,
       status: status as never,
@@ -135,6 +148,7 @@ export async function ShipmentListView({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {crossFactory ? <FactoryFilter /> : null}
         {/* Domestic-only LOCAL / ULAANBAATAR sub-filter. */}
         {isDomestic ? (
           <div className={TAB_LIST}>
@@ -181,6 +195,7 @@ export async function ShipmentListView({
               <TableRow>
                 <TableHead>Харилцагч</TableHead>
                 <TableHead>Код</TableHead>
+                {crossFactory ? <TableHead>Үйлдвэр</TableHead> : null}
                 {isDomestic ? <TableHead>Зах зээл</TableHead> : null}
                 <TableHead>Жин</TableHead>
                 <TableHead className="text-right">Нийт үнэ</TableHead>
@@ -198,6 +213,13 @@ export async function ShipmentListView({
                   <TableCell className="font-mono text-xs">
                     {s.shipmentCode}
                   </TableCell>
+                  {crossFactory ? (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {FACTORY_MN[s.factory ?? ""] ?? "—"}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                   {isDomestic ? (
                     <TableCell>
                       {s.domesticMarket ? (

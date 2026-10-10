@@ -1,14 +1,9 @@
-import {
-  Op,
-  UniqueConstraintError,
-  WhereOptions,
-} from "sequelize";
+import { Op, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { WeighingEntryAuditModel } from "../../models/livestock/weighing-entry-audit.model";
-import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
@@ -18,14 +13,17 @@ import { FileModel } from "../../models/global/file.model";
 import { AdminModel } from "../../models/user/admin.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { AnimalController } from "./animal.controller";
+import { AdminController } from "../user/admin.controller";
+import { MedicalNumberController } from "./medical-number.controller";
+import { MedicalNumberModel } from "../../models/livestock/medical-number.model";
 import {
+  isPreButchered,
   REGISTRATION_STATUS,
   TCreateRegistration,
   TGetRegistrations,
-  TSlaughterCostInput,
 } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { ADMIN_ROLE } from "../../types/user/admin.type";
+import { ADMIN_ROLE, BYPRODUCT_FACTORY } from "../../types/user/admin.type";
 import { HerderController } from "./herder.controller";
 import { FileController } from "../global/file.controller";
 import {
@@ -68,15 +66,6 @@ const REGISTRATION_FULL_INCLUDE = [
     include: [{ model: AdminModel, as: "actor" }],
   },
   {
-    model: ByproductLogModel,
-    as: "byproductLogs",
-    include: [
-      { model: AnimalModel, as: "animal" },
-      { model: AdminModel, as: "loggedBy" },
-      { model: FileModel, as: "photo" },
-    ],
-  },
-  {
     model: VerificationModel,
     as: "verification",
     include: [
@@ -115,14 +104,35 @@ const REGISTRATION_FULL_INCLUDE = [
 export class RegistrationController {
   // ─── Shared helpers (used by the sub-domain controllers) ──────────
 
-  static findIdCheck(id: string): Promise<RegistrationModel> {
-    return findOrThrow(RegistrationModel, id, "Registration not found");
+  // Pass the caller's context to also enforce the factory boundary (staff
+  // can't reach another factory's registrations).
+  static async findIdCheck(
+    id: string,
+    context?: TContext,
+  ): Promise<RegistrationModel> {
+    const reg = await findOrThrow(
+      RegistrationModel,
+      id,
+      "Registration not found",
+    );
+    if (context) AdminController.assertFactory(context, reg.factory);
+    return reg;
   }
 
-  static getById(id: string): Promise<RegistrationModel> {
-    return findOrThrow(RegistrationModel, id, "Registration not found", {
-      include: REGISTRATION_FULL_INCLUDE,
-    });
+  static async getById(
+    id: string,
+    context?: TContext,
+  ): Promise<RegistrationModel> {
+    const reg = await findOrThrow(
+      RegistrationModel,
+      id,
+      "Registration not found",
+      {
+        include: REGISTRATION_FULL_INCLUDE,
+      },
+    );
+    if (context) AdminController.assertFactory(context, reg.factory);
+    return reg;
   }
 
   static assertStatus(
@@ -150,35 +160,34 @@ export class RegistrationController {
     doc: TCreateRegistration,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [
-      ADMIN_ROLE.GUARD,
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
-    ]);
+    this.assertActorRole(context, [ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN]);
 
     const {
       herderId,
       vehicleNumber,
       stamp,
-      medicalNumber,
       photoFileId,
       signatureFileId,
       stampFileId,
       intakeDate,
-      isPreButchered,
     } = doc;
+    const factory = AdminController.writeFactory(context, doc.factory);
+    if (factory === BYPRODUCT_FACTORY)
+      throw new Error("Дайврын үйлдвэр мал хүлээн авахгүй");
+    // FACTORY_2 takes pre-butchered meat: no stamp, no slaughter cost.
+    const pre = isPreButchered({ factory });
 
     if (!vehicleNumber || !vehicleNumber.trim())
       throw new Error("Vehicle number is required");
     if (!doc.animalLines || doc.animalLines.length === 0)
       throw new Error("At least one animal line is required");
+    const medicalNumbers = MedicalNumberController.parseList(
+      doc.medicalNumbers,
+    );
 
     const seen = new Set<string>();
     for (const line of doc.animalLines) {
-      if (!line.animalType?.trim())
-        throw new Error("Animal type is required");
+      if (!line.animalType?.trim()) throw new Error("Animal type is required");
       if (!line.count || line.count <= 0)
         throw new Error("Animal count must be a positive number");
       if (seen.has(line.animalType))
@@ -189,7 +198,7 @@ export class RegistrationController {
     await HerderController.findIdCheck(herderId);
     if (photoFileId) await FileController.findIdCheck(photoFileId);
     if (signatureFileId) await FileController.findIdCheck(signatureFileId);
-    if (stampFileId) await FileController.findIdCheck(stampFileId);
+    if (stampFileId && !pre) await FileController.findIdCheck(stampFileId);
 
     // Resolve every requested animal name → animalId up front.
     const typeToId = await AnimalController.mapNamesToIds(Array.from(seen));
@@ -198,7 +207,7 @@ export class RegistrationController {
     // head count. The guard only enters counts; pre-butchered intake = 0.
     const counts: Record<string, number> = {};
     for (const l of doc.animalLines) counts[l.animalType] = l.count;
-    const slaughterByType = isPreButchered
+    const slaughterByType = pre
       ? {}
       : await AnimalController.defaultsForCounts(counts);
 
@@ -219,15 +228,14 @@ export class RegistrationController {
               registrationCode: `${codePrefix}${counter}`,
               herderId,
               vehicleNumber: vehicleNumber.trim(),
-              stamp: stamp ?? null,
-              medicalNumber: medicalNumber?.trim() || null,
+              stamp: pre ? null : (stamp ?? null),
               photoFileId: photoFileId ?? null,
               signatureFileId: signatureFileId ?? null,
-              stampFileId: stampFileId ?? null,
+              stampFileId: pre ? null : (stampFileId ?? null),
               intakeDate: intakeDate ?? new Date(),
               guardId: context.id,
               status: REGISTRATION_STATUS.REGISTERED,
-              isPreButchered: !!isPreButchered,
+              factory,
             },
             { transaction: t },
           );
@@ -237,9 +245,15 @@ export class RegistrationController {
               registrationId: reg.id,
               animalId: typeToId[l.animalType],
               count: l.count,
-              slaughterCost: isPreButchered
-                ? 0
-                : (slaughterByType[l.animalType] ?? 0),
+              slaughterCost: pre ? 0 : (slaughterByType[l.animalType] ?? 0),
+            })),
+            { transaction: t },
+          );
+
+          await MedicalNumberModel.bulkCreate(
+            medicalNumbers.map((number) => ({
+              registrationId: reg.id,
+              number,
             })),
             { transaction: t },
           );
@@ -264,8 +278,11 @@ export class RegistrationController {
 
   static async list(
     doc: TGetRegistrations,
+    context: TContext,
   ): Promise<TPaginationGeneric<RegistrationModel>> {
     const where: WhereOptions = {};
+    const factory = AdminController.readFactory(context, doc.factory);
+    if (factory) Object.assign(where, { factory });
     // Single status (legacy) or a set — set takes precedence when both passed.
     if (doc.statuses && doc.statuses.length > 0) {
       for (const s of doc.statuses) {
@@ -300,9 +317,9 @@ export class RegistrationController {
     registrationId: string,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [ADMIN_ROLE.MANAGER, ADMIN_ROLE.SUPER_ADMIN]);
+    this.assertActorRole(context, [ADMIN_ROLE.ADMIN]);
 
-    const reg = await this.findIdCheck(registrationId);
+    const reg = await this.findIdCheck(registrationId, context);
     // Cancellation is only allowed before the scale operator signs off
     // (REGISTERED). After WEIGHED the amounts are part of the record.
     this.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
@@ -311,86 +328,19 @@ export class RegistrationController {
     return this.getById(registrationId);
   }
 
-  // Factory confirms the herder's medical number. Optionally sets the number
-  // first (herder may supply it after intake). Once approved, a settlement's
-  // held portion can be released. Idempotent.
-  static async approveMedicalNumber(
-    registrationId: string,
-    medicalNumber: string | null | undefined,
-    context: TContext,
-  ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
-      ADMIN_ROLE.STOREKEEPER,
-    ]);
-
-    const reg = await this.findIdCheck(registrationId);
-    const number =
-      medicalNumber != null && medicalNumber.trim()
-        ? medicalNumber.trim()
-        : reg.medicalNumber;
-    if (!number)
-      throw new Error("Мал эмнэлгийн дугаар оруулаагүй тул батлах боломжгүй");
-
-    await reg.update({ medicalNumber: number, medicalNumberApproved: true });
-    return this.getById(registrationId);
-  }
-
-  // Capture бой зардал per animal type at weighing (before VERIFIED) so it
-  // prints on the herder slip. Settlement defaults to these values. Editable
-  // only while REGISTERED / WEIGHED. Pre-butchered intake forces cost to 0.
   // Shared guard for slip edits allowed only before VERIFIED, by intake-side
-  // staff (storekeeper/manager/super-admin/scale).
+  // staff.
   private static async _guardSlipEditable(
     registrationId: string,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
-    ]);
-    const reg = await this.findIdCheck(registrationId);
+    this.assertActorRole(context, [ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN]);
+    const reg = await this.findIdCheck(registrationId, context);
     this.assertStatus(reg, [
       REGISTRATION_STATUS.REGISTERED,
       REGISTRATION_STATUS.WEIGHED,
     ]);
     return reg;
-  }
-
-  static async setSlaughterCosts(
-    registrationId: string,
-    lines: TSlaughterCostInput[],
-    context: TContext,
-  ): Promise<RegistrationModel> {
-    const reg = await this._guardSlipEditable(registrationId, context);
-
-    if (!lines || lines.length === 0)
-      throw new Error("At least one slaughter-cost line is required");
-
-    const animalLines = await RegistrationAnimalLineModel.findAll({
-      where: { registrationId },
-      include: [{ model: AnimalModel, as: "animal" }],
-    });
-    const lineByType = new Map<string, RegistrationAnimalLineModel>();
-    for (const al of animalLines)
-      if (al.animal?.name) lineByType.set(al.animal.name, al);
-
-    for (const l of lines) {
-      const al = lineByType.get(l.animalType);
-      if (!al)
-        throw new Error(`${l.animalType} is not part of this registration`);
-      const cost = reg.isPreButchered ? 0 : Number(l.slaughterCost ?? 0);
-      if (!Number.isFinite(cost) || cost < 0)
-        throw new Error("slaughterCost cannot be negative");
-      await al.update({ slaughterCost: Number(cost.toFixed(2)) });
-    }
-
-    return this.getById(registrationId);
   }
 
   // Attach the herder's drawn agreement signature (an already-uploaded File)

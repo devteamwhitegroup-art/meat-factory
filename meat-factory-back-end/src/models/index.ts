@@ -29,9 +29,13 @@ import {
   WeighingEntryAuditModel,
 } from "./livestock/weighing-entry-audit.model";
 import {
-  createByproductLogModel,
-  ByproductLogModel,
-} from "./livestock/byproduct-log.model";
+  createByproductBundleModel,
+  ByproductBundleModel,
+} from "./livestock/byproduct-bundle.model";
+import {
+  createMedicalNumberModel,
+  MedicalNumberModel,
+} from "./livestock/medical-number.model";
 import {
   createVerificationModel,
   VerificationModel,
@@ -100,6 +104,15 @@ import {
   InventoryMovementModel,
 } from "./inventory/inventory-movement.model";
 
+import {
+  createByproductProcessingModel,
+  ByproductProcessingModel,
+} from "./inventory/byproduct-processing.model";
+import {
+  createByproductProcessingLineModel,
+  ByproductProcessingLineModel,
+} from "./inventory/byproduct-processing-line.model";
+
 //Settings (singleton config row)
 import { createSettingsModel, SettingsModel } from "./settings/settings.model";
 
@@ -129,7 +142,8 @@ export const setupModel = (sequelize: Sequelize) => {
   createRegistrationAnimalLineModel(sequelize);
   createWeighingEntryModel(sequelize);
   createWeighingEntryAuditModel(sequelize);
-  createByproductLogModel(sequelize);
+  createByproductBundleModel(sequelize);
+  createMedicalNumberModel(sequelize);
   createVerificationModel(sequelize);
   createSettlementModel(sequelize);
   createSettlementLineModel(sequelize);
@@ -155,6 +169,8 @@ export const setupModel = (sequelize: Sequelize) => {
   //Inventory
   createInventoryItemModel(sequelize);
   createInventoryMovementModel(sequelize);
+  createByproductProcessingModel(sequelize);
+  createByproductProcessingLineModel(sequelize);
 
   //Settings
   createSettingsModel(sequelize);
@@ -179,7 +195,8 @@ export const setupModel = (sequelize: Sequelize) => {
   RegistrationAnimalLineModel.associate();
   WeighingEntryModel.associate();
   WeighingEntryAuditModel.associate();
-  ByproductLogModel.associate();
+  ByproductBundleModel.associate();
+  MedicalNumberModel.associate();
   VerificationModel.associate();
   SettlementModel.associate();
   SettlementLineModel.associate();
@@ -205,6 +222,8 @@ export const setupModel = (sequelize: Sequelize) => {
   //Inventory
   InventoryItemModel.associate();
   InventoryMovementModel.associate();
+  ByproductProcessingModel.associate();
+  ByproductProcessingLineModel.associate();
 
   //Settings
   SettingsModel.associate();

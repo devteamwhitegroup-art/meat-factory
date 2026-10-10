@@ -19,8 +19,8 @@ export default {
           ),
   },
   Query: {
-    shipments: wrapList("shipments", (doc: TGetShipments) =>
-      ShipmentController.list(doc),
+    shipments: wrapList("shipments", (doc: TGetShipments, ctx) =>
+      ShipmentController.list(doc, ctx),
     ),
     shipment: wrapOne("shipment", ({ id }: { id: string }) =>
       ShipmentController.getById(id),

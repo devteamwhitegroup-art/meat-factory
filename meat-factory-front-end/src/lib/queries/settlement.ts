@@ -2,6 +2,7 @@ import { graphql } from "@/lib/gql/gql";
 
 export const SettlementsListDoc = graphql(/* GraphQL */ `
   query Settlements(
+    $factory: FACTORY
     $isPaid: Boolean
     $herderId: ID
     $dateRange: DateRangeInput
@@ -9,6 +10,7 @@ export const SettlementsListDoc = graphql(/* GraphQL */ `
     $page: Int
   ) {
     settlements(
+      factory: $factory
       isPaid: $isPaid
       herderId: $herderId
       dateRange: $dateRange

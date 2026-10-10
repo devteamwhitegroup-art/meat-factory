@@ -1,99 +1,62 @@
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { HERO_STATS } from "./data";
+import { VIDEOS, type Copy } from "./data";
 
-export function LandingHero() {
+// React doesn't always emit `muted` in SSR HTML, which blocks autoplay — force it.
+export const playMuted = (el: HTMLVideoElement | null) => {
+  if (!el) return;
+  el.muted = true;
+  el.play().catch(() => {});
+};
+
+const GRADE = "object-cover sepia-[.22] saturate-[.82] contrast-[1.05]";
+
+export function LandingHero({ t }: { t: Copy }) {
   return (
-    <section className="relative overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(60% 70% at 88% 8%, rgba(217,178,74,0.16), transparent 60%), radial-gradient(50% 60% at -5% 90%, rgba(182,137,42,0.10), transparent 60%)",
-        }}
-      />
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
-        <div className="grid items-center gap-10 py-12 md:grid-cols-[1.05fr_0.95fr] md:gap-14 md:py-20">
-          {/* copy */}
-          <div className="order-2 md:order-1">
-            <span className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-brand-line bg-brand-cream px-4 py-2 text-xs font-semibold tracking-[0.16em] text-brand-gold-deep uppercase">
-              <span className="size-1.5 rounded-full bg-brand-gold ring-4 ring-brand-gold/20" />
-              Дорнод аймаг · 2008 оноос хойш
-            </span>
-            <h1 className="font-display text-[clamp(30px,4.6vw,56px)] leading-[1.06] font-extrabold tracking-tight text-brand-ink">
-              Мал, мах, махан бүтээгдэхүүний{" "}
-              <span className="bg-gradient-to-b from-transparent from-[62%] to-brand-gold-bright/35 to-[62%] px-0.5 text-brand-gold-deep">
-                найдвартай нийлүүлэгч
-              </span>
-            </h1>
-            <p className="mt-6 max-w-[33em] text-[17px] text-brand-muted">
-              “Вайт групп” ХХК нь 17 жилийн турш Дорнод, Сүхбаатар нутгаас мал,
-              мах, малын гаралтай бүтээгдэхүүн бэлтгэн дотоодын зах зээл болон
-              экспортын эрхтэй үйлдвэрүүдэд тогтвортой нийлүүлж байна.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button
-                nativeButton={false}
-                render={<a href="#capacity" />}
-                className="h-12 flex-1 rounded-full bg-brand-ink px-6 text-[15px] text-white hover:bg-black sm:flex-none"
-              >
-                Үйлдвэрийн чадамж
-                <ArrowRight className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={<a href="#about" />}
-                className="h-12 flex-1 rounded-full border-brand-line bg-transparent px-6 text-[15px] text-brand-ink hover:border-brand-gold hover:bg-transparent hover:text-brand-gold-deep sm:flex-none"
-              >
-                Танилцуулга
-              </Button>
-            </div>
-          </div>
+    <section
+      id="top"
+      className="relative flex min-h-[min(90vh,860px)] flex-col justify-end overflow-hidden bg-night text-paper"
+    >
+      {VIDEOS.hero ? (
+        <video
+          ref={playMuted}
+          src={VIDEOS.hero}
+          poster="/photos/cold-room.jpg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          className={`absolute inset-0 size-full ${GRADE}`}
+        />
+      ) : (
+        <Image src="/photos/cold-room.jpg" alt="" fill preload sizes="100vw" className={GRADE} />
+      )}
+      <div className="absolute inset-0 bg-linear-to-t from-night/92 via-night/55 via-55% to-night/30" />
 
-          {/* brand card */}
-          <div className="brand-gold-gradient relative order-1 flex min-h-[230px] flex-col items-center justify-center overflow-hidden rounded-3xl px-7 py-9 text-center shadow-[0_30px_60px_-28px_rgba(138,101,22,0.65)] md:order-2 md:min-h-[380px] md:p-13">
-            <div className="pointer-events-none absolute inset-3 rounded-2xl border border-white/30 md:inset-4" />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(80% 60% at 50% 0, rgba(255,255,255,0.30), transparent 55%)",
-              }}
-            />
-            <Image
-              src="/brand/logo-white.png"
-              alt="Вайт групп"
-              width={490}
-              height={417}
-              priority
-              className="relative z-10 w-[58%] max-w-[200px] drop-shadow-[0_6px_16px_rgba(120,86,12,0.4)] md:max-w-[260px]"
-            />
-            <div className="relative z-10 mt-4 text-[11px] font-semibold tracking-[0.3em] text-white/90">
-              ВАЙТ ГРУППИЙН ТАНИЛЦУУЛГА
-            </div>
-          </div>
+      <div className="relative mx-auto w-full max-w-[1200px] px-[clamp(20px,5vw,72px)] pt-[120px]">
+        <span className="block text-[13px] tracking-[0.14em] text-gold-400 uppercase tabular-nums">
+          {t.hero.kicker}
+        </span>
+        <h1 className="mt-[22px] max-w-[15ch] font-heading text-[clamp(46px,6.4vw,92px)] leading-[1.04] font-normal tracking-[-0.012em]">
+          <span className="block">{t.hero.l1}</span>
+          <span className="block">{t.hero.l2}</span>
+        </h1>
+        <p className="mt-7 max-w-[58ch] text-[17.5px] leading-[1.65] text-paper/88">{t.hero.sub}</p>
+        <div className="mt-[34px] flex flex-wrap gap-3.5">
+          <a href="#contact" className="btn btn-primary border-gold-400 px-[22px] py-3 text-base text-gold-300">
+            {t.cta}
+          </a>
+          <a href="#process" className="btn btn-secondary border-paper/40 px-[22px] py-3 text-base text-paper">
+            {t.hero.cta2}
+          </a>
         </div>
-
-        {/* stats */}
-        <div className="mb-16 grid gap-px overflow-hidden rounded-2xl bg-brand-line ring-1 ring-brand-line shadow-[0_1px_2px_rgba(33,26,14,0.04),0_12px_32px_-12px_rgba(33,26,14,0.14)] sm:grid-cols-2 lg:grid-cols-4">
-          {HERO_STATS.map((stat) => (
-            <div key={stat.label} className="bg-white p-6">
-              <div className="font-display text-[27px] leading-tight font-extrabold tracking-tight text-brand-ink">
-                {stat.value}
-                {stat.unit && (
-                  <span className="text-[15px] font-bold text-brand-gold-deep">
-                    {stat.unit}
-                  </span>
-                )}
+        <div className="mt-[72px] grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-x-8 gap-y-6 border-t border-paper/22 pt-[30px] pb-10">
+          {t.stats.map((s) => (
+            <div key={s.n + s.l}>
+              <div className="font-heading text-[clamp(36px,3.6vw,50px)] leading-none font-normal tabular-nums">
+                {s.n}
               </div>
-              <div className="mt-1.5 text-[13px] text-brand-muted">
-                {stat.label}
-              </div>
+              <div className="mt-2.5 text-[12.5px] tracking-[0.08em] text-paper/72 uppercase">{s.l}</div>
             </div>
           ))}
         </div>

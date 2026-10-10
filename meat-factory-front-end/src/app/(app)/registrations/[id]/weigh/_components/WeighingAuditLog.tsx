@@ -32,7 +32,8 @@ export function WeighingAuditLog({ rows }: { rows: AuditRow[] }) {
   if (rows.length === 0) return null;
   const sorted = [...rows].sort(
     (a, b) =>
-      new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+      new Date(b.createdAt ?? 0).getTime() -
+      new Date(a.createdAt ?? 0).getTime(),
   );
 
   return (

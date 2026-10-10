@@ -1,30 +1,29 @@
 import { RegistrationController } from "../../../controller/livestock/registration.controller";
 import { WeighingController } from "../../../controller/livestock/weighing.controller";
-import { ByproductLogController } from "../../../controller/livestock/byproduct-log.controller";
+import { ByproductBundleController } from "../../../controller/livestock/byproduct-bundle.controller";
+import { MedicalNumberController } from "../../../controller/livestock/medical-number.controller";
 import { VerificationController } from "../../../controller/livestock/verification.controller";
 import { SettlementController } from "../../../controller/livestock/settlement.controller";
 import { AnimalModel } from "../../../models/livestock/animal.model";
 import { RegistrationAnimalLineModel } from "../../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../../models/livestock/weighing-entry.model";
-import { ByproductLogModel } from "../../../models/livestock/byproduct-log.model";
 import { SettlementLineModel } from "../../../models/livestock/settlement-line.model";
+import { RegistrationModel } from "../../../models/livestock/registration.model";
 import {
   TCreateRegistration,
   TGetRegistrations,
-  TSlaughterCostInput,
 } from "../../../types/livestock/registration.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
 } from "../../../types/livestock/weighing-entry.type";
-import { TByproductItemInput } from "../../../types/livestock/byproduct-log.type";
+import { TByproductBundleInput } from "../../../types/livestock/byproduct-bundle.type";
 import { TVerifyInput } from "../../../types/livestock/verification.type";
 import {
   TCreateSettlement,
   TGetSettlements,
 } from "../../../types/livestock/settlement.type";
-import { TDateRange } from "../../../types/global/global.type";
-import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 // animalType is reached via the FK to Animals. The field resolvers keep the
 // existing GraphQL `animalType` field, now returning the animal catalogue
@@ -40,6 +39,12 @@ async function resolveAnimalType(row: {
 }
 
 export default {
+  Registration: {
+    byproductBundles: (row: RegistrationModel) =>
+      ByproductBundleController.bundlesFor(row.id),
+    medicalNumbers: (row: RegistrationModel) =>
+      MedicalNumberController.listFor(row.id),
+  },
   RegistrationAnimalLine: {
     animalType: (row: RegistrationAnimalLineModel) => resolveAnimalType(row),
     animal: (row: RegistrationAnimalLineModel) => row.animal ?? null,
@@ -48,33 +53,19 @@ export default {
     animalType: (row: WeighingEntryModel) => resolveAnimalType(row),
     animal: (row: WeighingEntryModel) => row.animal ?? null,
   },
-  ByproductLog: {
-    animalType: (row: ByproductLogModel) => resolveAnimalType(row),
-    animal: (row: ByproductLogModel) => row.animal ?? null,
-  },
   SettlementLine: {
     animalType: (row: SettlementLineModel) => resolveAnimalType(row),
     animal: (row: SettlementLineModel) => row.animal ?? null,
   },
   Query: {
-    registrations: wrapList("registrations", (doc: TGetRegistrations) =>
-      RegistrationController.list(doc),
+    registrations: wrapList("registrations", (doc: TGetRegistrations, ctx) =>
+      RegistrationController.list(doc, ctx),
     ),
-    registration: wrapOne("registration", ({ id }: { id: string }) =>
-      RegistrationController.getById(id),
+    registration: wrapOne("registration", ({ id }: { id: string }, ctx) =>
+      RegistrationController.getById(id, ctx),
     ),
-    derivedByproducts: wrapItems(
-      "items",
-      ({ registrationId }: { registrationId: string }) =>
-        ByproductLogController.derivedByproducts(registrationId),
-    ),
-    byproductHandoff: wrapItems(
-      "items",
-      ({ dateRange }: { dateRange?: TDateRange }) =>
-        ByproductLogController.byproductHandoff(dateRange),
-    ),
-    settlements: wrapList("settlements", (doc: TGetSettlements) =>
-      SettlementController.list(doc),
+    settlements: wrapList("settlements", (doc: TGetSettlements, ctx) =>
+      SettlementController.list(doc, ctx),
     ),
   },
   Mutation: {
@@ -112,34 +103,14 @@ export default {
       async (
         {
           registrationId,
-          items,
-        }: { registrationId: string; items: TByproductItemInput[] },
+          bundles,
+        }: { registrationId: string; bundles: TByproductBundleInput[] },
         ctx,
       ) => {
-        await ByproductLogController.setRegistrationByproducts(
-          registrationId,
-          items,
-          ctx,
-        );
+        await ByproductBundleController.setBundles(registrationId, bundles, ctx);
         return RegistrationController.getById(registrationId);
       },
       "Дайвар хадгалагдлаа",
-    ),
-    setSlaughterCovered: wrapOne(
-      "verification",
-      (
-        {
-          registrationId,
-          covered,
-        }: { registrationId: string; covered: boolean },
-        ctx,
-      ) =>
-        VerificationController.setSlaughterCovered(
-          registrationId,
-          covered,
-          ctx,
-        ),
-      "Хадгалагдлаа",
     ),
     verifyRegistration: wrapOne(
       "verification",
@@ -212,34 +183,6 @@ export default {
           ctx,
         ),
       "Signature saved",
-    ),
-    approveMedicalNumber: wrapOne(
-      "registration",
-      (
-        {
-          registrationId,
-          medicalNumber,
-        }: { registrationId: string; medicalNumber?: string | null },
-        ctx,
-      ) =>
-        RegistrationController.approveMedicalNumber(
-          registrationId,
-          medicalNumber ?? null,
-          ctx,
-        ),
-      "Medical number approved",
-    ),
-    setRegistrationSlaughterCosts: wrapOne(
-      "registration",
-      (
-        {
-          registrationId,
-          lines,
-        }: { registrationId: string; lines: TSlaughterCostInput[] },
-        ctx,
-      ) =>
-        RegistrationController.setSlaughterCosts(registrationId, lines, ctx),
-      "Slaughter costs saved",
     ),
     setRegistrationAgreementSignature: wrapOne(
       "registration",

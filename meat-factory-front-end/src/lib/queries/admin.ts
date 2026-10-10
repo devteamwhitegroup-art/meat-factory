@@ -10,14 +10,25 @@ export const AdminsDoc = graphql(/* GraphQL */ `
         id
         param
         role
+        factory
       }
     }
   }
 `);
 
 export const CreateAdminDoc = graphql(/* GraphQL */ `
-  mutation CreateAdmin($param: String!, $password: String!, $role: ADMIN_ROLE) {
-    createAdmin(param: $param, password: $password, role: $role) {
+  mutation CreateAdmin(
+    $param: String!
+    $password: String!
+    $role: ADMIN_ROLE
+    $factory: FACTORY
+  ) {
+    createAdmin(
+      param: $param
+      password: $password
+      role: $role
+      factory: $factory
+    ) {
       success
       message
     }
@@ -31,8 +42,15 @@ export const UpdateAdminDoc = graphql(/* GraphQL */ `
     $param: String
     $password: String
     $role: ADMIN_ROLE
+    $factory: FACTORY
   ) {
-    updateAdmin(id: $id, param: $param, password: $password, role: $role) {
+    updateAdmin(
+      id: $id
+      param: $param
+      password: $password
+      role: $role
+      factory: $factory
+    ) {
       success
       message
     }

@@ -2,7 +2,7 @@ import { DataTypes, Model, Sequelize } from "sequelize";
 import { TByproductConstant } from "../../types/livestock/byproduct-constant.type";
 import { ByproductWrapperModel } from "./byproduct-wrapper.model";
 
-// animalType + canCoverSlaughterCost both come off the joined Animal row
+// animalType comes off the joined Animal row
 // (constant → wrapper → animal), so we no longer duplicate them here.
 export class ByproductConstantModel
   extends Model

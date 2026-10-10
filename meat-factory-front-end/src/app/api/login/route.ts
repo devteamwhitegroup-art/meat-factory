@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { decodeJwt } from "jose";
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { FACTORY_COOKIE } from "@/lib/auth/server";
 
 const LOGIN_DOC = /* GraphQL */ `
   mutation LoginAdmin($param: String!, $password: String!) {
@@ -12,6 +13,7 @@ const LOGIN_DOC = /* GraphQL */ `
       admin {
         id
         role
+        factory
       }
     }
   }
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
         success: boolean;
         message: string;
         token: string | null;
-        admin: { id: string; role: string } | null;
+        admin: { id: string; role: string; factory: string | null } | null;
       };
     };
   };
@@ -92,6 +94,16 @@ export async function POST(request: Request) {
     path: "/",
     maxAge: week,
   });
+
+  if (r.admin?.factory)
+    jar.set(FACTORY_COOKIE, r.admin.factory, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: env.COOKIE_SECURE,
+      path: "/",
+      maxAge: week,
+    });
+  else jar.delete(FACTORY_COOKIE);
 
   return Response.json({ ok: true, role: staffRole });
 }

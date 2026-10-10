@@ -37,8 +37,8 @@ export default `#graphql
     }
 
     extend type Query {
-        monthlyBudgets: MonthlyBudgetsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        monthlyOverview(monthsBack: Int): MonthlyOverviewResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        monthlyBudgets: MonthlyBudgetsResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        monthlyOverview(monthsBack: Int): MonthlyOverviewResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
     }
 
     extend type Mutation {
@@ -47,8 +47,8 @@ export default `#graphql
             month: Int!
             amountMnt: Float!
             notes: String
-        ): MonthlyBudgetResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): MonthlyBudgetResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
-        deleteMonthlyBudget(id: ID!): Response @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        deleteMonthlyBudget(id: ID!): Response @auth(permissions: ["ADMIN", "ACCOUNTANT"])
     }
 `;

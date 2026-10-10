@@ -1,9 +1,10 @@
 import { AdjustForm } from "./adjust-form";
 import { requireCap } from "@/lib/auth/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
+import { isCrossFactoryRole } from "@/lib/auth/roles";
 
 export default async function AdjustPage() {
-  await requireCap("inventoryAdjust");
+  const role = await requireCap("inventoryAdjust");
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Нөөц</h1>
@@ -14,7 +15,7 @@ export default async function AdjustPage() {
         орлого нэмэх). Хөдөлгөөн нь «Гар бүртгэл» эх үүсвэртэйгээр түүхэнд
         бичигдэнэ.
       </div>
-      <AdjustForm />
+      <AdjustForm crossFactory={isCrossFactoryRole(role)} />
     </div>
   );
 }

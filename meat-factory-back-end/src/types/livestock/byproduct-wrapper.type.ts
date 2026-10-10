@@ -2,13 +2,15 @@ import { TPagination } from '../global/global.type';
 
 // A "wrapper" (өлөн гэдэс / гэдэс) is a per-animal bundle that contains the
 // individual byproduct items. The wrapper now joins to the Animal config by
-// id (animalId FK) instead of carrying its own animalType enum. The
-// slaughter-cost-cover flag still lives on the Animal config (so all wrappers
-// of a horse share it), NOT on the wrapper.
+// id (animalId FK) instead of carrying its own animalType enum.
+// `price` is what one bundle is worth to the herder: every bundle the factory
+// keeps is credited to the herder's settlement (offsetting бой зардал). The
+// herder only ever sees bundles, never the items inside.
 export type TByproductWrapper = {
   id: string;
   animalId: string;
   name: string;
+  price: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -19,6 +21,7 @@ export type TCreateByproductWrapper = {
   // Animals row and stores animalId.
   animalType: string;
   name: string;
+  price?: number;
 };
 
 export type TUpdateByproductWrapper = Partial<TCreateByproductWrapper> & {

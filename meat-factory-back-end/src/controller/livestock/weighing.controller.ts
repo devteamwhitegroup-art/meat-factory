@@ -7,7 +7,18 @@ import { WeighingEntryAuditModel } from "../../models/livestock/weighing-entry-a
 import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { RegistrationController } from "./registration.controller";
-import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
+import { ByproductBundleController } from "./byproduct-bundle.controller";
+import { InventoryController } from "../inventory/inventory.controller";
+import {
+  isPreButchered,
+  REGISTRATION_STATUS,
+} from "../../types/livestock/registration.type";
+import {
+  MOVEMENT_SOURCE,
+  TStockLine,
+} from "../../types/inventory/inventory.type";
+import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
+import { FACTORY } from "../../types/user/admin.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
@@ -19,6 +30,27 @@ import { ADMIN_ROLE } from "../../types/user/admin.type";
 // Weighing (Хэмжүүр) — sub-domain of the registration aggregate. Shared
 // status/role guards and registration lookups live on RegistrationController.
 export class WeighingController {
+  // Weighed kg summed per animal → MEAT stock lines. Shared by the two meat
+  // ingest points: FACTORY_1 verify, FACTORY_2 finishWeighing.
+  static async meatStockLines(
+    registrationId: string,
+    factory: FACTORY,
+  ): Promise<TStockLine[]> {
+    const entries = await WeighingEntryModel.findAll({
+      where: { registrationId },
+    });
+    const byAnimal: Record<string, number> = {};
+    for (const w of entries)
+      byAnimal[w.animalId] = (byAnimal[w.animalId] ?? 0) + Number(w.weightKg);
+    return Object.entries(byAnimal).map(([animalId, kg]) => ({
+      factory,
+      productType: PRODUCT_TYPE.MEAT,
+      animalId,
+      byproductName: null,
+      quantityKg: Number(kg.toFixed(2)),
+    }));
+  }
+
   static async addWeighingEntry(
     doc: TCreateWeighingEntry,
     context: TContext,
@@ -29,7 +61,10 @@ export class WeighingController {
     if (pricePerKg != null && pricePerKg < 0)
       throw new Error("Price per kg cannot be negative");
 
-    const reg = await RegistrationController.findIdCheck(registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      registrationId,
+      context,
+    );
     // Same gate as update/delete — see _assertWeighingEditable.
     this._assertWeighingEditable(reg, context);
 
@@ -89,15 +124,14 @@ export class WeighingController {
     context: TContext,
   ): Promise<RegistrationModel> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.SCALE,
       ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MODERATOR,
-      ADMIN_ROLE.MANAGER,
       ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
     ]);
 
-    const reg = await RegistrationController.findIdCheck(registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      registrationId,
+      context,
+    );
     // finishWeighing flips REGISTERED → WEIGHED once entries have been recorded.
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
 
@@ -105,7 +139,36 @@ export class WeighingController {
     if (count === 0)
       throw new Error("Cannot finish weighing with no entries recorded");
 
-    await reg.update({ status: REGISTRATION_STATUS.WEIGHED });
+    if (!isPreButchered(reg)) {
+      await reg.update({ status: REGISTRATION_STATUS.WEIGHED });
+      return RegistrationController.getById(registrationId);
+    }
+
+    // FACTORY_2: no verify step — received meat + гэдэс become stock now;
+    // finance settles with the herder later.
+    const meatLines = await this.meatStockLines(registrationId, reg.factory);
+    const bundleLines = await ByproductBundleController.bundleStockLines(
+      registrationId,
+      reg.factory,
+    );
+    await sequelize.transaction(async (t) => {
+      await reg.update(
+        { status: REGISTRATION_STATUS.WEIGHED },
+        { transaction: t },
+      );
+      await InventoryController.ingestFromRegistration(
+        registrationId,
+        MOVEMENT_SOURCE.WEIGHING,
+        meatLines,
+        t,
+      );
+      await InventoryController.ingestFromRegistration(
+        registrationId,
+        MOVEMENT_SOURCE.BYPRODUCT,
+        bundleLines,
+        t,
+      );
+    });
     return RegistrationController.getById(registrationId);
   }
 
@@ -113,7 +176,7 @@ export class WeighingController {
   // (REGISTERED) the scale operator (and managers) may add/edit/remove. Once
   // weighing is "fully uploaded" (finishWeighing → WEIGHED, and onwards
   // through VERIFIED / PAYMENT_PENDING / PARTIALLY_SETTLED) it is locked for
-  // operators — only MANAGER/ADMIN/SUPER_ADMIN may fix a mis-weighed entry,
+  // the storekeeper — only ADMIN may fix a mis-weighed entry,
   // and every fix is logged (see _logAudit) rather than blocked, since the
   // herder hasn't necessarily been paid yet even once a Settlement exists
   // (money transfer lags). The real lock point is the payout itself
@@ -125,11 +188,6 @@ export class WeighingController {
     reg: RegistrationModel,
     context: TContext,
   ): void {
-    const privileged: ADMIN_ROLE[] = [
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.ADMIN,
-      ADMIN_ROLE.SUPER_ADMIN,
-    ];
     if (
       reg.status === REGISTRATION_STATUS.SETTLED ||
       reg.status === REGISTRATION_STATUS.PARTIALLY_SETTLED ||
@@ -143,22 +201,12 @@ export class WeighingController {
       // WEIGHED / VERIFIED / PAYMENT_PENDING: settlement may already exist
       // (created, not yet paid), so only a privileged fix — logged — is
       // allowed.
-      if (!privileged.includes(context.role))
-        throw new Error(
-          "Жин баталгаажсан тул зөвхөн менежер/админ засах боломжтой",
-        );
+      if (context.role !== ADMIN_ROLE.ADMIN)
+        throw new Error("Жин баталгаажсан тул зөвхөн админ засах боломжтой");
       return;
     }
-    // REGISTERED: open-window weigh edits, anyone on the floor except the
-    // gate guard.
-    if (
-      ![
-        ADMIN_ROLE.SCALE,
-        ADMIN_ROLE.STOREKEEPER,
-        ADMIN_ROLE.MODERATOR,
-        ...privileged,
-      ].includes(context.role)
-    ) {
+    // REGISTERED: open-window weigh edits.
+    if (![ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN].includes(context.role)) {
       throw new Error(
         `Forbidden: role ${context.role} cannot edit weighing entries`,
       );
@@ -188,7 +236,10 @@ export class WeighingController {
     const entry = await WeighingEntryModel.findByPk(doc.id);
     if (!entry) throw new Error("Weighing entry not found");
 
-    const reg = await RegistrationController.findIdCheck(entry.registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      entry.registrationId,
+      context,
+    );
     this._assertWeighingEditable(reg, context);
 
     const weightKgBefore = entry.weightKg;
@@ -246,7 +297,10 @@ export class WeighingController {
     const entry = await WeighingEntryModel.findByPk(id);
     if (!entry) throw new Error("Weighing entry not found");
 
-    const reg = await RegistrationController.findIdCheck(entry.registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      entry.registrationId,
+      context,
+    );
     this._assertWeighingEditable(reg, context);
 
     await sequelize.transaction(async (t) => {

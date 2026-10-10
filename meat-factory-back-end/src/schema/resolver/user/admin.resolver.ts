@@ -11,7 +11,9 @@ export default {
     currentAdmin: wrapOne("admin", (_args, context) =>
       AdminController.currentAdmin(context),
     ),
-    admins: wrapList("admins", () => AdminController.getAdmins()),
+    admins: wrapList("admins", (_args, context) =>
+      AdminController.getAdmins(context),
+    ),
   },
   Mutation: {
     // Two-payload envelope (admin + token) — kept explicit; the wrap helpers

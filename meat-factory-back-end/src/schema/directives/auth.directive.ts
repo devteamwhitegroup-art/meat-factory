@@ -51,7 +51,7 @@ export const authDirectiveTransformer = async (schema: GraphQLSchema) => {
             return resolve(
               root,
               fieldArgs,
-              { ...context, id: admin.id, role: admin.role } as TContext,
+              { ...context, ...admin } as TContext,
               info,
             );
           } catch (error) {

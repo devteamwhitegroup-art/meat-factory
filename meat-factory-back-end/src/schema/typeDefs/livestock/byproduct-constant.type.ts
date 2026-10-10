@@ -34,8 +34,8 @@ export default `#graphql
             search: String
             isActive: Boolean
             ${PaginationSchema}
-        ): ByproductConstantsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
-        byproductConstant(id: ID!): ByproductConstantResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): ByproductConstantsResponse @auth(permissions: ["ADMIN"])
+        byproductConstant(id: ID!): ByproductConstantResponse @auth(permissions: ["ADMIN"])
     }
 
     extend type Mutation {
@@ -44,7 +44,7 @@ export default `#graphql
             name: String!
             quantityPerAnimal: Int!
             unitWeightKg: Float
-        ): ByproductConstantResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): ByproductConstantResponse @auth(permissions: ["ADMIN"])
 
         updateByproductConstant(
             id: ID!
@@ -53,8 +53,8 @@ export default `#graphql
             quantityPerAnimal: Int
             unitWeightKg: Float
             isActive: Boolean
-        ): ByproductConstantResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): ByproductConstantResponse @auth(permissions: ["ADMIN"])
 
-        deleteByproductConstant(id: ID!): Response @auth(permissions: ["ADMIN", "SUPER_ADMIN"])
+        deleteByproductConstant(id: ID!): Response @auth(permissions: ["ADMIN"])
     }
 `;

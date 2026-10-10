@@ -22,6 +22,12 @@ const WRAPPER_INCLUDE = [
   { model: AnimalModel, as: "animal" },
 ];
 
+const _price = (p: number): number => {
+  const n = Number(p);
+  if (!Number.isFinite(n) || n < 0) throw new Error("Үнэ сөрөг байж болохгүй");
+  return Number(n.toFixed(2));
+};
+
 export class ByproductWrapperController {
   static findIdCheck(id: string): Promise<ByproductWrapperModel> {
     return findOrThrow(ByproductWrapperModel, id, "Багц олдсонгүй");
@@ -50,6 +56,7 @@ export class ByproductWrapperController {
     return await ByproductWrapperModel.create({
       animalId: animal.id,
       name: doc.name.trim(),
+      price: doc.price != null ? _price(doc.price) : 0,
       isActive: true,
     });
   }
@@ -100,6 +107,7 @@ export class ByproductWrapperController {
 
     if (doc.animalType !== undefined) row.animalId = nextAnimalId;
     if (doc.name !== undefined) row.name = doc.name.trim();
+    if (doc.price != null) row.price = _price(doc.price);
     if (typeof doc.isActive === "boolean") row.isActive = doc.isActive;
 
     return await row.save();

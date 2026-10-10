@@ -24,14 +24,18 @@ import {
   DeleteWeighingEntryDoc,
   FinishWeighingDoc,
   RegistrationDetailDoc,
+  SetRegistrationByproductsDoc,
   UpdateWeighingEntryDoc,
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { isPreButchered } from "@/lib/format/enum";
 import { WeighEntryDialog } from "./_components/WeighEntryDialog";
 import { WeighingHistoryList } from "./_components/WeighingHistoryList";
-import { SlaughterCostEditor } from "./_components/SlaughterCostEditor";
+import { SlaughterCostSummary } from "./_components/SlaughterCostSummary";
 import { WeighingAuditLog } from "./_components/WeighingAuditLog";
+import { GedesCountEditor } from "./_components/GedesCountEditor";
+import { can } from "@/lib/auth/roles";
 
 function readRole(): string | null {
   if (typeof document === "undefined") return null;
@@ -52,21 +56,13 @@ function canEditEntries(status: string, role: string | null): boolean {
     status === "CANCELLED"
   )
     return false;
-  const privileged =
-    role === "MANAGER" || role === "ADMIN" || role === "SUPER_ADMIN";
   if (
     status === "WEIGHED" ||
     status === "VERIFIED" ||
     status === "PAYMENT_PENDING"
   )
-    return privileged;
-  // Open-window weigh edits: anyone on the floor except the gate guard.
-  return (
-    privileged ||
-    role === "SCALE" ||
-    role === "STOREKEEPER" ||
-    role === "MODERATOR"
-  );
+    return can(role, "weighFix");
+  return can(role, "weigh");
 }
 
 export function WeighClient({ id }: { id: string }) {
@@ -83,6 +79,10 @@ export function WeighClient({ id }: { id: string }) {
   const [finishWeighing] = useMutation(FinishWeighingDoc);
   const [updateWeighing] = useMutation(UpdateWeighingEntryDoc);
   const [deleteWeighing] = useMutation(DeleteWeighingEntryDoc);
+  const [saveByproducts] = useMutation(SetRegistrationByproductsDoc);
+  // FACTORY_2 гэдэс count edits, keyed by wrapperId (unedited rows keep the
+  // BE value).
+  const [gedes, setGedes] = useState<Record<string, string>>({});
 
   const [role, setRole] = useState<string | null>(null);
   // role comes from a client-only cookie; defer to post-mount to avoid an
@@ -123,6 +123,8 @@ export function WeighClient({ id }: { id: string }) {
   if (!reg) {
     return <div className="text-muted-foreground">Бүртгэл олдсонгүй.</div>;
   }
+  // FACTORY_2: no бой зардал; гэдэс counted here, stocked at finish.
+  const pre = isPreButchered(reg.factory);
 
   async function submitWeight() {
     if (!activeTab) return;
@@ -160,8 +162,34 @@ export function WeighClient({ id }: { id: string }) {
     setBusy(false);
   }
 
+  // FACTORY_2: persist edited гэдэс counts (bundles only, no items).
+  async function saveGedes(): Promise<boolean> {
+    const bundles = compact(reg?.byproductBundles).map((b) => ({
+      wrapperId: b.wrapperId!,
+      count: Number(gedes[b.wrapperId!] ?? b.count ?? 0) || 0,
+    }));
+    return runMutation(
+      async () =>
+        (await saveByproducts({ variables: { registrationId: id, bundles } }))
+          .data?.setRegistrationByproducts,
+      {
+        success: "Гэдэс хадгалагдлаа",
+        onSuccess: async () => {
+          setGedes({});
+          await refetch();
+        },
+      },
+    );
+  }
+
   async function finish() {
     setBusy(true);
+    // FACTORY_2 stocks meat + гэдэс at finish — save pending counts first
+    // (untouched counts fall back to the BE defaults).
+    if (pre && Object.keys(gedes).length > 0 && !(await saveGedes())) {
+      setBusy(false);
+      return;
+    }
     await runMutation(
       async () =>
         (await finishWeighing({ variables: { registrationId: id } })).data
@@ -362,17 +390,36 @@ export function WeighClient({ id }: { id: string }) {
         ))}
       </Tabs>
 
-      <SlaughterCostEditor
-        registrationId={id}
-        editable={reg.status === "REGISTERED" || reg.status === "WEIGHED"}
-        lines={compact(reg.animalLines).map((l) => ({
-          animalType: l.animalType ?? "",
-          count: l.count ?? 0,
-          slaughterCost:
-            l.slaughterCost != null ? Number(l.slaughterCost) : null,
-        }))}
-        onChanged={refetch}
-      />
+      {pre ? (
+        <GedesCountEditor
+          bundles={compact(reg.byproductBundles).map((b) => ({
+            wrapperId: b.wrapperId!,
+            wrapperName: b.wrapperName ?? "",
+            animalType: b.animalType ?? "",
+            count: b.count ?? 0,
+          }))}
+          values={gedes}
+          editable={reg.status === "REGISTERED" && editable}
+          busy={busy}
+          onChange={(wrapperId, value) =>
+            setGedes((s) => ({ ...s, [wrapperId]: value }))
+          }
+          onSave={async () => {
+            setBusy(true);
+            await saveGedes();
+            setBusy(false);
+          }}
+        />
+      ) : (
+        <SlaughterCostSummary
+          lines={compact(reg.animalLines).map((l) => ({
+            animalType: l.animalType ?? "",
+            count: l.count ?? 0,
+            slaughterCost:
+              l.slaughterCost != null ? Number(l.slaughterCost) : null,
+          }))}
+        />
+      )}
 
       <WeighingAuditLog
         rows={compact(reg.weighingAuditLog).map((a) => ({

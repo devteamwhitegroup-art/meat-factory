@@ -4,7 +4,7 @@ import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
-import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
+import { ByproductProcessingLineModel } from "../../models/inventory/byproduct-processing-line.model";
 import { CustomerModel } from "../../models/customer/customer.model";
 import {
   PAYMENT_STATUS,
@@ -119,25 +119,25 @@ export class DashboardController {
 
   // ── Byproduct (handoff, not sales) ──────────────────────────────────
 
-  // Total byproduct kg = handoff weight from ByproductLog rows in period.
-  // The old "sales" source returned 0 since factory doesn't sell byproducts.
+  // Total byproduct kg = weighed organ output of FACTORY_3 disassembly
+  // batches in period (intake is counted, never weighed).
   private static async _totalByproductKg(dr?: TDateRange): Promise<number> {
-    const row = (await ByproductLogModel.findOne({
-      attributes: [[fn("SUM", col("total_weight_kg")), "total"]],
+    const row = (await ByproductProcessingLineModel.findOne({
+      attributes: [[fn("SUM", col("actual_kg")), "total"]],
       where: { ...dateRangeWhere(dr, "createdAt") },
       raw: true,
     })) as unknown as { total: string | null } | null;
     return Number(row?.total ?? 0);
   }
 
-  // Top byproducts by handoff weight, grouped by free-form name. Returns the
-  // top 12 — the long tail isn't useful in a pie.
+  // Top organs by weighed kg, grouped by name. Returns the top 12 — the long
+  // tail isn't useful in a pie.
   private static async _byproductBreakdown(dr?: TDateRange) {
-    const rows = (await ByproductLogModel.findAll({
-      attributes: ["name", [fn("SUM", col("total_weight_kg")), "totalKg"]],
-      where: { ...dateRangeWhere(dr, "createdAt"), name: { [Op.ne]: null } },
+    const rows = (await ByproductProcessingLineModel.findAll({
+      attributes: ["name", [fn("SUM", col("actual_kg")), "totalKg"]],
+      where: { ...dateRangeWhere(dr, "createdAt") },
       group: ["name"],
-      order: [[fn("SUM", col("total_weight_kg")), "DESC"]],
+      order: [[fn("SUM", col("actual_kg")), "DESC"]],
       limit: 12,
       raw: true,
     })) as unknown as Array<{ name: string; totalKg: string }>;

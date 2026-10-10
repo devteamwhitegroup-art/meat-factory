@@ -6,8 +6,6 @@ import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model"
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
 import { SettlementPaymentProofModel } from "../../models/livestock/settlement-payment-proof.model";
-import { ByproductLogModel } from "../../models/livestock/byproduct-log.model";
-import { VerificationModel } from "../../models/livestock/verification.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { HerderModel } from "../../models/livestock/herder.model";
 import { FileModel } from "../../models/global/file.model";
@@ -16,13 +14,18 @@ import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
+import { ByproductBundleController } from "./byproduct-bundle.controller";
+import { AdminController } from "../user/admin.controller";
 import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
-import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
+import {
+  isPreButchered,
+  REGISTRATION_STATUS,
+} from "../../types/livestock/registration.type";
 import {
   TCreateSettlement,
   TGetSettlements,
-  TRegistrationIngestDTO,
 } from "../../types/livestock/settlement.type";
+import { MOVEMENT_SOURCE } from "../../types/inventory/inventory.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { ADMIN_ROLE } from "../../types/user/admin.type";
 
@@ -60,6 +63,7 @@ export class SettlementController {
   // customer-side SalesTransaction list.
   static async list(
     doc: TGetSettlements,
+    context: TContext,
   ): Promise<TPaginationGeneric<SettlementModel>> {
     const where: WhereOptions = {};
     // Loose check: the FE always sends this key (never omits it), using
@@ -70,6 +74,8 @@ export class SettlementController {
 
     const registrationWhere: WhereOptions = {};
     if (doc.herderId) Object.assign(registrationWhere, { herderId: doc.herderId });
+    const factory = AdminController.readFactory(context, doc.factory);
+    if (factory) Object.assign(registrationWhere, { factory });
 
     return listPaginated(SettlementModel, doc, {
       where,
@@ -95,13 +101,19 @@ export class SettlementController {
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
+      ADMIN_ROLE.ACCOUNTANT,
+      ADMIN_ROLE.ADMIN,
     ]);
 
-    const reg = await RegistrationController.findIdCheck(doc.registrationId);
-    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.VERIFIED]);
+    const reg = await RegistrationController.findIdCheck(
+      doc.registrationId,
+      context,
+    );
+    const pre = isPreButchered(reg);
+    // FACTORY_1 settles after verify; FACTORY_2 (no verify step) once weighed.
+    RegistrationController.assertStatus(reg, [
+      pre ? REGISTRATION_STATUS.WEIGHED : REGISTRATION_STATUS.VERIFIED,
+    ]);
 
     const existing = await SettlementModel.findOne({
       where: { registrationId: doc.registrationId },
@@ -117,8 +129,8 @@ export class SettlementController {
     const regTypes = new Set(
       animalLines.map((l) => l.animal?.name).filter(Boolean) as string[],
     );
-    // Бой зардал captured at weighing (pre-VERIFIED). Used as the default when
-    // a settlement line doesn't override it.
+    // Бой зардал is fixed: per-head catalogue price × head count, snapshotted
+    // on the animal line at intake. Never overridden here.
     const storedCostByType: Record<string, number> = {};
     for (const al of animalLines)
       if (al.animal?.name)
@@ -135,8 +147,6 @@ export class SettlementController {
         );
       if (lineTypes.has(l.animalType))
         throw new Error(`Duplicate settlement line: ${l.animalType}`);
-      if (l.slaughterCost != null && l.slaughterCost < 0)
-        throw new Error("slaughterCost cannot be negative");
       lineTypes.add(l.animalType);
     }
     for (const t of regTypes) {
@@ -167,10 +177,19 @@ export class SettlementController {
       Array.from(lineTypes),
     );
 
-    // Byproducts carry no price here (handed to the downstream factory), so
-    // the settlement is meat income − slaughter cost.
+    // Byproduct credit: every гэдэс the factory keeps is worth its price to
+    // the herder (35K бой − 15K гэдэс → herder owes 20K). FACTORY_1 must have
+    // recorded the herder's take first — the defaults assume factory keeps all.
+    const bundles = await ByproductBundleController.bundlesFor(
+      doc.registrationId,
+    );
+    if (!pre && bundles.length > 0 && bundles[0].id === null)
+      throw new Error("Эхлээд дайвар (гэдэс) бүртгэнэ үү");
+    const byproductByAnimal =
+      ByproductBundleController.byproductAmountByAnimal(bundles);
+
     let totalMeatAmount = 0;
-    const totalByproductAmount = 0;
+    let totalByproductAmount = 0;
     let totalSlaughterCost = 0;
 
     const lineRows = doc.lines.map((l) => {
@@ -178,13 +197,12 @@ export class SettlementController {
       const meatAmount = meatByType[l.animalType] ?? 0;
       const avgPrice = received > 0 ? meatAmount / received : 0;
       // Pre-butchered intake: the herder delivered cut meat, so there is no
-      // slaughter step on our side. Zero it out regardless of input. Otherwise
-      // use the line override, falling back to the cost captured at weighing.
-      const slaughterCost = reg.isPreButchered
-        ? 0
-        : (l.slaughterCost ?? storedCostByType[l.animalType] ?? 0);
+      // slaughter step on our side.
+      const slaughterCost = pre ? 0 : (storedCostByType[l.animalType] ?? 0);
+      const byproductAmount = byproductByAnimal[typeToId[l.animalType]] ?? 0;
 
       totalMeatAmount += meatAmount;
+      totalByproductAmount += byproductAmount;
       totalSlaughterCost += slaughterCost;
 
       return {
@@ -192,13 +210,22 @@ export class SettlementController {
         receivedWeightKg: Number(received.toFixed(2)),
         pricePerKg: Number(avgPrice.toFixed(2)),
         meatAmount: Number(meatAmount.toFixed(2)),
-        byproductAmount: 0,
+        byproductAmount: Number(byproductAmount.toFixed(2)),
         slaughterCost: Number(slaughterCost.toFixed(2)),
       };
     });
 
     const grossAmount = totalMeatAmount + totalByproductAmount;
     const netPayable = grossAmount - totalSlaughterCost;
+
+    // FACTORY_1 kept гэдэс (counted) enter stock once the herder's take is
+    // locked in by this settlement (FACTORY_2 stocked at finishWeighing).
+    const keptBundles = pre
+      ? []
+      : await ByproductBundleController.bundleStockLines(
+          doc.registrationId,
+          reg.factory,
+        );
 
     const settlement = await sequelize.transaction(async (t) => {
       const s = await SettlementModel.create(
@@ -225,10 +252,17 @@ export class SettlementController {
         { transaction: t },
       );
 
-      // VERIFIED → PAYMENT_PENDING: amounts locked in, waiting for the cash.
+      // VERIFIED/WEIGHED → PAYMENT_PENDING: amounts locked, waiting for cash.
       await reg.update(
         { status: REGISTRATION_STATUS.PAYMENT_PENDING },
         { transaction: t },
+      );
+
+      await InventoryController.ingestFromRegistration(
+        doc.registrationId,
+        MOVEMENT_SOURCE.BYPRODUCT,
+        keptBundles,
+        t,
       );
 
       return s;
@@ -242,20 +276,22 @@ export class SettlementController {
   //   • medical number approved → pay in full (held forced to 0 → SETTLED).
   //   • not approved → a positive held amount is REQUIRED (can't pay full);
   //     pays netPayable − held now → PARTIALLY_SETTLED, rest released later.
-  // Meat is already in inventory (ingested at verification); this only
-  // ingests the rare coverable-byproduct case, if any.
+  // Stock was already ingested (verify / settlement creation / FACTORY_2
+  // finishWeighing) — paying moves money only.
   static async markSettlementPaid(
     registrationId: string,
     heldAmount: number | null | undefined,
     context: TContext,
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.ACCOUNTANT,
+      ADMIN_ROLE.ADMIN,
     ]);
 
-    const reg = await RegistrationController.findIdCheck(registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      registrationId,
+      context,
+    );
     // Settlement was created during createSettlement → PAYMENT_PENDING.
     RegistrationController.assertStatus(reg, [
       REGISTRATION_STATUS.PAYMENT_PENDING,
@@ -298,67 +334,24 @@ export class SettlementController {
         : REGISTRATION_STATUS.PARTIALLY_SETTLED,
     });
 
-    // Feed the rare coverable-byproduct case into inventory as IN movements
-    // (idempotent) — canCoverSlaughterCost=true rows where the verifier set
-    // slaughterCoveredByByproduct=true (factory takes the byproduct instead
-    // of paying cash slaughter cost). Meat no longer ingests here — it's
-    // already in stock from verification (VerificationController.verify →
-    // InventoryController.ingestMeatFromVerifiedRegistration). Non-coverable
-    // byproducts were already ingested at byproduct-save time
-    // (ByproductLogController.setRegistrationByproducts) — including them
-    // here too would double-count.
-    const byproducts = await ByproductLogModel.findAll({
-      where: { registrationId },
-    });
-    const verification = await VerificationModel.findOne({
-      where: { registrationId },
-    });
-    const slaughterCovered = !!verification?.slaughterCoveredByByproduct;
-
-    const byproductLines = byproducts
-      .filter((b) => {
-        if (!b.name) return false;
-        const kg = Number(b.totalWeightKg ?? 0);
-        if (kg <= 0) return false;
-        // Only the rare covered case — non-coverable rows are ingested
-        // earlier, at byproduct-save time.
-        return !!b.canCoverSlaughterCost && slaughterCovered;
-      })
-      .map((b) => ({
-        productType: "BYPRODUCT" as const,
-        animalId: b.animalId ?? null,
-        byproductType: null,
-        byproductName: b.name as string,
-        quantityKg: Number(b.totalWeightKg),
-      }));
-
-    if (byproductLines.length > 0) {
-      const dto: TRegistrationIngestDTO = {
-        registrationId,
-        settledAt: new Date(),
-        lines: byproductLines,
-      };
-      await InventoryController.ingestFromSettledRegistration(dto);
-    }
-
     return this._reload(settlement.id);
   }
 
   // Release the withheld portion once the medical number is approved. Pays the
-  // remaining held amount and fully settles. Meat inventory was already
-  // ingested at verification; any coverable-byproduct ingestion already
-  // happened at markSettlementPaid (idempotent) — nothing is added here.
+  // remaining held amount and fully settles. Stock is untouched.
   static async releaseSettlementHold(
     registrationId: string,
     context: TContext,
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.ACCOUNTANT,
+      ADMIN_ROLE.ADMIN,
     ]);
 
-    const reg = await RegistrationController.findIdCheck(registrationId);
+    const reg = await RegistrationController.findIdCheck(
+      registrationId,
+      context,
+    );
     RegistrationController.assertStatus(reg, [
       REGISTRATION_STATUS.PARTIALLY_SETTLED,
     ]);
@@ -393,9 +386,8 @@ export class SettlementController {
     context: TContext,
   ): Promise<SettlementPaymentProofModel> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.ACCOUNTANT,
+      ADMIN_ROLE.ADMIN,
     ]);
 
     const settlement = await SettlementModel.findOne({
@@ -444,9 +436,7 @@ export class SettlementController {
   ): Promise<SettlementModel> {
     RegistrationController.assertActorRole(context, [
       ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
-      ADMIN_ROLE.SCALE,
+      ADMIN_ROLE.ADMIN,
     ]);
 
     const settlement = await SettlementModel.findOne({
@@ -464,9 +454,8 @@ export class SettlementController {
     context: TContext,
   ): Promise<void> {
     RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.MANAGER,
-      ADMIN_ROLE.SUPER_ADMIN,
+      ADMIN_ROLE.ACCOUNTANT,
+      ADMIN_ROLE.ADMIN,
     ]);
     const row = await findOrThrow(
       SettlementPaymentProofModel,

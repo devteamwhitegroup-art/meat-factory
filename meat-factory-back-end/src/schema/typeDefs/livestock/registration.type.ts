@@ -60,61 +60,24 @@ export default `#graphql
         createdAt: Date
     }
 
-    type ByproductLog {
+    # Herder-facing byproduct row: one per wrapper (гэдэс). The factory keeps
+    # count − herderCount bundles and credits them × unitPrice to the
+    # settlement. id is null until first saved (defaults: factory keeps all).
+    type ByproductBundle {
         id: ID
-        registrationId: ID
-        name: String
-        animalId: ID
-        animal: Animal
-        animalType: String
-        canCoverSlaughterCost: Boolean
-        count: Int
-        averageWeightKg: Float
-        totalWeightKg: Float
-        loggedById: ID
-        loggedBy: Admin
-        photoFileId: ID
-        photo: File
-        createdAt: Date
-        updatedAt: Date
-    }
-
-    type DerivedByproduct {
-        animalType: String
         wrapperId: ID
         wrapperName: String
-        name: String
-        quantity: Int
-        unitWeightKg: Float
-        weightKg: Float
-        canCoverSlaughterCost: Boolean
-    }
-
-    type DerivedByproductsResponse {
-        success: Boolean
-        message: String
-        items: [DerivedByproduct]
-    }
-
-    input ByproductItemInput {
-        name: String!
         animalType: String
-        quantity: Int!
-        weightKg: Float
-        canCoverSlaughterCost: Boolean
+        count: Int
+        herderCount: Int
+        unitPrice: Float
     }
 
-    type ByproductHandoffItem {
-        animalType: String
-        name: String
-        totalQuantity: Int
-        totalWeightKg: Float
-    }
-
-    type ByproductHandoffResponse {
-        success: Boolean
-        message: String
-        items: [ByproductHandoffItem]
+    input ByproductBundleInput {
+        wrapperId: ID!
+        count: Int!
+        # FACTORY_1 only (ignored for FACTORY_2): bundles the herder takes back.
+        herderCount: Int
     }
 
     type Verification {
@@ -126,7 +89,6 @@ export default `#graphql
         notes: String
         photoFileId: ID
         photo: File
-        slaughterCoveredByByproduct: Boolean
         createdAt: Date
         updatedAt: Date
     }
@@ -213,9 +175,10 @@ export default `#graphql
         herder: Herder
         vehicleNumber: String
         stamp: String
-        medicalNumber: String
-        # Factory confirmation of the medical number — gates release of the
-        # held settlement portion.
+        # 7-digit medical certificate numbers, each checked by the vet.
+        medicalNumbers: [MedicalNumber!]
+        # Every medical number APPROVED — gates release of the held
+        # settlement portion.
         medicalNumberApproved: Boolean
         photoFileId: ID
         photo: File
@@ -230,13 +193,13 @@ export default `#graphql
         guardId: ID
         guard: Admin
         status: REGISTRATION_STATUS
-        # Pre-butchered intake — herder delivered ready-cut meat. Slaughter
-        # cost stays 0 at settlement and the byproduct-cover toggle is hidden.
-        isPreButchered: Boolean
+        # FACTORY_1 = live animals. FACTORY_2 = pre-butchered meat: no stamp,
+        # no slaughter cost, no verify — stocked at finishWeighing.
+        factory: FACTORY
         animalLines: [RegistrationAnimalLine]
         weighingEntries: [WeighingEntry]
         weighingAuditLog: [WeighingEntryAudit]
-        byproductLogs: [ByproductLog]
+        byproductBundles: [ByproductBundle]
         verification: Verification
         settlement: Settlement
         createdAt: Date
@@ -286,14 +249,9 @@ export default `#graphql
         count: Int!
     }
 
-    input SlaughterCostInput {
-        animalType: String!
-        slaughterCost: Float!
-    }
-
+    # Бой зардал is fixed per head (set at intake) — not an input.
     input SettlementLineInput {
         animalType: String!
-        slaughterCost: Float
     }
 
     extend type Query {
@@ -304,19 +262,20 @@ export default `#graphql
             statuses: [REGISTRATION_STATUS!]
             herderId: ID
             registrationCode: String
+            # Owner/admin only — factory staff always see their own.
+            factory: FACTORY
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): RegistrationsResponse @authLogin
         registration(id: ID!): RegistrationResponse @authLogin
-        derivedByproducts(registrationId: ID!): DerivedByproductsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
-        byproductHandoff(dateRange: DateRangeInput): ByproductHandoffResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
         # Herder-side payout list — the "Малчид" tab on /sales.
         settlements(
+            factory: FACTORY
             isPaid: Boolean
             herderId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): SettlementsResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
+        ): SettlementsResponse @auth(permissions: ["ADMIN", "STOREKEEPER", "ACCOUNTANT"])
     }
 
     extend type Mutation {
@@ -324,29 +283,29 @@ export default `#graphql
             herderId: ID!
             vehicleNumber: String!
             stamp: String
-            medicalNumber: String
+            # Each exactly 7 digits.
+            medicalNumbers: [String!]
             photoFileId: ID
             signatureFileId: ID
             stampFileId: ID
             intakeDate: Date
-            isPreButchered: Boolean
+            # Owner/admin must pick; factory staff are stamped with their own.
+            factory: FACTORY
             animalLines: [RegistrationAnimalLineInput!]!
-        ): RegistrationResponse @auth(permissions: ["GUARD", "STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
-        # Weighing can be carried out by anyone on the floor except the
-        # gate guard — covering shifts where SCALE isn't around, the store-
-        # keeper / manager / admin steps in.
+        # Weighing + price negotiation: storekeeper (нярав).
         addWeighingEntry(
             registrationId: ID!
             animalType: String!
             weightKg: Float!
             pricePerKg: Float
             photoFileId: ID
-        ): WeighingEntryResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MODERATOR", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): WeighingEntryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         finishWeighing(
             registrationId: ID!
-        ): RegistrationResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MODERATOR", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         updateWeighingEntry(
             id: ID!
@@ -354,27 +313,24 @@ export default `#graphql
             pricePerKg: Float
             animalType: String
             photoFileId: ID
-        ): WeighingEntryResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MODERATOR", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): WeighingEntryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         deleteWeighingEntry(
             id: ID!
-        ): Response @auth(permissions: ["SCALE", "STOREKEEPER", "MODERATOR", "MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): Response @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
+        # Replaces the гэдэс counts. FACTORY_1: after VERIFIED (herder take).
+        # FACTORY_2: while REGISTERED (counted on receipt).
         setRegistrationByproducts(
             registrationId: ID!
-            items: [ByproductItemInput!]!
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
+            bundles: [ByproductBundleInput!]!
+        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         verifyRegistration(
             registrationId: ID!
             notes: String
             photoFileId: ID
-        ): VerificationResponse @auth(permissions: ["SCALE", "STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN"])
-
-        setSlaughterCovered(
-            registrationId: ID!
-            covered: Boolean!
-        ): VerificationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "ADMIN", "SUPER_ADMIN", "SCALE"])
+        ): VerificationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         createSettlement(
             registrationId: ID!
@@ -385,7 +341,7 @@ export default `#graphql
             payoutBankAccount: String
             payoutBankName: String
             payoutAccountHolderName: String
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): SettlementResponse @auth(permissions: ["ADMIN", "STOREKEEPER", "ACCOUNTANT"])
 
         # First payout. Pass heldAmount to withhold a portion when the medical
         # number isn't approved yet (required while unapproved; ignored/forced
@@ -393,12 +349,12 @@ export default `#graphql
         markSettlementPaid(
             registrationId: ID!
             heldAmount: Float
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): SettlementResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         # Release the withheld portion after the medical number is approved.
         releaseSettlementHold(
             registrationId: ID!
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): SettlementResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         # Attach a money-flow statement image (uploaded File id) to the
         # settlement after a payout has been made.
@@ -406,42 +362,28 @@ export default `#graphql
             registrationId: ID!
             fileId: ID!
             note: String
-        ): SettlementPaymentProofResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): SettlementPaymentProofResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         removeSettlementPaymentProof(
             id: ID!
-        ): Response @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): Response @auth(permissions: ["ADMIN", "ACCOUNTANT"])
 
         # Attach the storekeeper's drawn signature (uploaded File id) to the
         # settlement receipt. Pass null to clear.
         setSettlementStorekeeperSignature(
             registrationId: ID!
             fileId: ID
-        ): SettlementResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
-
-        # Factory confirms the medical number (optionally setting it first).
-        # Unlocks releaseSettlementHold.
-        approveMedicalNumber(
-            registrationId: ID!
-            medicalNumber: String
-        ): RegistrationResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN","STOREKEEPER", "SCALE"])
-
-        # Capture бой зардал per animal type before VERIFIED (prints on the
-        # herder slip; settlement defaults to these).
-        setRegistrationSlaughterCosts(
-            registrationId: ID!
-            lines: [SlaughterCostInput!]!
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): SettlementResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         # Attach the herder's drawn agreement signature (uploaded File id) to
         # the weighed slip. Pass null to clear. Allowed before VERIFIED.
         setRegistrationAgreementSignature(
             registrationId: ID!
             fileId: ID
-        ): RegistrationResponse @auth(permissions: ["STOREKEEPER", "MANAGER", "SUPER_ADMIN", "SCALE"])
+        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         cancelRegistration(
             registrationId: ID!
-        ): RegistrationResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN"])
+        ): RegistrationResponse @auth(permissions: ["ADMIN"])
     }
 `;

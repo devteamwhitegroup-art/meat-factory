@@ -32,16 +32,3 @@ export type TGetByproductConstants = {
   search?: string;
   isActive?: boolean;
 } & TPagination;
-
-// Byproduct derived from constants × slaughtered animal counts.
-// animalType + canCoverSlaughterCost both come off the joined Animal row.
-export type TDerivedByproduct = {
-  animalType: string;
-  wrapperId: string | null;
-  wrapperName: string | null;
-  name: string;
-  quantity: number;
-  unitWeightKg: number | null;
-  weightKg: number | null;
-  canCoverSlaughterCost: boolean;
-};

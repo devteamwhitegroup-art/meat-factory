@@ -39,6 +39,6 @@ export default `#graphql
             domesticAlertThresholdKg: Float
             # Replaces the whole printer list.
             printers: [PrinterInput!]
-        ): SettingsResponse @auth(permissions: ["MANAGER", "ADMIN", "SUPER_ADMIN"])
+        ): SettingsResponse @auth(permissions: ["ADMIN"])
     }
 `;

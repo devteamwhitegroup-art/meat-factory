@@ -23,6 +23,8 @@ type Item = {
   animalType?: string | null;
   byproductName?: string | null;
   quantityKg: number;
+  // Pieces — counted гэдэс (kg unknown until the byproduct factory weighs it).
+  quantityCount?: number;
 };
 
 // Fixed palette so each animal type keeps the same colour across renders
@@ -54,6 +56,7 @@ export function StockSplit({ items }: { items: Item[] }) {
 
   const meatTotal = meat.reduce((s, i) => s + Number(i.quantityKg ?? 0), 0);
   const byTotal = byproduct.reduce((s, i) => s + Number(i.quantityKg ?? 0), 0);
+  const byCount = byproduct.reduce((s, i) => s + (i.quantityCount ?? 0), 0);
 
   return (
     <div className="space-y-4">
@@ -71,6 +74,7 @@ export function StockSplit({ items }: { items: Item[] }) {
               label: PRODUCT_TYPE_MN.BYPRODUCT,
               count: byproduct.length,
               total: byTotal,
+              pieces: byCount,
             },
           ] as const
         ).map((t) => (
@@ -87,7 +91,8 @@ export function StockSplit({ items }: { items: Item[] }) {
           >
             {t.label}{" "}
             <span className="text-xs text-muted-foreground">
-              ({formatNumber(t.total)} кг)
+              ({formatNumber(t.total)} кг
+              {"pieces" in t && t.pieces > 0 ? ` · ${t.pieces} ш` : ""})
             </span>
           </button>
         ))}
@@ -215,7 +220,9 @@ function ByproductPanel({ items, total }: { items: Item[]; total: number }) {
       kg: Number(i.quantityKg ?? 0),
       label: byproductLabel(i),
     }))
-    .sort((a, b) => b.kg - a.kg);
+    .sort(
+      (a, b) => b.kg - a.kg || (b.quantityCount ?? 0) - (a.quantityCount ?? 0),
+    );
 
   if (sorted.length === 0) {
     return (
@@ -244,7 +251,14 @@ function ByproductPanel({ items, total }: { items: Item[]; total: number }) {
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="font-medium">{i.label}</TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(i.kg)} кг
+                  {[
+                    (i.quantityCount ?? 0) > 0 ? `${i.quantityCount} ш` : null,
+                    i.kg > 0 || !i.quantityCount
+                      ? `${formatNumber(i.kg)} кг`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

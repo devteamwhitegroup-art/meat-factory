@@ -27,11 +27,10 @@ export default function LoginPage() {
             <div className="mt-6 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
               <div className="mb-1 font-medium">Туршилтын данс (dev):</div>
               <ul className="list-disc pl-4">
-                <li>manager@example.com / admin123</li>
-                <li>guard@example.com / admin123</li>
-                <li>scale@example.com / admin123</li>
+                <li>admin@example.com / admin123 (ADMIN)</li>
                 <li>store@example.com / admin123</li>
-                <li>admin@example.com / admin123 (SUPER_ADMIN)</li>
+                <li>accountant@example.com / admin123</li>
+                <li>doctor@example.com / admin123</li>
               </ul>
             </div>
           ) : null}

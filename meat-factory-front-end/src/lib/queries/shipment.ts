@@ -2,6 +2,7 @@ import { graphql } from "@/lib/gql/gql";
 
 export const ShipmentListDoc = graphql(/* GraphQL */ `
   query Shipments(
+    $factory: FACTORY
     $category: SHIPMENT_CATEGORY
     $domesticMarket: DOMESTIC_MARKET
     $status: SHIPMENT_STATUS
@@ -11,6 +12,7 @@ export const ShipmentListDoc = graphql(/* GraphQL */ `
     $page: Int
   ) {
     shipments(
+      factory: $factory
       category: $category
       domesticMarket: $domesticMarket
       status: $status
@@ -25,6 +27,7 @@ export const ShipmentListDoc = graphql(/* GraphQL */ `
       shipments {
         id
         shipmentCode
+        factory
         category
         domesticMarket
         status
@@ -247,6 +250,7 @@ export const RemoveShipmentPhotoDoc = graphql(/* GraphQL */ `
 
 export const CreateShipmentDoc = graphql(/* GraphQL */ `
   mutation CreateShipment(
+    $factory: FACTORY
     $category: SHIPMENT_CATEGORY!
     $domesticMarket: DOMESTIC_MARKET
     $customerId: ID!
@@ -258,6 +262,7 @@ export const CreateShipmentDoc = graphql(/* GraphQL */ `
     $photoFileId: ID
   ) {
     createShipment(
+      factory: $factory
       category: $category
       domesticMarket: $domesticMarket
       customerId: $customerId

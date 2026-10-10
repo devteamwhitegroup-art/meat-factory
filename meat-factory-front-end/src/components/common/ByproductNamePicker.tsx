@@ -14,17 +14,22 @@ import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { compact } from "@/lib/compact";
 
 // Cascading byproduct picker (animal → wrapper → constant) that yields the
-// chosen constant's free-form NAME (byproductType enum is gone). Animal/wrapper
-// are internal navigation; only the final name is reported via onChange.
+// chosen constant's free-form NAME (byproductType enum is gone). The animal is
+// reported via onAnimalChange (stock SKUs are per animal); allowWrapper also
+// offers the whole гэдэс itself — counted stock before disassembly.
 // Values are kept defined (`|| null`) so the Selects stay controlled from the
 // first render (no uncontrolled→controlled switch).
 export function ByproductNamePicker({
   value,
   onChange,
+  onAnimalChange,
+  allowWrapper,
   disabled,
 }: {
   value: string;
   onChange: (name: string) => void;
+  onAnimalChange?: (animal: string) => void;
+  allowWrapper?: boolean;
   disabled?: boolean;
 }) {
   const { animalTypes } = useAnimalCatalog();
@@ -46,6 +51,7 @@ export function ByproductNamePicker({
         value={animal || null}
         onValueChange={(v) => {
           setAnimal(v ?? "");
+          onAnimalChange?.(v ?? "");
           setWrapperId("");
           onChange("");
         }}
@@ -96,13 +102,20 @@ export function ByproductNamePicker({
       <Select
         value={value || null}
         onValueChange={(v) => onChange(v ?? "")}
-        disabled={disabled || !wrapperId || constants.length === 0}
+        disabled={
+          disabled || !wrapperId || (constants.length === 0 && !allowWrapper)
+        }
       >
         <SelectTrigger className="h-9">
           <SelectValue placeholder="Дайвар" />
         </SelectTrigger>
         <SelectContent>
-          {constants.length === 0 ? (
+          {allowWrapper && selectedWrapper?.name ? (
+            <SelectItem value={selectedWrapper.name}>
+              {selectedWrapper.name} (бүтэн, ш)
+            </SelectItem>
+          ) : null}
+          {constants.length === 0 && !allowWrapper ? (
             <div className="px-2 py-1.5 text-sm text-muted-foreground">
               Дайвар алга
             </div>

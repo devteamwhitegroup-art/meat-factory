@@ -20,6 +20,7 @@ import { unwrap } from "@/lib/unwrap";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { SHIPMENT_CATEGORY_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
 import { CustomerCombobox } from "./CustomerCombobox";
+import { FactoryPicker } from "@/components/common/FactoryFilter";
 
 // A shipment is the physical stock-out event. Its category (export/domestic)
 // is fixed by the page you came from. Domestic shipments additionally require
@@ -29,8 +30,11 @@ type Market = "LOCAL" | "ULAANBAATAR";
 
 export function NewShipmentForm({
   category,
+  crossFactory,
 }: {
   category: "EXPORT" | "DOMESTIC";
+  // Owner/admin pick which factory's stock ships; staff ship their own.
+  crossFactory: boolean;
 }) {
   const router = useRouter();
   const isDomestic = category === "DOMESTIC";
@@ -44,6 +48,7 @@ export function NewShipmentForm({
 
   const [domesticMarket, setDomesticMarket] = useState<Market>("ULAANBAATAR");
   const [customerId, setCustomerId] = useState<string>("");
+  const [factory, setFactory] = useState("");
   const [triedSubmit, setTriedSubmit] = useState(false);
   const [vehiclePlate, setVehiclePlate] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -59,10 +64,15 @@ export function NewShipmentForm({
       toast.error("Харилцагч сонгоно уу");
       return;
     }
+    if (crossFactory && !factory) {
+      toast.error("Үйлдвэр сонгоно уу");
+      return;
+    }
     setBusy(true);
     try {
       const r = await createShipment({
         variables: {
+          factory: crossFactory ? (factory as never) : null,
           category,
           domesticMarket: isDomestic ? domesticMarket : null,
           customerId,
@@ -102,6 +112,13 @@ export function NewShipmentForm({
             </span>
           ) : null}
         </div>
+
+        {crossFactory ? (
+          <div className="space-y-1.5">
+            <Label>Үйлдвэр *</Label>
+            <FactoryPicker value={factory} onChange={setFactory} />
+          </div>
+        ) : null}
 
         {isDomestic ? (
           <div className="space-y-1.5">

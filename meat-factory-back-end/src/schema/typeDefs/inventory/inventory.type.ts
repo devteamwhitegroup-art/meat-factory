@@ -15,6 +15,7 @@ export default `#graphql
 
     type InventoryItem {
         id: ID
+        factory: FACTORY
         sku: String
         productType: PRODUCT_TYPE
         # Animal catalogue FK for MEAT rows. Null for byproducts.
@@ -23,6 +24,8 @@ export default `#graphql
         # Free-form Mongolian byproduct name (SKU BYPN:<name>).
         byproductName: String
         quantityKg: Float
+        # Pieces — гэдэс arrive counted; kg is known only after disassembly.
+        quantityCount: Int
         createdAt: Date
         updatedAt: Date
     }
@@ -35,6 +38,8 @@ export default `#graphql
         source: MOVEMENT_SOURCE
         quantityKg: Float
         balanceAfterKg: Float
+        quantityCount: Int
+        balanceAfterCount: Int
         sourceRegistrationId: ID
         sourceShipmentId: ID
         createdById: ID
@@ -91,31 +96,38 @@ export default `#graphql
     }
 
     extend type Query {
+        # factory: owner/admin filter (omit = both); staff always see their own.
         inventoryStock(
+            factory: FACTORY
             productType: PRODUCT_TYPE
             animalId: ID
             byproductName: String
-        ): InventoryItemsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): InventoryItemsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         inventoryMovements(
+            factory: FACTORY
             inventoryItemId: ID
             movementType: MOVEMENT_TYPE
             source: MOVEMENT_SOURCE
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): InventoryMovementsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        ): InventoryMovementsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
-        inventoryStats: InventoryStatsResponse @auth(permissions: ["MANAGER", "STOREKEEPER", "ADMIN", "SUPER_ADMIN"])
+        inventoryStats(factory: FACTORY): InventoryStatsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
     }
 
     extend type Mutation {
         adjustInventory(
+            # Owner/admin must pick; staff adjust their own factory.
+            factory: FACTORY
             productType: PRODUCT_TYPE!
             animalId: ID
             byproductName: String
-            quantityKg: Float!
+            # At least one of kg / pieces must be positive.
+            quantityKg: Float
+            quantityCount: Int
             direction: MOVEMENT_TYPE!
             notes: String
-        ): InventoryItemResponse @auth(permissions: ["MANAGER", "SUPER_ADMIN", "STOREKEEPER" ])
+        ): InventoryItemResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
     }
 `;

@@ -51,7 +51,7 @@ export default `#graphql
             # Either addressId OR address must be set (server-side validated).
             addressId: ID
             address: String
-        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD"])
+        ): HerderResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         updateHerder(
             id: ID!
@@ -63,10 +63,10 @@ export default `#graphql
             accountHolderName: String
             addressId: ID
             address: String
-        ): HerderResponse @auth(permissions: ["SUPER_ADMIN", "ADMIN", "MANAGER", "GUARD", "STOREKEEPER"])
+        ): HerderResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
 
         deleteHerder(
             id: ID!
-        ): Response @auth(permissions: ["SUPER_ADMIN", "MANAGER"])
+        ): Response @auth(permissions: ["ADMIN"])
     }
 `;

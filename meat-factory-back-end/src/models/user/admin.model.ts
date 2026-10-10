@@ -2,7 +2,7 @@ import { DataTypes, Model, Sequelize } from 'sequelize';
 import config from '../../config';
 import bcrypt from 'bcrypt';
 import { createHmac } from 'node:crypto';
-import { ADMIN_ROLE, TAdmin } from '../../types/user/admin.type';
+import { ADMIN_ROLE, FACTORY, TAdmin } from '../../types/user/admin.type';
 
 const { PASSWORD_HASH_SALT } = config;
 const salt = bcrypt.genSaltSync(PASSWORD_HASH_SALT);
@@ -19,6 +19,7 @@ export class AdminModel extends Model implements TAdmin {
   public param!: string;
   public password!: string;
   public role!: ADMIN_ROLE;
+  public factory!: FACTORY | null;
 
   static associate(): void {}
 }
@@ -46,6 +47,12 @@ export const createAdminModel = async (sequelize: Sequelize) => {
         values: Object.values(ADMIN_ROLE),
         allowNull: false,
         defaultValue: ADMIN_ROLE.ADMIN
+      },
+      // NULL for CROSS_FACTORY_ROLES; required for the rest (controller-enforced).
+      factory: {
+        type: DataTypes.ENUM,
+        values: Object.values(FACTORY),
+        allowNull: true
       }
     },
     {

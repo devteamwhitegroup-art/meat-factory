@@ -11,6 +11,7 @@ import { PRINT_JOB_TYPE } from "../../types/print/print.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { SalesTransactionController } from "../sales/sales-transaction.controller";
 import { ShipmentController } from "../shipment/shipment.controller";
+import { ByproductBundleController } from "../livestock/byproduct-bundle.controller";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
@@ -48,6 +49,9 @@ const B = (text: string): RLine => ({ text, bold: true });
 
 const heading = (subtitle: string): RLine[] => [
   { text: config.RECEIPT_HEADER, align: "center", bold: true, scale: 2 },
+  ...(config.RECEIPT_PHONE
+    ? [{ text: `Утас: ${config.RECEIPT_PHONE}`, align: "center" } as RLine]
+    : []),
   { text: subtitle, align: "center" },
   RULE,
 ];
@@ -126,6 +130,7 @@ async function salesLines(id: string): Promise<RLine[]> {
     row("Баримт:", tx.transactionCode),
     row("Огноо:", dt(tx.transactionDate)),
     row("Харилцагч:", tx.customer?.name ?? "-"),
+    row("Утас:", tx.customer?.contactPhone ?? "-"),
   ];
 
   const items = tx.lineItems ?? [];
@@ -177,6 +182,7 @@ async function shipmentLines(id: string): Promise<RLine[]> {
       `${s.category}${s.domesticMarket ? " / " + s.domesticMarket : ""}`,
     ),
     row("Харилцагч:", s.customer?.name ?? "-"),
+    row("Утас:", s.customer?.contactPhone ?? "-"),
     row("Машин:", s.vehiclePlate ?? "-"),
     row(
       "Жолооч:",
@@ -229,12 +235,15 @@ async function settlementLines(id: string): Promise<RLine[]> {
     ],
   });
   if (!st) throw new Error("Settlement not found");
+  // Herder-facing: гэдэс bundles only, never the items inside them.
+  const bundles = await ByproductBundleController.bundlesFor(st.registrationId);
 
   const out: RLine[] = [
     ...heading("ТООЦООНЫ БАРИМТ"),
     row("Бүртгэл:", st.registration?.registrationCode ?? "-"),
     row("Огноо:", dt(st.paidAt ?? st.createdAt)),
     row("Малчин:", st.registration?.herder?.name ?? "-"),
+    row("Утас:", st.registration?.herder?.phone ?? "-"),
     row("Жинлэсэн:", weighers(st.registration?.weighingEntries ?? [])),
     RULE,
   ];
@@ -247,14 +256,41 @@ async function settlementLines(id: string): Promise<RLine[]> {
         mnt(l.meatAmount),
       ),
     );
+    // Бой зардал first, then the kept гэдэс whose price is deducted from it.
     if (Number(l.slaughterCost ?? 0) > 0)
       out.push(row("  Бойны зардал", `-${mnt(l.slaughterCost)}`));
+    for (const b of bundles.filter((x) => x.animalId === l.animalId)) {
+      const kept = b.count - b.herderCount;
+      if (kept > 0)
+        out.push(
+          row(
+            `  ${b.wrapperName} ${kept} x ${mnt(b.unitPrice)}`,
+            `+${mnt(kept * b.unitPrice)}`,
+          ),
+        );
+      if (b.herderCount > 0)
+        out.push(row(`  ${b.wrapperName} малчинд`, `${b.herderCount} ш`));
+    }
   }
 
+  // Cost − income: the гэдэс price is subtracted from the бой зардал
+  // (35K − 15K → 20K), and that net is subtracted from the meat.
+  const boy = Number(st.totalSlaughterCost ?? 0);
+  const gedes = Number(st.totalByproductAmount ?? 0);
+  out.push(RULE, row("НИЙТ МАХ", mnt(st.totalMeatAmount)));
+  if (boy > 0) out.push(row("БОЙНЫ ЗАРДАЛ", `-${mnt(boy)}`));
+  if (gedes > 0) out.push(row("ДАЙВАР (бойноос хасна)", `+${mnt(gedes)}`));
+  if (boy > 0 && gedes > 0) {
+    // гэдэс worth more than the бой → the excess goes to the herder.
+    const netBoy = boy - gedes;
+    out.push(
+      row(
+        "ЦЭВЭР БОЙ ЗАРДАЛ",
+        netBoy >= 0 ? `-${mnt(netBoy)}` : `+${mnt(-netBoy)}`,
+      ),
+    );
+  }
   out.push(
-    RULE,
-    row("НИЙЛБЭР ДҮН", mnt(st.grossAmount)),
-    row("БОЙНЫ ЗАРДАЛ", `-${mnt(st.totalSlaughterCost)}`),
     { ...row("ЦЭВЭР ОЛГОХ", mnt(st.netPayable)), bold: true },
     row("Олгосон", mnt(st.paidAmount)),
   );
@@ -274,8 +310,8 @@ async function settlementLines(id: string): Promise<RLine[]> {
 }
 
 // Pre-settlement weighed / price slip. refId = Registration id. Meat per type =
-// Σ(weightKg × pricePerKg); бой per type = Σ(slaughter cost). The verifier's
-// byproduct-cover offset is applied at settlement time and is NOT shown here.
+// Σ(weightKg × pricePerKg); бой per type = Σ(slaughter cost). The гэдэс credit
+// is decided after verify and shows on the settlement receipt, not here.
 async function weighSlipLines(id: string): Promise<RLine[]> {
   const reg = await RegistrationModel.findByPk(id, {
     include: [
@@ -318,6 +354,7 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
     row("Бүртгэл:", reg.registrationCode ?? "-"),
     row("Огноо:", dt(reg.intakeDate)),
     row("Малчин:", reg.herder?.name ?? "-"),
+    row("Утас:", reg.herder?.phone ?? "-"),
     row("Машин:", reg.vehicleNumber ?? "-"),
     row("Жинлэсэн:", weighers(reg.weighingEntries ?? [])),
     RULE,

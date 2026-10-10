@@ -1,246 +1,352 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { FactoryFilter } from "@/components/common/FactoryFilter";
 import {
   AdminsDoc,
   CreateAdminDoc,
   DeleteAdminDoc,
   UpdateAdminDoc,
 } from "@/lib/queries/admin";
-import { ROLE_MN } from "@/lib/format/enum";
-import type { Admin_Role as AdminRole } from "@/lib/gql/graphql";
+import { FACTORY_MN, ROLE_MN } from "@/lib/format/enum";
+import type { Admin_Role as AdminRole, Factory } from "@/lib/gql/graphql";
+import { isCrossFactoryRole } from "@/lib/auth/roles";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { cn } from "@/lib/utils";
 
-// Blank password on an existing row = keep the current one.
-type Row = { param: string; role: AdminRole; password: string };
+const ROLES = Object.keys(ROLE_MN) as AdminRole[];
+const FACTORIES = Object.keys(FACTORY_MN) as Factory[];
 
-const EMPTY: Row = { param: "", role: "ADMIN", password: "" };
+// Shown on the role picker so the admin chooses by job, not by name.
+const ROLE_DESC: Record<string, string> = {
+  ADMIN: "Бүх эрх, бүх үйлдвэр. Ажилтан болон тохиргоог удирдана.",
+  STOREKEEPER:
+    "Бүртгэл, жинлэлт, үнэ тохиролцох, дайвар, нөөц, ачилт — бүх мэдээлэл оруулна.",
+  ACCOUNTANT: "Малчны төлбөр, борлуулалт, харилцагч, тайлан.",
+  DOCTOR: "Эмнэлгийн дугаар бүртгэж, баталгаажуулна.",
+};
 
-// Staff accounts. One row per admin, saved individually; the trailing row
-// creates. Only a SUPER_ADMIN may grant or edit SUPER_ADMIN (BE enforces).
-export function AdminsSection({
-  canDelete,
-  canGrantSuper,
-}: {
-  canDelete: boolean;
-  canGrantSuper: boolean;
-}) {
+const ROLE_COLOR: Record<string, string> = {
+  ADMIN: "border-0 bg-slate-800 text-white",
+  STOREKEEPER: "border-0 bg-blue-100 text-blue-800",
+  ACCOUNTANT: "border-0 bg-emerald-100 text-emerald-800",
+  DOCTOR: "border-0 bg-amber-100 text-amber-800",
+};
+
+// id null = new account. Blank password while editing = keep the current one.
+type Draft = {
+  id: string | null;
+  param: string;
+  role: AdminRole;
+  factory: Factory | null;
+  password: string;
+};
+
+const BLANK: Draft = {
+  id: null,
+  param: "",
+  role: "STOREKEEPER",
+  factory: null,
+  password: "",
+};
+
+// Staff accounts: a table filtered by `?factory=`; create/edit in a side sheet.
+// Only ADMIN reaches this page, and ADMIN assigns every other role to one
+// factory.
+export function AdminsSection() {
   const { data, loading, refetch } = useQuery(AdminsDoc, {
     fetchPolicy: "cache-and-network",
   });
   const [create] = useMutation(CreateAdminDoc);
   const [update] = useMutation(UpdateAdminDoc);
   const [remove] = useMutation(DeleteAdminDoc);
-  const [edits, setEdits] = useState<Record<string, Row>>({});
-  const [newRow, setNewRow] = useState<Row>(EMPTY);
-  const [busy, setBusy] = useState<string | null>(null);
+  const filter = (useSearchParams().get("factory") || null) as Factory | null;
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const admins = compact(data?.admins?.admins);
-  const roles = (Object.keys(ROLE_MN) as AdminRole[]).filter(
-    (r) => canGrantSuper || r !== "SUPER_ADMIN",
+  const admins = compact(data?.admins?.admins).filter(
+    (a) => !filter || a.factory === filter,
   );
+  const patch = (p: Partial<Draft>) =>
+    setDraft((d) => (d ? { ...d, ...p } : d));
 
-  function clearEdit(id: string) {
-    setEdits((s) => {
-      const n = { ...s };
-      delete n[id];
-      return n;
-    });
-  }
-
-  async function save(id: string | null, r: Row) {
-    const param = r.param.trim();
-    if (!param) {
-      toast.error("Нэвтрэх нэр оруулна уу");
-      return;
-    }
-    if (!id && !r.password.trim()) {
-      toast.error("Нууц үг оруулна уу");
-      return;
-    }
-    setBusy(id ?? "new");
+  async function onSave(d: Draft) {
+    const param = d.param.trim();
+    const cross = isCrossFactoryRole(d.role);
+    if (!param) return void toast.error("Нэвтрэх нэр оруулна уу");
+    if (!d.id && !d.password.trim())
+      return void toast.error("Нууц үг оруулна уу");
+    if (!cross && !d.factory) return void toast.error("Үйлдвэр сонгоно уу");
+    const factory = cross ? null : d.factory;
+    setBusy(true);
     await runMutation(
       async () =>
-        id
+        d.id
           ? (
               await update({
                 variables: {
-                  id,
+                  id: d.id,
                   param,
-                  role: r.role,
-                  password: r.password.trim() || null,
+                  role: d.role,
+                  factory,
+                  password: d.password.trim() || null,
                 },
               })
             ).data?.updateAdmin
           : (
               await create({
-                variables: { param, password: r.password, role: r.role },
+                variables: {
+                  param,
+                  password: d.password,
+                  role: d.role,
+                  factory,
+                },
               })
             ).data?.createAdmin,
       {
         success: `${param}: хадгаллаа`,
         onSuccess: async () => {
-          if (id) clearEdit(id);
-          else setNewRow(EMPTY);
+          setDraft(null);
           await refetch();
         },
       },
     );
-    setBusy(null);
+    setBusy(false);
   }
 
   async function onDelete(id: string, param: string) {
     if (!confirm(`${param} — устгах уу?`)) return;
-    setBusy(id);
     await runMutation(
       async () => (await remove({ variables: { id } })).data?.deleteAdmin,
       { success: "Устгалаа", onSuccess: () => refetch() },
     );
-    setBusy(null);
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ажилтны эрх</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {loading && admins.length === 0 ? (
-          <Skeleton className="h-24 w-full" />
-        ) : null}
-        {admins.map((a) => {
-          const id = a.id!;
-          const r = edits[id] ?? {
-            param: a.param ?? "",
-            role: a.role ?? "ADMIN",
-            password: "",
-          };
-          return (
-            <AdminRow
-              key={id}
-              row={r}
-              roles={roles}
-              locked={!canGrantSuper && a.role === "SUPER_ADMIN"}
-              busy={busy === id}
-              onChange={(p) =>
-                setEdits((s) => ({ ...s, [id]: { ...r, ...p } }))
-              }
-              onSave={() => save(id, r)}
-              onDelete={
-                canDelete ? () => onDelete(id, a.param ?? "") : undefined
-              }
-            />
-          );
-        })}
-        <AdminRow
-          row={newRow}
-          roles={roles}
-          isNew
-          busy={busy === "new"}
-          onChange={(p) => setNewRow((s) => ({ ...s, ...p }))}
-          onSave={() => save(null, newRow)}
-        />
-        <p className="text-xs text-muted-foreground">
-          Нууц үгийг хоосон орхивол хуучнаараа үлдэнэ.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AdminRow({
-  row,
-  roles,
-  isNew,
-  locked,
-  busy,
-  onChange,
-  onSave,
-  onDelete,
-}: {
-  row: Row;
-  roles: AdminRole[];
-  isNew?: boolean;
-  locked?: boolean;
-  busy: boolean;
-  onChange: (patch: Partial<Row>) => void;
-  onSave: () => void;
-  onDelete?: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Input
-        aria-label="Нэвтрэх нэр"
-        placeholder={isNew ? "Шинэ ажилтан — нэвтрэх нэр" : "Нэвтрэх нэр"}
-        value={row.param}
-        disabled={locked}
-        onChange={(e) => onChange({ param: e.target.value })}
-        className="h-11 min-w-48 flex-1"
-      />
-      <Select
-        value={row.role}
-        disabled={locked}
-        onValueChange={(v) => v && onChange({ role: v as AdminRole })}
-      >
-        <SelectTrigger aria-label="Эрх" className="h-11 min-w-40">
-          <SelectValue>
-            <span>{ROLE_MN[row.role] ?? row.role}</span>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {roles.map((r) => (
-            <SelectItem key={r} value={r}>
-              {ROLE_MN[r]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input
-        aria-label="Нууц үг"
-        type="password"
-        autoComplete="new-password"
-        placeholder={isNew ? "Нууц үг" : "Шинэ нууц үг"}
-        value={row.password}
-        disabled={locked}
-        onChange={(e) => onChange({ password: e.target.value })}
-        className="h-11 min-w-40 flex-1"
-      />
-      <Button
-        variant={isNew ? "default" : "outline"}
-        className="h-11 gap-2"
-        disabled={busy || locked}
-        onClick={onSave}
-      >
-        {isNew ? <PlusIcon className="size-4" /> : null}
-        {busy ? "..." : isNew ? "Нэмэх" : "Хадгалах"}
-      </Button>
-      {onDelete ? (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <FactoryFilter />
         <Button
-          variant="ghost"
-          className="h-11"
-          aria-label="Устгах"
-          disabled={busy}
-          onClick={onDelete}
+          className="gap-2"
+          onClick={() => setDraft({ ...BLANK, factory: filter })}
         >
-          <Trash2Icon className="text-destructive" />
+          <PlusIcon className="size-4" />
+          Ажилтан нэмэх
         </Button>
-      ) : null}
+      </div>
+
+      {loading && admins.length === 0 ? (
+        <Skeleton className="h-48 w-full" />
+      ) : admins.length === 0 ? (
+        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
+          Ажилтан алга
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Нэвтрэх нэр</TableHead>
+                <TableHead>Эрх</TableHead>
+                <TableHead>Үйлдвэр</TableHead>
+                <TableHead className="w-24" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {admins.map((a) => {
+                const role = a.role ?? "STOREKEEPER";
+                return (
+                  <TableRow key={a.id!}>
+                    <TableCell className="font-medium">{a.param}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={ROLE_COLOR[role] ?? "border-0 bg-muted"}
+                      >
+                        {ROLE_MN[role] ?? role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {isCrossFactoryRole(role) ? (
+                        <span className="text-muted-foreground">
+                          Бүх үйлдвэр
+                        </span>
+                      ) : a.factory ? (
+                        FACTORY_MN[a.factory]
+                      ) : (
+                        <span className="text-destructive">Оноогоогүй</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Засах"
+                        onClick={() =>
+                          setDraft({
+                            id: a.id!,
+                            param: a.param ?? "",
+                            role,
+                            factory: a.factory ?? null,
+                            password: "",
+                          })
+                        }
+                      >
+                        <PencilIcon className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Устгах"
+                        onClick={() => onDelete(a.id!, a.param ?? "")}
+                      >
+                        <Trash2Icon className="size-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <Sheet
+        open={draft !== null}
+        onOpenChange={(open) => {
+          if (!open) setDraft(null);
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>
+              {draft?.id ? "Ажилтан засах" : "Шинэ ажилтан"}
+            </SheetTitle>
+            <SheetDescription>
+              Ажилтан нэвтрэх нэр, нууц үгээрээ системд нэвтэрнэ.
+            </SheetDescription>
+          </SheetHeader>
+          {draft ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSave(draft);
+              }}
+              className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4"
+            >
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-param">Нэвтрэх нэр</Label>
+                <Input
+                  id="staff-param"
+                  autoComplete="off"
+                  value={draft.param}
+                  onChange={(e) => patch({ param: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-sm font-medium">Эрх</legend>
+                {ROLES.map((r) => (
+                  <label
+                    key={r}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors",
+                      draft.role === r
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="staff-role"
+                      checked={draft.role === r}
+                      onChange={() => patch({ role: r })}
+                      className="mt-1 h-4 w-4"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="font-medium">{ROLE_MN[r]}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {ROLE_DESC[r]}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </fieldset>
+
+              {!isCrossFactoryRole(draft.role) ? (
+                <fieldset className="space-y-2">
+                  <legend className="mb-2 text-sm font-medium">Үйлдвэр</legend>
+                  {FACTORIES.map((f) => (
+                    <label
+                      key={f}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors",
+                        draft.factory === f
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="staff-factory"
+                        checked={draft.factory === f}
+                        onChange={() => patch({ factory: f })}
+                        className="h-4 w-4"
+                      />
+                      {FACTORY_MN[f]}
+                    </label>
+                  ))}
+                </fieldset>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="staff-password">
+                  {draft.id ? "Шинэ нууц үг" : "Нууц үг"}
+                </Label>
+                <Input
+                  id="staff-password"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={draft.id ? "Хоосон бол хуучнаараа үлдэнэ" : ""}
+                  value={draft.password}
+                  onChange={(e) => patch({ password: e.target.value })}
+                  className="h-11"
+                />
+              </div>
+
+              <Button type="submit" className="h-11 w-full" disabled={busy}>
+                {busy ? "Хадгалж байна…" : "Хадгалах"}
+              </Button>
+            </form>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

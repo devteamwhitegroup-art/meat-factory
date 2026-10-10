@@ -5,7 +5,6 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import {
   TByproductConstant,
   TCreateByproductConstant,
-  TDerivedByproduct,
   TGetByproductConstants,
   TUpdateByproductConstant,
 } from "../../types/livestock/byproduct-constant.type";
@@ -129,61 +128,5 @@ export class ByproductConstantController {
   static async remove(id: string): Promise<void> {
     const row = await this.findIdCheck(id);
     await row.destroy();
-  }
-
-  // Derive byproducts for a set of animal counts using active wrappers and
-  // their active items. Wrappers join Animals by animalId — the animalType
-  // and the cover flag both come off the joined Animal row, so all wrappers
-  // of a horse share the same flag automatically.
-  static async deriveForCounts(
-    counts: Record<string, number>,
-  ): Promise<TDerivedByproduct[]> {
-    const types = Object.keys(counts).filter((t) => (counts[t] ?? 0) > 0);
-    if (types.length === 0) return [];
-
-    const items = await ByproductConstantModel.findAll({
-      where: { isActive: true },
-      include: [
-        {
-          model: ByproductWrapperModel,
-          as: "wrapper",
-          required: true,
-          where: { isActive: true },
-          include: [
-            {
-              model: AnimalModel,
-              as: "animal",
-              required: true,
-              where: { name: { [Op.in]: types } },
-            },
-          ],
-        },
-      ],
-      order: [["name", "ASC"]],
-    });
-
-    return items.map((item) => {
-      const wrapper = item.wrapper as ByproductWrapperModel;
-      const animal = wrapper.animal as AnimalModel;
-      const animalType = animal.name;
-      const animalCount = counts[animalType] ?? 0;
-      const quantity = animalCount * item.quantityPerAnimal;
-      const unitWeightKg =
-        item.unitWeightKg != null ? Number(item.unitWeightKg) : null;
-      const weightKg =
-        unitWeightKg != null
-          ? Number((quantity * unitWeightKg).toFixed(2))
-          : null;
-      return {
-        animalType,
-        wrapperId: wrapper.id,
-        wrapperName: wrapper.name,
-        name: item.name,
-        quantity,
-        unitWeightKg,
-        weightKg,
-        canCoverSlaughterCost: !!animal.canCoverSlaughterCost,
-      };
-    });
   }
 }

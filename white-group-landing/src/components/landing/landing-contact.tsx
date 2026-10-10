@@ -1,106 +1,112 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Mail, MapPin, Phone } from "lucide-react";
-import { toast } from "sonner";
+import { Check } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import { CONTACT, type Copy } from "./data";
+import { Kicker } from "./section-heading";
 
-const CONTACTS = [
-  {
-    icon: MapPin,
-    label: "Хаяг",
-    value: "Дорнод аймаг, Чойбалсангаас зүүн 12 км",
-  },
-  { icon: Phone, label: "Утас", value: "+976 ____ ____" },
-  { icon: Mail, label: "И-мэйл", value: "info@whitegroup.mn" },
-];
+const ROW = "grid grid-cols-[110px_minmax(0,1fr)] gap-4 border-b border-line py-4";
+const DT = "pt-[3px] text-[12.5px] tracking-[0.08em] text-ink/70 uppercase";
 
-export function LandingContact() {
+export function LandingContact({ t }: { t: Copy }) {
   const [sent, setSent] = useState(false);
+  const [buyer, setBuyer] = useState(0);
+  const c = t.contact;
 
+  // ponytail: no backend — submit only shows the thank-you state, same as the old page.
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSent(true);
-    toast.success("Хүсэлт хүлээн авлаа. Бид тантай удахгүй холбогдоно.");
   }
 
   return (
     <section
       id="contact"
-      className="brand-gold-gradient relative scroll-mt-20 overflow-hidden py-16 md:py-20"
+      className="grid scroll-mt-20 grid-cols-[repeat(auto-fit,minmax(min(100%,360px),1fr))] items-start gap-x-[clamp(32px,6vw,96px)] gap-y-14 pt-26 pb-30"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(70% 90% at 80% 10%, rgba(255,255,255,0.22), transparent 55%)",
-        }}
-      />
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-5 sm:px-6 md:grid-cols-2">
-        <div>
-          <h2 className="font-display text-[clamp(26px,3.2vw,38px)] leading-[1.12] font-extrabold text-[#3a2a08]">
-            Хамтран ажиллахад бэлэн
-          </h2>
-          <p className="mt-4 mb-7 max-w-[30em] text-[17px] text-[#5b430f]">
-            Захиалга, хамтын ажиллагаа, нийлүүлэлтийн талаар бидэнтэй
-            холбогдоорой.
-          </p>
-          <div className="flex flex-col">
-            {CONTACTS.map((c) => (
-              <div
-                key={c.label}
-                className="flex items-center gap-3.5 border-b border-[#3a2a08]/15 py-3.5 last:border-0"
-              >
-                <c.icon className="size-5 flex-none text-[#6b4f12]" />
-                <div>
-                  <div className="text-xs font-bold tracking-[0.12em] text-[#7c5d18] uppercase">
-                    {c.label}
-                  </div>
-                  <div className="text-base font-semibold text-[#3a2a08]">
-                    {c.value}
-                  </div>
+      <div>
+        <Kicker>{c.kicker}</Kicker>
+        <h2 className="mt-[18px] font-heading text-[clamp(38px,4.4vw,60px)] leading-[1.05] font-normal tracking-[-0.01em]">
+          {c.title}
+        </h2>
+        <p className="mt-[22px] max-w-[46ch] text-ink/80">{c.sub}</p>
+        <dl className="mt-9 border-t border-line">
+          <div className={ROW}>
+            <dt className={DT}>{c.phoneL}</dt>
+            <dd className="font-heading text-2xl tabular-nums">
+              <a href={CONTACT.phoneHref} className="text-gold-700 hover:text-gold-600">
+                {CONTACT.phone}
+              </a>
+            </dd>
+          </div>
+          <div className={ROW}>
+            <dt className={DT}>{c.emailL}</dt>
+            <dd className="font-heading text-2xl break-words">
+              <a href={`mailto:${CONTACT.email}`} className="text-gold-700 hover:text-gold-600">
+                {CONTACT.email}
+              </a>
+            </dd>
+          </div>
+          <div className={ROW}>
+            <dt className={DT}>{c.addrL}</dt>
+            <dd className="text-base leading-[1.55]">{c.addr}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="card p-8 shadow-[0_1px_2px_rgb(45_43_43/0.14)]">
+        {sent ? (
+          <div className="flex flex-col items-start gap-3.5 py-6">
+            <Check className="size-8 text-gold" strokeWidth={1.4} />
+            <h3 className="font-heading text-[28px] font-semibold">{c.thanks}</h3>
+            <p className="text-ink/78">{c.thanksBody}</p>
+            <button type="button" className="btn btn-ghost" onClick={() => setSent(false)}>
+              {c.again}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <h3 className="font-heading text-[26px] font-semibold">{c.formTitle}</h3>
+            <div className="mt-[22px] flex flex-col gap-4">
+              <div className="field">
+                <label htmlFor="c-name">{c.fName}</label>
+                <input id="c-name" name="name" className="input" required />
+              </div>
+              <div className="field">
+                <label htmlFor="c-contact">{c.fContact}</label>
+                <input id="c-contact" name="contact" className="input" required />
+              </div>
+              <div className="field">
+                <label id="c-buyer">{c.fBuyer}</label>
+                <div role="group" aria-labelledby="c-buyer" className="flex flex-wrap gap-2">
+                  {c.buyers.map((label, i) => (
+                    <button
+                      key={label}
+                      type="button"
+                      aria-pressed={i === buyer}
+                      onClick={() => setBuyer(i)}
+                      className={cn(
+                        "cursor-pointer rounded-md border px-3 py-[7px] text-[13.5px]",
+                        i === buyer ? "border-gold bg-gold/10 text-gold-700" : "border-line text-ink",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_30px_60px_-28px_rgba(120,86,12,0.6)] sm:p-9">
-          <h3 className="mb-5 text-lg font-extrabold text-brand-ink">
-            Хүсэлт илгээх
-          </h3>
-          <form onSubmit={onSubmit} className="space-y-3.5">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-name">Нэр</Label>
-              <Input id="c-name" placeholder="Таны нэр" required />
+              <div className="field">
+                <label htmlFor="c-msg">{c.fMsg}</label>
+                <textarea id="c-msg" name="message" rows={4} className="input min-h-[90px] resize-y" />
+              </div>
+              <button type="submit" className="btn btn-primary mt-2 w-full p-3 text-base">
+                {c.send}
+              </button>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-contact">Утас / И-мэйл</Label>
-              <Input
-                id="c-contact"
-                placeholder="Холбоо барих мэдээлэл"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-msg">Захиалга / зурвас</Label>
-              <Textarea id="c-msg" rows={3} placeholder="Таны хүсэлт..." />
-            </div>
-            <Button
-              type="submit"
-              disabled={sent}
-              className="h-12 w-full rounded-full bg-brand-ink text-[15px] text-white hover:bg-black"
-            >
-              {sent ? "Баярлалаа ✓" : "Илгээх"}
-              {!sent && <ArrowRight className="size-4" />}
-            </Button>
           </form>
-        </div>
+        )}
       </div>
     </section>
   );
