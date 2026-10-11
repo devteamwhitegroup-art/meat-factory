@@ -1,8 +1,7 @@
 import { cookies } from "next/headers";
-import { decodeJwt } from "jose";
 import { z } from "zod";
 import { env } from "@/lib/env";
-import { FACTORY_COOKIE } from "@/lib/auth/server";
+import { FACTORY_COOKIE, NAME_COOKIE, PERMS_COOKIE } from "@/lib/auth/server";
 
 const LOGIN_DOC = /* GraphQL */ `
   mutation LoginAdmin($param: String!, $password: String!) {
@@ -12,8 +11,13 @@ const LOGIN_DOC = /* GraphQL */ `
       token
       admin {
         id
-        role
+        param
         factory
+        role {
+          name
+          permissions
+          crossFactory
+        }
       }
     }
   }
@@ -56,7 +60,16 @@ export async function POST(request: Request) {
         success: boolean;
         message: string;
         token: string | null;
-        admin: { id: string; role: string; factory: string | null } | null;
+        admin: {
+          id: string;
+          param: string;
+          factory: string | null;
+          role: {
+            name: string;
+            permissions: string[];
+            crossFactory: boolean;
+          } | null;
+        } | null;
       };
     };
   };
@@ -69,41 +82,34 @@ export async function POST(request: Request) {
     );
   }
 
-  // Decode (no verify — back-end re-verifies every request) to read staffRole.
-  let staffRole = r.admin?.role ?? "ADMIN";
-  try {
-    const payload = decodeJwt(r.token) as { staffRole?: string };
-    if (payload.staffRole) staffRole = payload.staffRole;
-  } catch {
-    /* keep fallback */
-  }
-
   const jar = await cookies();
   const week = 60 * 60 * 24 * 7;
-  jar.set(env.AUTH_COOKIE_NAME, r.token, {
-    httpOnly: true,
-    sameSite: "lax",
+  const base = {
+    sameSite: "lax" as const,
     secure: env.COOKIE_SECURE,
     path: "/",
     maxAge: week,
-  });
-  jar.set(env.ROLE_COOKIE_NAME, staffRole, {
+  };
+  jar.set(env.AUTH_COOKIE_NAME, r.token, { ...base, httpOnly: true });
+  // UX gating only (the back-end re-checks every request): the role's
+  // permission keys + its display name, readable by client components.
+  jar.set(PERMS_COOKIE, (r.admin?.role?.permissions ?? []).join(","), {
+    ...base,
     httpOnly: false,
-    sameSite: "lax",
-    secure: env.COOKIE_SECURE,
-    path: "/",
-    maxAge: week,
+  });
+  jar.set(env.ROLE_COOKIE_NAME, r.admin?.role?.name ?? "", {
+    ...base,
+    httpOnly: false,
+  });
+  // Staff's site; absent for cross-factory roles (they span every factory).
+  if (r.admin?.factory)
+    jar.set(FACTORY_COOKIE, r.admin.factory, { ...base, httpOnly: false });
+  else jar.delete(FACTORY_COOKIE);
+  // Display only — read server-side by AppShell.
+  jar.set(NAME_COOKIE, r.admin?.param ?? parsed.param, {
+    ...base,
+    httpOnly: true,
   });
 
-  if (r.admin?.factory)
-    jar.set(FACTORY_COOKIE, r.admin.factory, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: env.COOKIE_SECURE,
-      path: "/",
-      maxAge: week,
-    });
-  else jar.delete(FACTORY_COOKIE);
-
-  return Response.json({ ok: true, role: staffRole });
+  return Response.json({ ok: true });
 }

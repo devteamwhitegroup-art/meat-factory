@@ -17,7 +17,10 @@ this is the meat-factory backend. The web UI lives in the **separate**
 - Build: `npx tsc -p .` (must be clean) → `node dist/index.js`.
 - Server: `http://localhost:8086`, GraphQL at `/graphql`.
 - DB: local Postgres `meat_factory` on `:5432` (creds in `.env.local`).
-- Seed: `POST /seed/admin` (ADMIN), `POST /seed/staff` (one per role).
+- Boot seeds (empty tables only): the 4 default roles + 3 factories. Then
+  `POST /seed/admin` (system-role owner), `POST /seed/staff` (one per default
+  role, dev only). Existing DBs: run `sql/2026-10-11-roles-factories.sql` once
+  before booting (Admins.role enum → role_id; factory enums → varchar codes).
 
 ## Layout (per-domain folders under `src/`)
 
@@ -46,14 +49,19 @@ order, include, distinct})` from `src/utils`. `findIdCheck` is a PUBLIC
 - **TypeDefs**: backticked `#graphql`, `extend type Query/Mutation`, enums via
   `${Object.values(E).join('\n ')}`, `${PaginationSchema}` from global typedef.
   Declare each enum/scalar/input exactly ONCE (`mergeTypeDefs` throws on dupes).
-- **Auth**: `@authLogin` (any staff) / `@auth(permissions:[...])` (role-checked vs
-  live DB). Roles on `AdminModel.role`. JWT `{id,role}` as `Bearer` in
-  `Authorization`. `TContext = {id, role, factory}` injected by the directive
-  (role + factory read live from the DB). Roles: ADMIN (all, every factory),
-  STOREKEEPER/нярав (all data entry), ACCOUNTANT/нягтлан (money), DOCTOR/эмч
-  (medical number). Factory boundary:
-  `AdminController.scopeFactory(context)` → null for ADMIN
-  (`CROSS_FACTORY_ROLES`), else the actor's `FACTORY` (throws if unassigned).
+- **Auth**: `@authLogin` (any staff) / `@auth(permissions:[PERMISSION…])` — the
+  actor's role must hold ANY listed key, read live from the DB per request.
+  `PERMISSION` enum + labelled groups: `types/user/permission.type.ts` (add a key
+  there when a new guarded operation needs its own switch — never a new
+  hard-coded role). Roles are DB rows (`Roles`: name, permissions[], crossFactory,
+  isSystem) managed by admin via `roles`/`createRole`/…; `Admin.roleId` → Role.
+  The seeded system role (isSystem) is undeletable and always holds every
+  permission. JWT carries `{id}` only. `TContext = {id, permissions,
+  crossFactory, factory}`. Controllers re-check with
+  `AdminController.assertPermission(ctx, ...anyOf)` / `hasPermission`.
+  Factory boundary: `AdminController.scopeFactory(context)` → null for
+  cross-factory roles, else the actor's factory code (throws if unassigned);
+  `readFactory`/`writeFactory`/`assertFactory` build on it.
 
 ## ⚠️ Schema sync gotcha
 
@@ -81,10 +89,16 @@ PAYMENT_PENDING→SETTLED (CANCELLED from REGISTERED). Plus Customer,
 SalesTransaction, Shipment (PENDING→LOADED→DELIVERED), Inventory ledger
 (Item+Movement), and a single `dashboard(dateRange)` aggregation query.
 
-Three factories (`FACTORY` enum): FACTORY_1 = live animals (stamp, бой
-зардал, verify). FACTORY_2 = pre-butchered meat — no stamp/бой/verify; meat +
-гэдэс stock at `finishWeighing`, settlement from WEIGHED (`isPreButchered`).
-FACTORY_3 = byproduct factory (`BYPRODUCT_FACTORY`) — never takes livestock.
+Factories are DB rows (`Factories`: code PK, name, kind, isActive; admin-managed
+via `factories`/`createFactory`/`updateFactory`), cached in-process by
+`FactoryController` (loaded at boot, refreshed on write). Every `factory` column
+stores the code. Rules branch on `FACTORY_KIND`, never on a code:
+LIVE_SLAUGHTER = live animals (stamp, бой зардал, verify). PRE_BUTCHERED = meat
+intake — no stamp/бой/verify; meat + гэдэс stock at `finishWeighing`,
+settlement from WEIGHED (`FactoryController.isPreButchered(code)`). BYPRODUCT =
+receives counted гэдэс, disassembles it, never takes livestock
+(`isByproduct`, `defaultByproductFactory`). Seeded defaults on an empty table:
+FACTORY_1/2/3. Adding a site = a row, not a code change.
 Incoming byproduct is COUNT only: `ByproductBundle` per wrapper (гэдэс) —
 count, herderCount, unitPrice; kept × price credits the settlement. Kept гэдэс
 enter stock as pieces (`quantityCount`), are transferred F1/F2 → F3, and F3

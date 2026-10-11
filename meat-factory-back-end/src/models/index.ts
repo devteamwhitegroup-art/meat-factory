@@ -2,6 +2,13 @@ import { Sequelize } from "sequelize";
 
 //User
 import { createAdminModel, AdminModel } from "./user/admin.model";
+import { createRoleModel, RoleModel } from "./user/role.model";
+
+//Factory
+import {
+  createFactoryModel,
+  FactoryModel,
+} from "./factory/factory.model";
 
 //File
 import { FileModel, createFileModel } from "./global/file.model";
@@ -36,6 +43,10 @@ import {
   createMedicalNumberModel,
   MedicalNumberModel,
 } from "./livestock/medical-number.model";
+import {
+  createRegistrationChangeRequestModel,
+  RegistrationChangeRequestModel,
+} from "./livestock/registration-change-request.model";
 import {
   createVerificationModel,
   VerificationModel,
@@ -93,6 +104,10 @@ import {
   createShipmentSaleLineModel,
   ShipmentSaleLineModel,
 } from "./shipment/shipment-sale-line.model";
+import {
+  createShipmentSaleEntryModel,
+  ShipmentSaleEntryModel,
+} from "./shipment/shipment-sale-entry.model";
 
 //Inventory
 import {
@@ -130,7 +145,11 @@ export const setupModel = (sequelize: Sequelize) => {
   // columns and associations are wired in Phase 2 (associate). The load-bearing
   // rule is that ALL init() run before ANY associate() (circular-import safety). ──
   //User
+  createRoleModel(sequelize);
   createAdminModel(sequelize);
+
+  //Factory
+  createFactoryModel(sequelize);
 
   //File
   createFileModel(sequelize);
@@ -144,6 +163,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createWeighingEntryAuditModel(sequelize);
   createByproductBundleModel(sequelize);
   createMedicalNumberModel(sequelize);
+  createRegistrationChangeRequestModel(sequelize);
   createVerificationModel(sequelize);
   createSettlementModel(sequelize);
   createSettlementLineModel(sequelize);
@@ -165,6 +185,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createShipmentCargoEntryModel(sequelize);
   createShipmentPhotoModel(sequelize);
   createShipmentSaleLineModel(sequelize);
+  createShipmentSaleEntryModel(sequelize);
 
   //Inventory
   createInventoryItemModel(sequelize);
@@ -183,7 +204,11 @@ export const setupModel = (sequelize: Sequelize) => {
 
   // ── Phase 2: associate() — AFTER all init() (circular-import safety) ──
   //User
+  RoleModel.associate();
   AdminModel.associate();
+
+  //Factory
+  FactoryModel.associate();
 
   //File
   FileModel.associate();
@@ -197,6 +222,7 @@ export const setupModel = (sequelize: Sequelize) => {
   WeighingEntryAuditModel.associate();
   ByproductBundleModel.associate();
   MedicalNumberModel.associate();
+  RegistrationChangeRequestModel.associate();
   VerificationModel.associate();
   SettlementModel.associate();
   SettlementLineModel.associate();
@@ -218,6 +244,7 @@ export const setupModel = (sequelize: Sequelize) => {
   ShipmentCargoEntryModel.associate();
   ShipmentPhotoModel.associate();
   ShipmentSaleLineModel.associate();
+  ShipmentSaleEntryModel.associate();
 
   //Inventory
   InventoryItemModel.associate();

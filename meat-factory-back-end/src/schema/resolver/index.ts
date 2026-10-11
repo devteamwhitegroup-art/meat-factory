@@ -1,5 +1,9 @@
 //User
 import adminResolver from "./user/admin.resolver";
+import roleResolver from "./user/role.resolver";
+
+//Factory
+import factoryResolver from "./factory/factory.resolver";
 
 //Livestock
 import herderResolver from "./livestock/herder.resolver";
@@ -36,6 +40,10 @@ import printResolver from "./print/print.resolver";
 export const resolvers = [
   //User
   adminResolver,
+  roleResolver,
+
+  //Factory
+  factoryResolver,
 
   //Livestock
   herderResolver,

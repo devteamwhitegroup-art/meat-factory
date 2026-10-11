@@ -1,4 +1,4 @@
-import { ADMIN_ROLE, FACTORY } from '../user/admin.type';
+import { PERMISSION } from '../user/permission.type';
 
 // Raw GraphQL context built in index.ts from the Authorization header,
 // before the auth directive resolves the bearer token to an admin.
@@ -10,11 +10,14 @@ export type TBaseContext = {
 };
 
 // Context seen by guarded resolver fields — the auth directive injects the
-// authenticated admin's id/role/factory on top of the base context.
+// authenticated admin's id, their role's permissions and factory binding on
+// top of the base context (all read live from the DB, never from the JWT).
 export type TContext = {
   id: string;
-  role: ADMIN_ROLE;
-  factory: FACTORY | null;
+  permissions: readonly PERMISSION[];
+  // Role spans every factory (then `factory` is null).
+  crossFactory: boolean;
+  factory: string | null;
 };
 
 export type TPagination = {

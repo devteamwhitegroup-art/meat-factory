@@ -6,7 +6,6 @@ import {
   TShipment,
 } from "../../types/shipment/shipment.type";
 import { CustomerModel } from "../customer/customer.model";
-import { FACTORY } from "../../types/user/admin.type";
 import { AdminModel } from "../user/admin.model";
 import { FileModel } from "../global/file.model";
 import { ShipmentCargoEntryModel } from "./shipment-cargo-entry.model";
@@ -26,7 +25,7 @@ export class ShipmentModel extends Model implements TShipment {
   public totalPrice!: number | null;
   public pricedAt!: Date | null;
   public status!: SHIPMENT_STATUS;
-  public factory!: FACTORY;
+  public factory!: string;
   public shippedAt!: Date | null;
   public loadedById!: string;
   // e.g. "УНО0223" — the truck identifier copied from the notebook.
@@ -131,11 +130,10 @@ export const createShipmentModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: SHIPMENT_STATUS.PENDING,
       },
-      // Pre-split shipments all left FACTORY_1.
+      // Factories.code — kind rules live in FactoryController.
       factory: {
-        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        type: DataTypes.STRING(32),
         allowNull: false,
-        defaultValue: FACTORY.FACTORY_1,
       },
       shippedAt: {
         type: DataTypes.DATE,

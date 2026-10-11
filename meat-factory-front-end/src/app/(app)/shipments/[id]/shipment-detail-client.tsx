@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ShipmentAnalyticsDoc,
   ShipmentDetailDoc,
   UpdateShipmentStatusDoc,
 } from "@/lib/queries/shipment";
@@ -28,7 +29,9 @@ import { LoadingInfoEditor } from "./_components/LoadingInfoEditor";
 import { ShipmentPhotoGallery } from "./_components/ShipmentPhotoGallery";
 import { CargoLineForm } from "./_components/CargoLineForm";
 import { CargoManifest } from "./_components/CargoManifest";
-import { SalePricingPanel } from "./_components/SalePricingPanel";
+import { SalesReportPanel } from "@/components/sales/SalesReportPanel";
+import { toSaleLineRows } from "@/components/sales/sale-line-rows";
+import { ShipmentAnalyticsCard } from "./_components/ShipmentAnalyticsCard";
 
 const CATEGORY_COLOR: Record<string, string> = {
   EXPORT: "border-0 bg-indigo-100 text-indigo-800",
@@ -47,15 +50,37 @@ const NEXT: Record<string, string | null> = {
   DELIVERED: null,
 };
 
-export function ShipmentDetailClient({ id }: { id: string }) {
+export function ShipmentDetailClient({
+  id,
+  isAdmin,
+  canEdit,
+  canSales,
+}: {
+  id: string;
+  isAdmin: boolean;
+  // нярав / admin load and edit; нягтлан only views.
+  canEdit: boolean;
+  // Sales report + invoice: нягтлан / admin.
+  canSales: boolean;
+}) {
   const {
     data,
     loading: fetching,
-    refetch,
+    refetch: refetchShipment,
   } = useQuery(ShipmentDetailDoc, {
     variables: { id },
     fetchPolicy: "cache-and-network",
   });
+  const { data: analyticsData, refetch: refetchAnalytics } = useQuery(
+    ShipmentAnalyticsDoc,
+    { variables: { id }, skip: !isAdmin, fetchPolicy: "cache-and-network" },
+  );
+  const analytics = analyticsData?.shipmentAnalytics?.analytics;
+  // Report / status changes move both the shipment and its analytics.
+  const refetch = () => {
+    refetchShipment();
+    if (isAdmin) refetchAnalytics();
+  };
   const [updateStatus] = useMutation(UpdateShipmentStatusDoc);
 
   if (fetching && !data) return <Skeleton className="h-72 w-full" />;
@@ -68,7 +93,7 @@ export function ShipmentDetailClient({ id }: { id: string }) {
   // manifest, prices and driver info freeze (the back-end enforces this too —
   // any edit mutation past PENDING returns success:false with a lock message,
   // surfaced as a toast via runMutation).
-  const editable = s.status === "PENDING";
+  const editable = canEdit && s.status === "PENDING";
   const category = s.category ?? "";
 
   async function advance() {
@@ -99,7 +124,11 @@ export function ShipmentDetailClient({ id }: { id: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-6">
           <BackButton
-            href={category ? `/shipments/${category.toLowerCase()}` : undefined}
+            href={
+              category
+                ? `/shipments?tab=${category.toLowerCase()}`
+                : "/shipments"
+            }
           />
           <div>
             <div className="text-sm text-muted-foreground">Ачилтын дугаар</div>
@@ -126,15 +155,15 @@ export function ShipmentDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {!editable ? (
+      {!canEdit ? null : !editable ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Ачилт {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status} болсон тул
           зөвхөн харах боломжтой.
         </div>
       ) : (
         <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Дараалал: бараа нэмэх → үнэ тохирох → жолоочийн мэдээлэл бөглөх →
-          «LOADED болгох».
+          Дараалал: бараа нэмэх → жолоочийн мэдээлэл бөглөх → «Ачигдсан болгох».
+          Борлуулалтын тайланг нягтлан ачилт гарсны дараа бүртгэнэ.
         </div>
       )}
 
@@ -165,7 +194,7 @@ export function ShipmentDetailClient({ id }: { id: string }) {
               </div>
             ))}
           </div>
-          {nextStatus ? (
+          {!canEdit ? null : nextStatus ? (
             <div className="mt-4 flex justify-end">
               <Button onClick={advance}>
                 {SHIPMENT_STATUS_MN[nextStatus] ?? nextStatus} болгох
@@ -235,6 +264,7 @@ export function ShipmentDetailClient({ id }: { id: string }) {
 
       <ShipmentPhotoGallery
         shipmentId={id}
+        canEdit={canEdit}
         photos={compact(s.photos).map((p) => ({
           id: p.id!,
           sequenceNo: Number(p.sequenceNo ?? 0),
@@ -268,22 +298,19 @@ export function ShipmentDetailClient({ id }: { id: string }) {
         onChanged={refetch}
       />
 
-      <SalePricingPanel
-        editable={editable}
-        totalPrice={s.totalPrice != null ? Number(s.totalPrice) : null}
-        saleLines={compact(s.saleLines).map((l) => ({
-          id: l.id!,
-          productType: l.productType ?? null,
-          animalType: l.animalType ?? null,
-          byproductName: l.byproductName ?? null,
-          totalWeightKg: Number(l.totalWeightKg ?? 0),
-          pricePerKg: l.pricePerKg != null ? Number(l.pricePerKg) : null,
-          amount: l.amount != null ? Number(l.amount) : null,
-        }))}
-        onChanged={refetch}
-      />
+      {canSales ? (
+        <SalesReportPanel
+          canReport={s.status !== "PENDING"}
+          totalPrice={s.totalPrice != null ? Number(s.totalPrice) : null}
+          saleLines={toSaleLineRows(s.saleLines)}
+          onChanged={refetch}
+        />
+      ) : null}
 
-      {s.salesTransaction?.id ? (
+      {isAdmin && analytics ? <ShipmentAnalyticsCard a={analytics} /> : null}
+
+      {/* Invoice is the money side — нягтлан / admin, not нярав. */}
+      {canSales && s.salesTransaction?.id ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base">Нэхэмжлэх</CardTitle>

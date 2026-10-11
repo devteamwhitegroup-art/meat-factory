@@ -48,7 +48,12 @@ export class DashboardController {
 
   private static async _pendingServicesCount(): Promise<number> {
     return await SalesTransactionModel.count({
-      where: { paymentStatus: PAYMENT_STATUS.PENDING },
+      // Not fully paid yet — partly paid ones are still outstanding.
+      where: {
+        paymentStatus: {
+          [Op.in]: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.PARTIALLY_PAID],
+        },
+      },
     });
   }
 

@@ -33,7 +33,12 @@ export function RegistrationCard({
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {(animalLines ?? []).map((l) => (
               <span key={l.animalType}>
-                {l.animalType}: <b>{l.count}</b>
+                {l.animalType}
+                {l.count ? (
+                  <>
+                    : <b>{l.count}</b>
+                  </>
+                ) : null}
               </span>
             ))}
           </div>

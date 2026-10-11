@@ -1,20 +1,10 @@
-import { ADMIN_ROLE, FACTORY } from '../../../types/user/admin.type';
-
 export default `#graphql
-    enum ADMIN_ROLE {
-        ${Object.values(ADMIN_ROLE).join('\n ')}
-    }
-
-    enum FACTORY {
-        ${Object.values(FACTORY).join('\n ')}
-    }
-
     type Admin {
         id: ID
         param: String
-        role: ADMIN_ROLE
-        # null = owner/admin (sees both factories)
-        factory: FACTORY
+        role: Role
+        # Factories.code; null = cross-factory role (sees every site)
+        factory: String
 
         createdAt: Date
         updatedAt: Date
@@ -42,7 +32,7 @@ export default `#graphql
 
     extend type Query {
         currentAdmin: AdminResponse @authLogin
-        admins: AdminsResponse @auth(permissions: ["ADMIN"])
+        admins: AdminsResponse @auth(permissions: [STAFF_MANAGE])
     }
 
     extend type Mutation {
@@ -54,20 +44,20 @@ export default `#graphql
         createAdmin(
             param: String!
             password: String!
-            role: ADMIN_ROLE
-            factory: FACTORY
-        ): AdminResponse @auth(permissions: ["ADMIN"])
+            roleId: ID!
+            factory: String
+        ): AdminResponse @auth(permissions: [STAFF_MANAGE])
 
         updateAdmin(
             id: ID!
             param: String
             password: String
-            role: ADMIN_ROLE
-            factory: FACTORY
-        ): AdminResponse @auth(permissions: ["ADMIN"])
+            roleId: ID
+            factory: String
+        ): AdminResponse @auth(permissions: [STAFF_MANAGE])
 
         deleteAdmin(
             id: ID!
-        ): Response @auth(permissions: ["ADMIN"])
+        ): Response @auth(permissions: [STAFF_MANAGE])
     }
 `;

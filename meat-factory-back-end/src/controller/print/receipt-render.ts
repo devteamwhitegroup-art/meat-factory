@@ -12,6 +12,7 @@ import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { SalesTransactionController } from "../sales/sales-transaction.controller";
 import { ShipmentController } from "../shipment/shipment.controller";
 import { ByproductBundleController } from "../livestock/byproduct-bundle.controller";
+import { FactoryController } from "../factory/factory.controller";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
@@ -221,7 +222,6 @@ async function settlementLines(id: string): Promise<RLine[]> {
         as: "registration",
         include: [
           { model: HerderModel, as: "herder" },
-          { model: FileModel, as: "agreementSignature" },
           {
             model: WeighingEntryModel,
             as: "weighingEntries",
@@ -236,7 +236,10 @@ async function settlementLines(id: string): Promise<RLine[]> {
   });
   if (!st) throw new Error("Settlement not found");
   // Herder-facing: гэдэс bundles only, never the items inside them.
-  const bundles = await ByproductBundleController.bundlesFor(st.registrationId);
+  // Priced wrappers only (0₮ ones aren't the herder's business), as on screen.
+  const bundles = (
+    await ByproductBundleController.bundlesFor(st.registrationId)
+  ).filter((b) => b.unitPrice > 0);
 
   const out: RLine[] = [
     ...heading("ТООЦООНЫ БАРИМТ"),
@@ -280,16 +283,6 @@ async function settlementLines(id: string): Promise<RLine[]> {
   out.push(RULE, row("НИЙТ МАХ", mnt(st.totalMeatAmount)));
   if (boy > 0) out.push(row("БОЙНЫ ЗАРДАЛ", `-${mnt(boy)}`));
   if (gedes > 0) out.push(row("ДАЙВАР (бойноос хасна)", `+${mnt(gedes)}`));
-  if (boy > 0 && gedes > 0) {
-    // гэдэс worth more than the бой → the excess goes to the herder.
-    const netBoy = boy - gedes;
-    out.push(
-      row(
-        "ЦЭВЭР БОЙ ЗАРДАЛ",
-        netBoy >= 0 ? `-${mnt(netBoy)}` : `+${mnt(-netBoy)}`,
-      ),
-    );
-  }
   out.push(
     { ...row("ЦЭВЭР ОЛГОХ", mnt(st.netPayable)), bold: true },
     row("Олгосон", mnt(st.paidAmount)),
@@ -299,13 +292,11 @@ async function settlementLines(id: string): Promise<RLine[]> {
   out.push(row("Төлөв:", st.isPaid ? "ТӨЛСӨН" : "ХҮЛЭЭГДЭЖ БУЙ"));
   out.push(...weighingLog(st.registration?.weighingEntries ?? []));
   out.push(RULE);
+  // No herder signature: they've long left when the money is sent (they
+  // signed the weigh slip).
   out.push(
-    ...(await signatureBlock(
-      "Малчны гарын үсэг",
-      st.registration?.agreementSignature,
-    )),
+    ...(await signatureBlock("Няравын гарын үсэг", st.storekeeperSignature)),
   );
-  out.push(...(await signatureBlock("Няравын гарын үсэг", st.storekeeperSignature)));
   return [...out, ...foot()];
 }
 
@@ -373,15 +364,37 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
     if (cost > 0) out.push(row("  Бойны зардал", `-${mnt(cost)}`));
   }
 
+  // Хойд үйлдвэр: counted гэдэс are all kept (no herder take) and credited
+  // at their price — same as the settlement. FACTORY_1 decides at verify.
+  let gedes = 0;
+  if (FactoryController.isPreButchered(reg.factory)) {
+    const bundles = (await ByproductBundleController.bundlesFor(reg.id)).filter(
+      (b) => b.unitPrice > 0 && b.count - b.herderCount > 0,
+    );
+    for (const b of bundles) {
+      const kept = b.count - b.herderCount;
+      gedes += kept * b.unitPrice;
+      out.push(
+        row(
+          `${b.wrapperName} (${b.animalType}) ${kept} x ${mnt(b.unitPrice)}`,
+          `+${mnt(kept * b.unitPrice)}`,
+        ),
+      );
+    }
+  }
+
   out.push(
     RULE,
     row("НИЙТ МАХ", mnt(gross)),
+    ...(gedes > 0 ? [row("ГЭДЭС", `+${mnt(gedes)}`)] : []),
     row("БОЙ ЗАРДАЛ", `-${mnt(totalBoy)}`),
-    { ...row("ЦЭВЭР ОЛГОХ", mnt(gross - totalBoy)), bold: true },
+    { ...row("ЦЭВЭР ОЛГОХ", mnt(gross + gedes - totalBoy)), bold: true },
   );
   out.push(...weighingLog(reg.weighingEntries ?? []));
   out.push(RULE);
-  out.push(...(await signatureBlock("Малчны гарын үсэг", reg.agreementSignature)));
+  out.push(
+    ...(await signatureBlock("Малчны гарын үсэг", reg.agreementSignature)),
+  );
   return out;
 }
 

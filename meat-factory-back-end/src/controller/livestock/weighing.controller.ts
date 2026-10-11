@@ -1,4 +1,7 @@
 import { Transaction } from "sequelize";
+import { AdminController } from "../user/admin.controller";
+import { PERMISSION } from "../../types/user/permission.type";
+import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
@@ -10,7 +13,6 @@ import { RegistrationController } from "./registration.controller";
 import { ByproductBundleController } from "./byproduct-bundle.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import {
-  isPreButchered,
   REGISTRATION_STATUS,
 } from "../../types/livestock/registration.type";
 import {
@@ -18,14 +20,12 @@ import {
   TStockLine,
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
-import { FACTORY } from "../../types/user/admin.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
   WEIGHING_AUDIT_ACTION,
 } from "../../types/livestock/weighing-entry.type";
 import { TContext } from "../../types/global/global.type";
-import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Weighing (Хэмжүүр) — sub-domain of the registration aggregate. Shared
 // status/role guards and registration lookups live on RegistrationController.
@@ -34,7 +34,7 @@ export class WeighingController {
   // ingest points: FACTORY_1 verify, FACTORY_2 finishWeighing.
   static async meatStockLines(
     registrationId: string,
-    factory: FACTORY,
+    factory: string,
   ): Promise<TStockLine[]> {
     const entries = await WeighingEntryModel.findAll({
       where: { registrationId },
@@ -81,52 +81,66 @@ export class WeighingController {
 
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    return await sequelize.transaction(async (t) => {
-      const maxSeq: number =
-        ((await WeighingEntryModel.max("sequenceNo", {
-          where: { registrationId },
-          transaction: t,
-        })) as number | null) ?? 0;
-
-      const entry = await WeighingEntryModel.create(
+    return await sequelize.transaction((t) =>
+      this.insertEntry(
         {
           registrationId,
           animalId: animal.id,
           weightKg,
           pricePerKg: pricePerKg ?? null,
-          sequenceNo: maxSeq + 1,
-          scaleOperatorId: context.id,
           photoFileId: doc.photoFileId ?? null,
         },
-        { transaction: t },
-      );
-
-      await this._logAudit(
-        {
-          registrationId,
-          weighingEntryId: entry.id,
-          action: WEIGHING_AUDIT_ACTION.CREATE,
-          actorId: context.id,
-          weightKgBefore: null,
-          weightKgAfter: entry.weightKg,
-          pricePerKgBefore: null,
-          pricePerKgAfter: entry.pricePerKg,
-        },
+        context.id,
         t,
-      );
+      ),
+    );
+  }
 
-      return entry;
-    });
+  // Next-sequence insert + CREATE audit. Shared with admin-approved additions
+  // from a registration change request (callers validate first).
+  static async insertEntry(
+    row: {
+      registrationId: string;
+      animalId: string;
+      weightKg: number;
+      pricePerKg: number | null;
+      photoFileId: string | null;
+    },
+    actorId: string,
+    t: Transaction,
+  ): Promise<WeighingEntryModel> {
+    const maxSeq: number =
+      ((await WeighingEntryModel.max("sequenceNo", {
+        where: { registrationId: row.registrationId },
+        transaction: t,
+      })) as number | null) ?? 0;
+
+    const entry = await WeighingEntryModel.create(
+      { ...row, sequenceNo: maxSeq + 1, scaleOperatorId: actorId },
+      { transaction: t },
+    );
+
+    await this._logAudit(
+      {
+        registrationId: row.registrationId,
+        weighingEntryId: entry.id,
+        action: WEIGHING_AUDIT_ACTION.CREATE,
+        actorId,
+        weightKgBefore: null,
+        weightKgAfter: entry.weightKg,
+        pricePerKgBefore: null,
+        pricePerKgAfter: entry.pricePerKg,
+      },
+      t,
+    );
+    return entry;
   }
 
   static async finishWeighing(
     registrationId: string,
     context: TContext,
   ): Promise<RegistrationModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
 
     const reg = await RegistrationController.findIdCheck(
       registrationId,
@@ -139,7 +153,7 @@ export class WeighingController {
     if (count === 0)
       throw new Error("Cannot finish weighing with no entries recorded");
 
-    if (!isPreButchered(reg)) {
+    if (!FactoryController.isPreButchered(reg.factory)) {
       await reg.update({ status: REGISTRATION_STATUS.WEIGHED });
       return RegistrationController.getById(registrationId);
     }
@@ -176,7 +190,7 @@ export class WeighingController {
   // (REGISTERED) the scale operator (and managers) may add/edit/remove. Once
   // weighing is "fully uploaded" (finishWeighing → WEIGHED, and onwards
   // through VERIFIED / PAYMENT_PENDING / PARTIALLY_SETTLED) it is locked for
-  // the storekeeper — only ADMIN may fix a mis-weighed entry,
+  // the storekeeper — only REGISTRATION_WEIGH_FIX may fix a mis-weighed entry,
   // and every fix is logged (see _logAudit) rather than blocked, since the
   // herder hasn't necessarily been paid yet even once a Settlement exists
   // (money transfer lags). The real lock point is the payout itself
@@ -201,16 +215,12 @@ export class WeighingController {
       // WEIGHED / VERIFIED / PAYMENT_PENDING: settlement may already exist
       // (created, not yet paid), so only a privileged fix — logged — is
       // allowed.
-      if (context.role !== ADMIN_ROLE.ADMIN)
-        throw new Error("Жин баталгаажсан тул зөвхөн админ засах боломжтой");
+      if (!AdminController.hasPermission(context, PERMISSION.REGISTRATION_WEIGH_FIX))
+        throw new Error("Жин баталгаажсан тул засах тусгай эрх шаардлагатай");
       return;
     }
     // REGISTERED: open-window weigh edits.
-    if (![ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN].includes(context.role)) {
-      throw new Error(
-        `Forbidden: role ${context.role} cannot edit weighing entries`,
-      );
-    }
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
   }
 
   private static async _logAudit(
@@ -227,6 +237,33 @@ export class WeighingController {
     t: Transaction,
   ): Promise<void> {
     await WeighingEntryAuditModel.create(args, { transaction: t });
+  }
+
+  // Admin-approved weight/price change from a registration change request —
+  // same audit trail as a direct admin fix.
+  static async setEntry(
+    entry: WeighingEntryModel,
+    weightKg: number,
+    pricePerKg: number | null,
+    actorId: string,
+    t: Transaction,
+  ): Promise<void> {
+    const weightKgBefore = Number(entry.weightKg);
+    const pricePerKgBefore = entry.pricePerKg;
+    await entry.update({ weightKg, pricePerKg }, { transaction: t });
+    await this._logAudit(
+      {
+        registrationId: entry.registrationId,
+        weighingEntryId: entry.id,
+        action: WEIGHING_AUDIT_ACTION.UPDATE,
+        actorId,
+        weightKgBefore,
+        weightKgAfter: weightKg,
+        pricePerKgBefore,
+        pricePerKgAfter: pricePerKg,
+      },
+      t,
+    );
   }
 
   static async updateWeighingEntry(

@@ -1,4 +1,6 @@
 import { Op, WhereOptions } from "sequelize";
+import { FactoryController } from "../factory/factory.controller";
+import { FACTORY_KIND } from "../../types/factory/factory.type";
 import sequelize from "../../config/db-connection";
 import { ByproductProcessingModel } from "../../models/inventory/byproduct-processing.model";
 import { ByproductProcessingLineModel } from "../../models/inventory/byproduct-processing-line.model";
@@ -26,7 +28,6 @@ import {
   TDateRange,
   TPaginationGeneric,
 } from "../../types/global/global.type";
-import { BYPRODUCT_FACTORY, FACTORY } from "../../types/user/admin.type";
 import {
   dateRangeWhere,
   dateStampUTC8,
@@ -47,19 +48,24 @@ const PROCESSING_INCLUDE = [
   { model: AdminModel, as: "createdBy" },
 ];
 
-// Byproduct factory (FACTORY_3) flow: FACTORY_1/2 send counted гэдэс here,
+// Byproduct-kind factory flow: the intake sites send counted гэдэс here,
 // where batches are disassembled and every organ weighed. Each batch keeps the
 // norm-based expectation next to the weighed actual so the two can be matched.
 export class ByproductProcessingController {
-  // FACTORY_1/2 → FACTORY_3: counted byproducts leave the sender's stock and
+  // Intake site → byproduct site: counted byproducts leave the sender's stock and
   // arrive at the byproduct factory in one transaction.
   static async transfer(
     doc: TTransferByproducts,
     context: TContext,
   ): Promise<void> {
     const from = AdminController.writeFactory(context, doc.fromFactory);
-    if (from === BYPRODUCT_FACTORY)
+    if (FactoryController.isByproduct(from))
       throw new Error("Дайврын үйлдвэрээс илгээх боломжгүй");
+    // Receiver: the one byproduct site unless the sender names another.
+    const to = doc.toFactory
+      ? FactoryController.assertActive(doc.toFactory).code
+      : FactoryController.defaultByproductFactory().code;
+    FactoryController.assertKind(to, FACTORY_KIND.BYPRODUCT, "Зөвхөн дайврын үйлдвэрт илгээнэ");
     if (!doc.lines?.length) throw new Error("Илгээх дайвар сонгоно уу");
 
     const items = await InventoryItemModel.findAll({
@@ -70,7 +76,7 @@ export class ByproductProcessingController {
       },
     });
     const byId = new Map(items.map((i) => [i.id, i]));
-    const notes = `${from} → ${BYPRODUCT_FACTORY}${doc.notes?.trim() ? `: ${doc.notes.trim()}` : ""}`;
+    const notes = `${FactoryController.nameOf(from)} → ${FactoryController.nameOf(to)}${doc.notes?.trim() ? `: ${doc.notes.trim()}` : ""}`;
 
     await sequelize.transaction(async (t) => {
       for (const l of doc.lines) {
@@ -78,7 +84,7 @@ export class ByproductProcessingController {
         if (!item) throw new Error("Нөөцийн мөр олдсонгүй");
         const count = Math.floor(Number(l.count));
         if (!(count > 0)) throw new Error("Илгээх тоо эерэг байх ёстой");
-        const line = (factory: FACTORY): TStockLine => ({
+        const line = (factory: string): TStockLine => ({
           factory,
           productType: PRODUCT_TYPE.BYPRODUCT,
           animalId: item.animalId,
@@ -88,7 +94,7 @@ export class ByproductProcessingController {
         });
         for (const [movementType, factory] of [
           [MOVEMENT_TYPE.OUT, from],
-          [MOVEMENT_TYPE.IN, BYPRODUCT_FACTORY],
+          [MOVEMENT_TYPE.IN, to],
         ] as const)
           await InventoryController.applyMovement(
             {
@@ -111,8 +117,11 @@ export class ByproductProcessingController {
     context: TContext,
   ): Promise<ByproductProcessingModel> {
     const factory = AdminController.writeFactory(context, doc.factory);
-    if (factory !== BYPRODUCT_FACTORY)
-      throw new Error("Дайвар задлах нь зөвхөн дайврын үйлдвэрт хийгдэнэ");
+    FactoryController.assertKind(
+      factory,
+      FACTORY_KIND.BYPRODUCT,
+      "Дайвар задлах нь зөвхөн дайврын үйлдвэрт хийгдэнэ",
+    );
     const bundleCount = Math.floor(Number(doc.bundleCount));
     if (!(bundleCount > 0)) throw new Error("Задлах гэдэсний тоо эерэг байх ёстой");
 
@@ -242,7 +251,7 @@ export class ByproductProcessingController {
   static async summary(
     dateRange: TDateRange | undefined,
     context: TContext,
-    requested?: FACTORY | null,
+    requested?: string | null,
   ): Promise<TProcessingSummaryRow[]> {
     const factory = AdminController.readFactory(context, requested);
     const batches = await ByproductProcessingModel.findAll({

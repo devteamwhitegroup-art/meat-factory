@@ -14,6 +14,7 @@ import { SettingsDoc, UpdateSettingsDoc } from "@/lib/queries/settings";
 import { EnqueuePrinterTestDoc } from "@/lib/queries/print";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 
 // Each tab edits its own slice of the single settings row and sends only
 // those fields — updateSettings leaves omitted fields untouched.
@@ -157,8 +158,9 @@ export function StockSettings() {
   );
 }
 
-// id is null until the row is saved (backend assigns it).
-type PrinterRow = { id: string | null; name: string; ip: string };
+// id is null until the row is saved (backend assigns it). One printer per
+// factory; staff print to their own factory's.
+type PrinterRow = { id: string | null; factory: string; ip: string };
 
 export function PrinterSettings() {
   const { data, loading, refetch } = useQuery(SettingsDoc, {
@@ -168,6 +170,7 @@ export function PrinterSettings() {
   const [testPrint] = useMutation(EnqueuePrinterTestDoc);
   const [rows, setRows] = useState<PrinterRow[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const { active: factories } = useFactories();
 
   const s = data?.settings?.settings;
   const printers: PrinterRow[] | null =
@@ -175,7 +178,7 @@ export function PrinterSettings() {
     (s
       ? compact(s.printers).map((p) => ({
           id: p.id ?? null,
-          name: p.name ?? "",
+          factory: p.factory ?? "",
           ip: p.ip ?? "",
         }))
       : null);
@@ -207,7 +210,7 @@ export function PrinterSettings() {
             variables: {
               printers: printers.map((p) => ({
                 id: p.id,
-                name: p.name,
+                factory: p.factory,
                 ip: p.ip,
               })),
             },
@@ -236,13 +239,28 @@ export function PrinterSettings() {
       <CardContent className="space-y-3">
         {printers.map((p, i) => (
           <div key={p.id ?? `new-${i}`} className="flex flex-wrap gap-2">
-            <Input
-              aria-label="Принтерийн нэр"
-              placeholder="Нэр (ж: Агуулах)"
-              value={p.name}
-              onChange={(e) => setPrinter(i, { name: e.target.value })}
-              className="h-11 min-w-40 flex-1"
-            />
+            <select
+              aria-label="Үйлдвэр"
+              value={p.factory}
+              onChange={(e) => setPrinter(i, { factory: e.target.value })}
+              className="h-11 min-w-40 flex-1 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="" disabled>
+                Үйлдвэр сонгох
+              </option>
+              {factories.map((f) => (
+                <option
+                  key={f.code}
+                  value={f.code}
+                  // One printer per factory.
+                  disabled={printers.some(
+                    (o, j) => j !== i && o.factory === f.code,
+                  )}
+                >
+                  {f.name}
+                </option>
+              ))}
+            </select>
             <Input
               aria-label="IP хаяг"
               placeholder="192.168.1.50"
@@ -282,7 +300,7 @@ export function PrinterSettings() {
             variant="outline"
             className="gap-2"
             onClick={() =>
-              setRows([...printers, { id: null, name: "", ip: "" }])
+              setRows([...printers, { id: null, factory: "", ip: "" }])
             }
           >
             <PlusIcon className="size-4" />
@@ -293,7 +311,8 @@ export function PrinterSettings() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Ажилтан хэвлэхдээ эндээс принтер сонгоно. IP нь тогтмол байх ёстой.
+          Үйлдвэр бүрт нэг принтер. Ажилтан өөрийн үйлдвэрийн принтерээр
+          хэвлэнэ; админ сонгоно. IP нь тогтмол байх ёстой.
         </p>
       </CardContent>
     </Card>

@@ -120,3 +120,52 @@ export const DeleteHerderDoc = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// Admin herder detail page: profile + lifetime figures.
+export const HerderDetailDoc = graphql(/* GraphQL */ `
+  query HerderDetail($id: ID!) {
+    herder(id: $id) {
+      success
+      message
+      herder {
+        id
+        name
+        registrationNo
+        phone
+        address
+        bankAccount
+        bankName
+        accountHolderName
+        createdAt
+      }
+    }
+  }
+`);
+
+export const HerderStatsDoc = graphql(/* GraphQL */ `
+  query HerderStats($id: ID!) {
+    herderStats(id: $id) {
+      success
+      message
+      stats {
+        registrationCount
+        cancelledCount
+        firstIntakeDate
+        lastIntakeDate
+        weighedKg
+        meatAmount
+        settlementCount
+        slaughterCost
+        byproductAmount
+        netPayable
+        paidAmount
+        unpaidAmount
+        animals {
+          animalType
+          count
+          weightKg
+        }
+      }
+    }
+  }
+`);

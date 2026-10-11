@@ -8,7 +8,7 @@ import {
   PRINT_JOB_TYPE,
   TGetPrintJobs,
 } from "../../types/print/print.type";
-import { TPaginationGeneric } from "../../types/global/global.type";
+import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { findOrThrow, listPaginated } from "../../utils";
 import {
   renderPrinterTest,
@@ -26,12 +26,18 @@ export class PrintController {
     return renderReceiptPreview(type, refId);
   }
 
-  // The staff-picked printer from Settings (admin-managed name + IP).
-  private static async printerFor(printerKey: string): Promise<TPrinter> {
+  // A Settings printer. Staff may only use their own factory's; admin
+  // (no factory) any.
+  private static async printerFor(
+    printerKey: string,
+    context: TContext,
+  ): Promise<TPrinter> {
     const { printers } = await SettingsController.get();
     const printer = printers.find((p) => p.id === printerKey);
     if (!printer)
       throw new Error("Printer not found — pick one configured in Settings");
+    if (context.factory && printer.factory !== context.factory)
+      throw new Error("Өөр үйлдвэрийн принтерээр хэвлэх боломжгүй");
     return printer;
   }
 
@@ -41,9 +47,10 @@ export class PrintController {
     type: PRINT_JOB_TYPE,
     refId: string,
     printerKey: string,
+    context: TContext,
   ): Promise<PrintJobModel> {
     if (!refId) throw new Error("id is required");
-    const printer = await this.printerFor(printerKey);
+    const printer = await this.printerFor(printerKey, context);
     const payload = await renderReceipt(type, refId);
     return PrintJobModel.create({
       printerKey: printer.id,
@@ -58,8 +65,11 @@ export class PrintController {
 
   // Short test slip (no source record) — Cyrillic + Mongolian Ө Ү + Latin,
   // rendered as an image like every other receipt.
-  static async enqueuePrinterTest(printerKey: string): Promise<PrintJobModel> {
-    const printer = await this.printerFor(printerKey);
+  static async enqueuePrinterTest(
+    printerKey: string,
+    context: TContext,
+  ): Promise<PrintJobModel> {
+    const printer = await this.printerFor(printerKey, context);
     return PrintJobModel.create({
       printerKey: printer.id,
       printerIp: printer.ip,
@@ -75,7 +85,9 @@ export class PrintController {
   // by a relay that died mid-print, > 2 min ago). The job carries printerIp,
   // so the relay knows where to send it. printerKeys = the printers on that
   // relay's LAN (one relay per factory); empty = any printer (single-LAN setup).
-  static claimNext(printerKeys?: string[] | null): Promise<PrintJobModel | null> {
+  static claimNext(
+    printerKeys?: string[] | null,
+  ): Promise<PrintJobModel | null> {
     return sequelize.transaction(async (t) => {
       const staleBefore = new Date(Date.now() - 120_000);
       const job = await PrintJobModel.findOne({

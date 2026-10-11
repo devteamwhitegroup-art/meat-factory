@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@apollo/client/react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ export function LoadingInfoEditor({
     (seal.trim() || null) !== (sealNumber ?? null);
 
   async function onSave() {
+    if (seal && !/^\d{6}$/.test(seal))
+      return toast.error("Лацны дугаар 6 оронтой тоо байна");
     await runMutation(
       async () =>
         (
@@ -112,9 +115,14 @@ export function LoadingInfoEditor({
                 <Label className="text-xs">Лацны дугаар</Label>
                 <Input
                   value={seal}
-                  onChange={(e) => setSeal(e.target.value)}
-                  placeholder="Үйлдвэрийн лацны дугаар"
-                  className="h-11"
+                  // 6 digits only.
+                  onChange={(e) =>
+                    setSeal(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="6 оронтой тоо"
+                  className="h-11 tabular-nums"
                 />
               </div>
             </div>

@@ -1,27 +1,28 @@
 import { cookies } from "next/headers";
-import { env } from "@/lib/env";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
-import { isOperatorRole, navItemsFor, type StaffRole } from "@/lib/auth/roles";
-import { FACTORY_COOKIE } from "@/lib/auth/server";
-import { FACTORY_MN } from "@/lib/format/enum";
+import { isKioskNav, navItemsFor } from "@/lib/auth/roles";
+import { getSession } from "@/lib/auth/server";
+import { getFactories } from "@/lib/factory/server";
+import { factoryKind, factoryName } from "@/lib/factory/factories";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const jar = await cookies();
-  const role = (jar.get(env.ROLE_COOKIE_NAME)?.value ??
-    null) as StaffRole | null;
-  const factory = jar.get(FACTORY_COOKIE)?.value ?? null;
+  const [s, factories] = await Promise.all([getSession(), getFactories()]);
+  // Staff's own factory; cross-factory roles span all of them.
+  const brand = s.factory ? factoryName(factories, s.factory) : "Бүх үйлдвэр";
+  const items = navItemsFor(s.perms, factoryKind(factories, s.factory));
 
-  // Operator roles (gate / scale / store) get a minimal single-purpose shell:
-  // no sidebar, a slim top bar with just their task links, and a centered
-  // content column with larger targets. Office roles get the full sidebar.
-  if (isOperatorRole(role)) {
+  // Single-purpose roles get a minimal kiosk shell: no sidebar, a slim top
+  // bar with just their task links, and a centered content column with
+  // larger targets. Everyone else gets the full sidebar.
+  if (isKioskNav(items)) {
     return (
       <div className="flex min-h-screen flex-col">
         <Topbar
-          role={role}
-          navItems={navItemsFor(role, factory)}
-          brand={FACTORY_MN[factory ?? ""] ?? "Plant 01"}
+          roleName={s.roleName}
+          name={s.name}
+          navItems={items}
+          brand={brand}
         />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto w-full max-w-4xl">{children}</div>
@@ -30,7 +31,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const sidebarCollapsed = jar.get("mf_sidebar")?.value === "1";
+  const sidebarCollapsed = (await cookies()).get("mf_sidebar")?.value === "1";
 
   // Fixed-height shell: the row is exactly the viewport, the page itself never
   // scrolls, and <main> is the only scroll container — so the sidebar keeps
@@ -38,8 +39,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
-        role={role}
-        factory={factory}
+        items={items}
+        roleName={s.roleName}
+        name={s.name}
+        brand={brand}
         defaultCollapsed={sidebarCollapsed}
       />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>

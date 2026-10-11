@@ -1,11 +1,13 @@
+
 // Singleton config row — the meat-factory has one set of global thresholds.
 // Stored in the DB so admin can edit via UI without env redeploys; secrets
 // (Telegram bot token / chat id) live in .env instead — see TelegramService.
-// A LAN thermal printer the print relay can reach. `id` is what jobs carry
-// as printerKey; `ip` is where the relay streams the bytes (port 9100).
+// A factory's LAN thermal printer (one per factory) the print relay can
+// reach. `id` is what jobs carry as printerKey; `ip` is where the relay
+// streams the bytes (port 9100). Staff print to their own factory's.
 export type TPrinter = {
   id: string;
-  name: string;
+  factory: string;
   ip: string;
 };
 
@@ -20,7 +22,7 @@ export type TSettings = {
   // shipment. 0 disables.
   exportAlertThresholdKg: number;
   domesticAlertThresholdKg: number;
-  // Admin-managed list; staff pick one in the print dialog.
+  // Admin-managed, one per factory.
   printers: TPrinter[];
   createdAt: Date;
   updatedAt: Date;
@@ -31,5 +33,5 @@ export type TUpdateSettings = {
   exportAlertThresholdKg?: number;
   domesticAlertThresholdKg?: number;
   // Replaces the whole list. Entries without an id are new printers.
-  printers?: { id?: string | null; name: string; ip: string }[];
+  printers?: { id?: string | null; factory: string; ip: string }[];
 };

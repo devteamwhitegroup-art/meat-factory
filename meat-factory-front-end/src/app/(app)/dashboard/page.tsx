@@ -20,7 +20,9 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  await requireCap("dashboard");
+  const session = await requireCap("DASHBOARD_VIEW");
+  // Byproduct volumes are for whoever handles stock — not the money side.
+  const showByproduct = session.can("INVENTORY_VIEW", "BYPRODUCT_PROCESS");
   const sp = await searchParams;
   const def = thisMonth();
   const { data } = await getClient().query({
@@ -133,10 +135,12 @@ export default async function DashboardPage({
           value={String(d.pendingServicesCount ?? 0)}
           accent="amber"
         />
-        <MetricCard
-          label="Дайвар (кг, гарт өгсөн)"
-          value={formatNumber(d.totalByproductKg) + " кг"}
-        />
+        {showByproduct ? (
+          <MetricCard
+            label="Дайвар (кг, гарт өгсөн)"
+            value={formatNumber(d.totalByproductKg) + " кг"}
+          />
+        ) : null}
       </div>
 
       <MonthlyOverviewChart monthsBack={12} />
@@ -147,11 +151,13 @@ export default async function DashboardPage({
           data={animalSlices}
           emptyText="Махны борлуулалт алга"
         />
-        <BreakdownPie
-          title="Дайвар задаргаа (гарт өгсөн)"
-          data={byprodSlices}
-          emptyText="Дайвар хүлээлгэн өгөөгүй"
-        />
+        {showByproduct ? (
+          <BreakdownPie
+            title="Дайвар задаргаа (гарт өгсөн)"
+            data={byprodSlices}
+            emptyText="Дайвар хүлээлгэн өгөөгүй"
+          />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -3,11 +3,10 @@ import { TInventoryItem } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { InventoryMovementModel } from "./inventory-movement.model";
 import { AnimalModel } from "../livestock/animal.model";
-import { FACTORY } from "../../types/user/admin.type";
 
 export class InventoryItemModel extends Model implements TInventoryItem {
   public id!: string;
-  public factory!: FACTORY;
+  public factory!: string;
   public sku!: string;
   public productType!: PRODUCT_TYPE;
   // Animal catalogue FK for MEAT rows. Null for byproducts. FK (not name) so
@@ -43,11 +42,10 @@ export const createInventoryItemModel = (sequelize: Sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
-      // Pre-split stock was all FACTORY_1.
+      // Factories.code — kind rules live in FactoryController.
       factory: {
-        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        type: DataTypes.STRING(32),
         allowNull: false,
-        defaultValue: FACTORY.FACTORY_1,
       },
       sku: {
         type: DataTypes.STRING,

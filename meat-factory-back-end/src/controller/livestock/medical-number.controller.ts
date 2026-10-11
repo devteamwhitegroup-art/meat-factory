@@ -1,4 +1,5 @@
 import { Op, Transaction, WhereOptions } from "sequelize";
+import { PERMISSION } from "../../types/user/permission.type";
 import sequelize from "../../config/db-connection";
 import { MedicalNumberModel } from "../../models/livestock/medical-number.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
@@ -13,17 +14,7 @@ import {
 } from "../../types/livestock/medical-number.type";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { ADMIN_ROLE } from "../../types/user/admin.type";
 import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
-
-// Intake staff and the vet may enter numbers; only the vet (or admin) rules
-// on them.
-const ENTRY_ROLES = [
-  ADMIN_ROLE.STOREKEEPER,
-  ADMIN_ROLE.DOCTOR,
-  ADMIN_ROLE.ADMIN,
-];
-const CHECK_ROLES = [ADMIN_ROLE.DOCTOR, ADMIN_ROLE.ADMIN];
 
 export class MedicalNumberController {
   static normalize(raw: string): string {
@@ -69,7 +60,7 @@ export class MedicalNumberController {
     number: string,
     context: TContext,
   ): Promise<MedicalNumberModel> {
-    RegistrationController.assertActorRole(context, ENTRY_ROLES);
+    AdminController.assertPermission(context, PERMISSION.MEDICAL_NUMBER_ENTER);
     const reg = await RegistrationController.findIdCheck(
       registrationId,
       context,
@@ -97,7 +88,7 @@ export class MedicalNumberController {
 
   // Typo fix only — once the vet has ruled on a number it stays on record.
   static async remove(id: string, context: TContext): Promise<void> {
-    RegistrationController.assertActorRole(context, ENTRY_ROLES);
+    AdminController.assertPermission(context, PERMISSION.MEDICAL_NUMBER_ENTER);
     const row = await findOrThrow(MedicalNumberModel, id, "Дугаар олдсонгүй");
     await RegistrationController.findIdCheck(row.registrationId, context);
     if (row.status !== MEDICAL_NUMBER_STATUS.PENDING)
@@ -114,7 +105,7 @@ export class MedicalNumberController {
     status: MEDICAL_NUMBER_STATUS,
     context: TContext,
   ): Promise<MedicalNumberModel> {
-    RegistrationController.assertActorRole(context, CHECK_ROLES);
+    AdminController.assertPermission(context, PERMISSION.MEDICAL_NUMBER_CHECK);
     if (!Object.values(MEDICAL_NUMBER_STATUS).includes(status))
       throw new Error(`Invalid status: ${status}`);
     const row = await findOrThrow(MedicalNumberModel, id, "Дугаар олдсонгүй");
@@ -162,7 +153,7 @@ export class MedicalNumberController {
         {
           model: AdminModel,
           as: "checkedBy",
-          attributes: ["id", "param", "role"],
+          attributes: ["id", "param"],
         },
       ],
       order: [["createdAt", "DESC"]],

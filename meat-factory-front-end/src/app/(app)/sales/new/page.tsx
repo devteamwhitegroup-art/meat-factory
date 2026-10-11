@@ -3,7 +3,7 @@ import { BackButton } from "@/components/common/BackButton";
 import { requireCap } from "@/lib/auth/server";
 
 export default async function NewSalePage() {
-  await requireCap("sales");
+  await requireCap("SALES_MANAGE");
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">

@@ -4,6 +4,8 @@ import { ByproductBundleController } from "../../../controller/livestock/byprodu
 import { MedicalNumberController } from "../../../controller/livestock/medical-number.controller";
 import { VerificationController } from "../../../controller/livestock/verification.controller";
 import { SettlementController } from "../../../controller/livestock/settlement.controller";
+import { RegistrationChangeController } from "../../../controller/livestock/registration-change.controller";
+import { HerderModel } from "../../../models/livestock/herder.model";
 import { AnimalModel } from "../../../models/livestock/animal.model";
 import { RegistrationAnimalLineModel } from "../../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../../models/livestock/weighing-entry.model";
@@ -11,8 +13,14 @@ import { SettlementLineModel } from "../../../models/livestock/settlement-line.m
 import { RegistrationModel } from "../../../models/livestock/registration.model";
 import {
   TCreateRegistration,
+  TGetRegistrationChangeRequests,
   TGetRegistrations,
+  TIntakeChanges,
+  TRequestRegistrationChange,
+  TUpdateRegistration,
+  TWeightChange,
 } from "../../../types/livestock/registration.type";
+import { TContext } from "../../../types/global/global.type";
 import {
   TCreateWeighingEntry,
   TUpdateWeighingEntry,
@@ -44,6 +52,18 @@ export default {
       ByproductBundleController.bundlesFor(row.id),
     medicalNumbers: (row: RegistrationModel) =>
       MedicalNumberController.listFor(row.id),
+    // Context carries the caller via the field's @authLogin.
+    editableByMe: (row: RegistrationModel, _: unknown, ctx: TContext) =>
+      RegistrationChangeController.canEditDirect(row, ctx),
+  },
+  RegistrationIntakeChange: {
+    herder: (c: TIntakeChanges) => HerderModel.findByPk(c.herderId),
+  },
+  WeightChange: {
+    entry: (w: TWeightChange) =>
+      WeighingEntryModel.findByPk(w.entryId, {
+        include: [{ model: AnimalModel, as: "animal" }],
+      }),
   },
   RegistrationAnimalLine: {
     animalType: (row: RegistrationAnimalLineModel) => resolveAnimalType(row),
@@ -67,6 +87,11 @@ export default {
     settlements: wrapList("settlements", (doc: TGetSettlements, ctx) =>
       SettlementController.list(doc, ctx),
     ),
+    registrationChangeRequests: wrapList(
+      "changeRequests",
+      (doc: TGetRegistrationChangeRequests, ctx) =>
+        RegistrationChangeController.list(doc, ctx),
+    ),
   },
   Mutation: {
     createRegistration: wrapOne(
@@ -74,6 +99,30 @@ export default {
       (doc: TCreateRegistration, ctx) =>
         RegistrationController.create(doc, ctx),
       "Registration created successfully",
+    ),
+    updateRegistration: wrapOne(
+      "registration",
+      (doc: TUpdateRegistration, ctx) =>
+        RegistrationChangeController.update(doc, ctx),
+      "Бүртгэл засагдлаа",
+    ),
+    requestRegistrationChange: wrapOne(
+      "changeRequest",
+      (doc: TRequestRegistrationChange, ctx) =>
+        RegistrationChangeController.request(doc, ctx),
+      "Засварын хүсэлт илгээгдлээ",
+    ),
+    reviewRegistrationChange: wrapOne(
+      "changeRequest",
+      (
+        {
+          id,
+          approve,
+          note,
+        }: { id: string; approve: boolean; note?: string | null },
+        ctx,
+      ) => RegistrationChangeController.review(id, approve, note, ctx),
+      "Хүсэлт шийдвэрлэгдлээ",
     ),
     addWeighingEntry: wrapOne(
       "weighingEntry",
@@ -107,7 +156,11 @@ export default {
         }: { registrationId: string; bundles: TByproductBundleInput[] },
         ctx,
       ) => {
-        await ByproductBundleController.setBundles(registrationId, bundles, ctx);
+        await ByproductBundleController.setBundles(
+          registrationId,
+          bundles,
+          ctx,
+        );
         return RegistrationController.getById(registrationId);
       },
       "Дайвар хадгалагдлаа",
@@ -178,22 +231,6 @@ export default {
         ctx,
       ) =>
         SettlementController.setStorekeeperSignature(
-          registrationId,
-          fileId ?? null,
-          ctx,
-        ),
-      "Signature saved",
-    ),
-    setRegistrationAgreementSignature: wrapOne(
-      "registration",
-      (
-        {
-          registrationId,
-          fileId,
-        }: { registrationId: string; fileId?: string | null },
-        ctx,
-      ) =>
-        RegistrationController.setAgreementSignature(
           registrationId,
           fileId ?? null,
           ctx,

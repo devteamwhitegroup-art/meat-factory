@@ -3,7 +3,7 @@ import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 // One priced product group on a shipment. Auto-derived from the cargo manifest:
 // every distinct meat type / byproduct becomes a sale line whose totalWeightKg
 // is kept in sync with its cargo entries. The end-of-load pricing screen shows
-// each group's weight and lets the user insert a selling price per kg.
+// each group's weight; income comes from its sales-report lines (below).
 export type TShipmentSaleLine = {
   id: string;
   shipmentId: string;
@@ -17,8 +17,23 @@ export type TShipmentSaleLine = {
   groupKey: string;
   // Sum of the group's cargo-entry net weights (synced on every manifest edit).
   totalWeightKg: number;
-  // Selling price per kg, inserted at end of load. Nullable until agreed.
+  // Average selling price per kg over the salesman's report lines (synced);
+  // null until something is reported.
   pricePerKg: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// One line of the salesman's sales report for a product group, entered after
+// the shipment leaves (like a weighing entry): kg sold at a price. A group
+// can have several (sold in parts at different prices).
+export type TShipmentSaleEntry = {
+  id: string;
+  shipmentId: string;
+  saleLineId: string;
+  weightKg: number;
+  pricePerKg: number;
+  createdById: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

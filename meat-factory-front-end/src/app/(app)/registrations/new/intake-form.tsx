@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
-import { useForm, Controller, useWatch, type Control } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -27,24 +27,30 @@ import {
   type PickedHerder,
 } from "@/components/registration/HerderPicker";
 import { AnimalCountGrid } from "@/components/registration/AnimalCountGrid";
-import { SlaughterCostPreview } from "@/components/registration/SlaughterCostPreview";
+import {
+  EMPTY_WEIGH_ROW,
+  IntakeWeighRows,
+  type IntakeWeighRow,
+} from "@/components/registration/IntakeWeighRows";
 import { SignatureField } from "@/components/common/SignatureField";
 import { MedicalNumberAdder } from "@/components/registration/MedicalNumberAdder";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
+import { useDraft } from "@/lib/hooks/useDraft";
 import { CreateRegistrationDoc } from "@/lib/queries/registration";
 import { unwrap } from "@/lib/unwrap";
-import {
-  FACTORY_MN,
-  INTAKE_FACTORIES,
-  isPreButchered,
-} from "@/lib/format/enum";
-import type { Factory } from "@/lib/gql/graphql";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
+import { FACTORY_KIND_HINT } from "@/lib/factory/factories";
+
+// 4 digits + 2–3 Cyrillic letters ("8901 ДОУ"); BE normalises the spacing.
+// Shared with the edit form.
+export const PLATE_RE = /^\d{4}\s*[А-ЯЁӨҮ]{2,3}$/i;
+export const PLATE_HINT = "4 тоо + 2-3 үсэг (ж: 8901 ДОУ)";
 
 const schema = z.object({
   herderId: z.string().uuid("Малчин сонгоно уу"),
-  vehicleNumber: z.string().min(1, "Машины дугаар шаардлагатай"),
-  // Required for live animals only (checked on submit) — FACTORY_2 takes
-  // pre-butchered meat, which carries no stamp.
+  vehicleNumber: z.string().trim().regex(PLATE_RE, PLATE_HINT),
+  // Required only when horses are in the intake (checked on submit) — only
+  // horses carry a stamp; FACTORY_2 pre-butchered meat never does.
   stamp: z.string().optional(),
   // Each exactly 7 digits (validated as they're added).
   medicalNumbers: z.array(z.string()),
@@ -54,6 +60,14 @@ const schema = z.object({
   photoFileId: z.string().nullable().optional(),
   factory: z.string().optional(),
   counts: z.record(z.string(), z.number()),
+  // Хойд үйлдвэр: meat weighed on this form (type, kg, ₮/kg).
+  weighings: z.array(
+    z.object({
+      animalType: z.string(),
+      weightKg: z.string(),
+      pricePerKg: z.string(),
+    }),
+  ),
 });
 type Values = z.infer<typeof schema>;
 
@@ -74,24 +88,23 @@ function ReadOnlyField({
   );
 }
 
-// Isolated watcher so react-hook-form's `watch` stays out of the main render
-// (keeps the React Compiler happy and re-renders only the preview).
-function SlaughterCostPreviewWatched({
-  control,
-}: {
-  control: Control<Values>;
-}) {
-  const counts = useWatch({ control, name: "counts" });
-  return (
-    <SlaughterCostPreview counts={(counts as Record<string, number>) ?? {}} />
-  );
-}
+// ponytail: horse matched by catalogue name. If admins rename it, add a
+// `requiresStamp` flag on Animal instead.
+export const STAMPED_ANIMAL = "Адуу";
 
 // `factory` = the staff member's own factory (their form is fixed); null for
-// owner/admin, who pick it here. FACTORY_1 = live animals (stamp + бой
-// зардал); FACTORY_2 = pre-butchered meat (neither).
-export function IntakeForm({ factory }: { factory: string | null }) {
+// cross-factory roles, who pick it here. Live sites take animals (stamp for
+// horses, бой зардал); pre-butchered sites take meat (neither).
+export function IntakeForm({
+  factory,
+  quickHerder,
+}: {
+  factory: string | null;
+  // эмч adds herders with name / register / phone only.
+  quickHerder: boolean;
+}) {
   const router = useRouter();
+  const { intake, isPreButchered } = useFactories();
   const [createRegistration] = useMutation(CreateRegistrationDoc);
   const [submitting, setSubmitting] = useState(false);
   const [herder, setHerder] = useState<PickedHerder | null>(null);
@@ -109,34 +122,74 @@ export function IntakeForm({ factory }: { factory: string | null }) {
       photoFileId: null,
       factory: factory ?? "",
       counts: {},
+      weighings: [EMPTY_WEIGH_ROW],
     },
+  });
+
+  // Draft survives leaving the page; the date is always today's. Remounting
+  // the picker (key) shows the restored herder's name in its search box.
+  const [pickerKey, setPickerKey] = useState(0);
+  const draft = useWatch({ control: form.control });
+  const clearDraft = useDraft("intake", { values: draft, herder }, (d) => {
+    form.reset({
+      ...d.values,
+      intakeDate: new Date().toISOString().slice(0, 10),
+    } as Values);
+    setHerder(d.herder);
+    setPickerKey((k) => k + 1);
   });
 
   const picked = useWatch({ control: form.control, name: "factory" });
   const pre = isPreButchered(picked);
+  const counts = useWatch({ control: form.control, name: "counts" });
+  const stampRequired = !pre && (counts?.[STAMPED_ANIMAL] ?? 0) > 0;
 
   async function onSubmit(values: Values) {
     if (!values.factory) {
       toast.error("Үйлдвэр сонгоно уу");
       return;
     }
-    const animalLines = Object.entries(values.counts)
-      .filter(([, c]) => Number(c) > 0)
-      .map(([animalType, count]) => ({
-        animalType: animalType,
-        count: Number(count),
-      }));
+    // Хойд үйлдвэр: the weighed rows decide the meat types (no head count).
+    const weighRows = pre
+      ? values.weighings.filter(
+          (w: IntakeWeighRow) => w.animalType || w.weightKg || w.pricePerKg,
+        )
+      : [];
+    if (pre) {
+      if (weighRows.length === 0) {
+        toast.error("Мах, жин, үнээ оруулна уу");
+        return;
+      }
+      for (const w of weighRows) {
+        if (!w.animalType) return void toast.error("Мах сонгоно уу");
+        if (!(Number(w.weightKg) > 0))
+          return void toast.error(`${w.animalType}: жин оруулна уу`);
+        if (!(Number(w.pricePerKg) > 0))
+          return void toast.error(`${w.animalType}: үнэ оруулна уу`);
+      }
+    }
+    const animalLines = pre
+      ? [...new Set(weighRows.map((w) => w.animalType))].map((animalType) => ({
+          animalType,
+          count: 0,
+        }))
+      : Object.entries(values.counts)
+          .filter(([, c]) => Number(c) > 0)
+          .map(([animalType, count]) => ({
+            animalType,
+            count: Number(count),
+          }));
 
     if (animalLines.length === 0) {
       toast.error("Дор хаяж нэг малын төрөл оруулна уу");
       return;
     }
-    if (!pre && !values.stamp?.trim()) {
-      toast.error("Таних тэмдэг шаардлагатай");
+    if (stampRequired && !values.stamp?.trim()) {
+      toast.error("Адуунд таних тэмдэг шаардлагатай");
       return;
     }
-    if (!pre && !values.stampFileId) {
-      toast.error("Тамга зурна уу");
+    if (stampRequired && !values.stampFileId) {
+      toast.error("Адуунд тамга зурна уу");
       return;
     }
     if (!values.signatureFileId) {
@@ -160,12 +213,20 @@ export function IntakeForm({ factory }: { factory: string | null }) {
           stampFileId: pre ? null : values.stampFileId || null,
           photoFileId: values.photoFileId || null,
           intakeDate: values.intakeDate ?? null,
-          factory: values.factory as Factory,
+          factory: values.factory,
           animalLines,
+          weighings: pre
+            ? weighRows.map((w) => ({
+                animalType: w.animalType,
+                weightKg: Number(w.weightKg),
+                pricePerKg: Number(w.pricePerKg),
+              }))
+            : null,
         },
       });
       const reg = unwrap(r.data?.createRegistration).registration;
       if (!reg?.id) throw new Error("Хариу буцаасангүй");
+      clearDraft();
       toast.success(`Бүртгэл ${reg.registrationCode ?? ""} үүсгэгдлээ`);
       router.push(`/registrations/${reg.id}`);
       router.refresh();
@@ -183,7 +244,7 @@ export function IntakeForm({ factory }: { factory: string | null }) {
           <CardContent className="space-y-6 p-6">
             {/* Машины дугаар + Мал эмнэлгийн дугаар. The registration code is
                 assigned by the server on create. */}
-            <div className="grid items-start gap-6 sm:grid-cols-2">
+            <div className="grid items-start gap-6 sm:grid-cols-2 mb-0">
               <FormField
                 control={form.control}
                 name="vehicleNumber"
@@ -249,38 +310,32 @@ export function IntakeForm({ factory }: { factory: string | null }) {
             </div>
 
             {/* Owner/admin choose the receiving factory; staff are fixed to
-                theirs. FACTORY_2 (pre-butchered) drops stamp + бой зардал. */}
-            {factory ? (
-              <div className="rounded-md border bg-muted/30 p-3 text-base font-medium">
-                {FACTORY_MN[factory] ?? factory}
-                {pre ? " — урьдчилан төхөөрсөн мах" : " — амьд мал"}
-              </div>
-            ) : (
+                theirs (no banner). FACTORY_2 (pre-butchered) drops stamp +
+                бой зардал. */}
+            {factory ? null : (
               <Controller
                 control={form.control}
                 name="factory"
                 render={({ field }) => (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {INTAKE_FACTORIES.map((f) => (
+                    {intake.map((f) => (
                       <label
-                        key={f}
+                        key={f.code}
                         className="flex cursor-pointer items-start gap-3 rounded-md border bg-muted/30 p-3"
                       >
                         <input
                           type="radio"
                           name="factory"
-                          checked={field.value === f}
-                          onChange={() => field.onChange(f)}
+                          checked={field.value === f.code}
+                          onChange={() => field.onChange(f.code)}
                           className="mt-1 h-5 w-5"
                         />
                         <div className="space-y-0.5">
                           <div className="text-base font-medium">
-                            {FACTORY_MN[f]}
+                            {f.name}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {isPreButchered(f)
-                              ? "Урьдчилан төхөөрсөн мах — тамга, бой зардалгүй"
-                              : "Амьд мал — тамга, бой зардалтай"}
+                            {FACTORY_KIND_HINT[f.kind]}
                           </div>
                         </div>
                       </label>
@@ -302,9 +357,12 @@ export function IntakeForm({ factory }: { factory: string | null }) {
                   <FormLabel className="text-base">Малчин сонгох</FormLabel>
                   <FormControl>
                     <HerderPicker
+                      key={pickerKey}
+                      initialLabel={herder?.name ?? undefined}
                       value={field.value || null}
                       onChange={(id) => field.onChange(id ?? "")}
                       onSelect={setHerder}
+                      quick={quickHerder}
                     />
                   </FormControl>
                   <FormMessage />
@@ -331,7 +389,10 @@ export function IntakeForm({ factory }: { factory: string | null }) {
                   name="stamp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base">Таних тэмдэг</FormLabel>
+                      <FormLabel className="text-base">
+                        Таних тэмдэг
+                        {stampRequired ? "" : " (заавал биш)"}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -361,7 +422,11 @@ export function IntakeForm({ factory }: { factory: string | null }) {
                     <SignatureField
                       value={field.value ?? null}
                       onChange={(id) => field.onChange(id)}
-                      label="Тамга (зурах)"
+                      label={
+                        stampRequired
+                          ? "Тамга (зурах)"
+                          : "Тамга (зурах, заавал биш)"
+                      }
                       type="register"
                     />
                   )}
@@ -397,19 +462,32 @@ export function IntakeForm({ factory }: { factory: string | null }) {
 
         <Card>
           <CardContent className="space-y-4 p-6">
-            <div className="text-lg font-semibold">Малын тоо</div>
-            <Controller
-              control={form.control}
-              name="counts"
-              render={({ field }) => (
-                <AnimalCountGrid
-                  value={(field.value as Record<string, number>) ?? {}}
-                  onChange={(v) => field.onChange(v)}
-                />
-              )}
-            />
-            {pre ? null : (
-              <SlaughterCostPreviewWatched control={form.control} />
+            {/* Хойд үйлдвэр: weigh the meat here; live animals: head count. */}
+            <div className="text-lg font-semibold">
+              {pre ? "Мах ба жин" : "Малын тоо"}
+            </div>
+            {pre ? (
+              <Controller
+                control={form.control}
+                name="weighings"
+                render={({ field }) => (
+                  <IntakeWeighRows
+                    value={field.value}
+                    onChange={(v) => field.onChange(v)}
+                  />
+                )}
+              />
+            ) : (
+              <Controller
+                control={form.control}
+                name="counts"
+                render={({ field }) => (
+                  <AnimalCountGrid
+                    value={(field.value as Record<string, number>) ?? {}}
+                    onChange={(v) => field.onChange(v)}
+                  />
+                )}
+              />
             )}
           </CardContent>
         </Card>

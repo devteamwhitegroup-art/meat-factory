@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CustomerListDoc } from "@/lib/queries/customer";
+import { useDraft } from "@/lib/hooks/useDraft";
 import { CreateSalesTransactionDoc } from "@/lib/queries/sales";
 import { unwrap } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
@@ -61,6 +62,16 @@ export function NewSaleForm() {
     },
   ]);
   const [busy, setBusy] = useState(false);
+  const clearDraft = useDraft(
+    "sale:new",
+    { customerId, date, notes, lines },
+    (d) => {
+      setCustomerId(d.customerId);
+      setDate(d.date);
+      setNotes(d.notes);
+      setLines(d.lines);
+    },
+  );
 
   const totals = useMemo(() => {
     let kg = 0;
@@ -141,6 +152,7 @@ export function NewSaleForm() {
       });
       const tx = unwrap(r.data?.createSalesTransaction).salesTransaction;
       if (!tx?.id) throw new Error("Хариу буцаасангүй");
+      clearDraft();
       toast.success(`Гүйлгээ ${tx.transactionCode} үүсгэгдлээ`);
       router.push(`/sales/${tx.id}`);
     } catch (e) {

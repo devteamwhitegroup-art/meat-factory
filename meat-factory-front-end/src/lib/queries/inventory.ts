@@ -2,7 +2,7 @@ import { graphql } from "@/lib/gql/gql";
 
 export const InventoryStockDoc = graphql(/* GraphQL */ `
   query InventoryStock(
-    $factory: FACTORY
+    $factory: String
     $productType: PRODUCT_TYPE
     $animalId: ID
     $byproductName: String
@@ -38,7 +38,8 @@ export const InventoryStockDoc = graphql(/* GraphQL */ `
 
 export const InventoryMovementsDoc = graphql(/* GraphQL */ `
   query InventoryMovements(
-    $factory: FACTORY
+    $factory: String
+    $productType: PRODUCT_TYPE
     $inventoryItemId: ID
     $movementType: MOVEMENT_TYPE
     $source: MOVEMENT_SOURCE
@@ -48,6 +49,7 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
   ) {
     inventoryMovements(
       factory: $factory
+      productType: $productType
       inventoryItemId: $inventoryItemId
       movementType: $movementType
       source: $source
@@ -68,10 +70,20 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
         balanceAfterCount
         createdAt
         notes
+        sourceRegistrationId
+        sourceShipmentId
+        registrationCode
+        shipmentCode
         item {
           id
           factory
           sku
+          productType
+          byproductName
+          animal {
+            id
+            name
+          }
         }
       }
     }
@@ -79,7 +91,7 @@ export const InventoryMovementsDoc = graphql(/* GraphQL */ `
 `);
 
 export const InventoryStatsDoc = graphql(/* GraphQL */ `
-  query InventoryStats($factory: FACTORY) {
+  query InventoryStats($factory: String) {
     inventoryStats(factory: $factory) {
       success
       message
@@ -100,7 +112,7 @@ export const InventoryStatsDoc = graphql(/* GraphQL */ `
 
 export const AdjustInventoryDoc = graphql(/* GraphQL */ `
   mutation AdjustInventory(
-    $factory: FACTORY
+    $factory: String
     $productType: PRODUCT_TYPE!
     $animalId: ID
     $byproductName: String
@@ -126,6 +138,23 @@ export const AdjustInventoryDoc = graphql(/* GraphQL */ `
         sku
         quantityKg
         quantityCount
+      }
+    }
+  }
+`);
+
+// Admin: meat on hand at FIFO cost (remaining purchase lots).
+export const InventoryValuationDoc = graphql(/* GraphQL */ `
+  query InventoryValuation($factory: String) {
+    inventoryValuation(factory: $factory) {
+      success
+      message
+      rows {
+        factory
+        animalType
+        kg
+        value
+        avgCostPerKg
       }
     }
   }

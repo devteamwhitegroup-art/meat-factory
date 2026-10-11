@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
 
@@ -48,7 +49,14 @@ function byproductLabel(i: Item): string {
   return i.byproductName ?? "—";
 }
 
-export function StockSplit({ items }: { items: Item[] }) {
+export function StockSplit({
+  items,
+  countOnly = false,
+}: {
+  items: Item[];
+  // Үйлдвэр 1/2 нярав: byproducts as piece counts only (no kg).
+  countOnly?: boolean;
+}) {
   const [tab, setTab] = useState<"meat" | "byproduct">("meat");
 
   const meat = items.filter((i) => i.productType === "MEAT");
@@ -60,7 +68,7 @@ export function StockSplit({ items }: { items: Item[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex w-full max-w-md rounded-md bg-muted p-1 text-sm">
+      <div className={SEGMENTED}>
         {(
           [
             {
@@ -82,17 +90,15 @@ export function StockSplit({ items }: { items: Item[] }) {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={cn(
-              "flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors",
-              tab === t.key
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
+            className={segmentCls(tab === t.key)}
           >
             {t.label}{" "}
             <span className="text-xs text-muted-foreground">
-              ({formatNumber(t.total)} кг
-              {"pieces" in t && t.pieces > 0 ? ` · ${t.pieces} ш` : ""})
+              {countOnly && "pieces" in t
+                ? `(${t.pieces} ш)`
+                : `(${formatNumber(t.total)} кг${
+                    "pieces" in t && t.pieces > 0 ? ` · ${t.pieces} ш` : ""
+                  })`}
             </span>
           </button>
         ))}
@@ -101,7 +107,11 @@ export function StockSplit({ items }: { items: Item[] }) {
       {tab === "meat" ? (
         <MeatPanel items={meat} total={meatTotal} />
       ) : (
-        <ByproductPanel items={byproduct} total={byTotal} />
+        <ByproductPanel
+          items={byproduct}
+          total={countOnly ? byCount : byTotal}
+          countOnly={countOnly}
+        />
       )}
     </div>
   );
@@ -211,17 +221,29 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
 
 // ─── Byproduct tab ───────────────────────────────────────────────────
 
-function ByproductPanel({ items, total }: { items: Item[]; total: number }) {
-  // Sort descending by kg; byproducts are usually long-tail named items so
-  // a simple ranked list is more useful than a stacked bar.
+function ByproductPanel({
+  items,
+  total,
+  countOnly,
+}: {
+  items: Item[];
+  // kg total, or piece total when countOnly.
+  total: number;
+  countOnly: boolean;
+}) {
+  // Sort descending by kg (pieces when countOnly); byproducts are usually
+  // long-tail named items so a ranked list beats a stacked bar.
   const sorted = [...items]
     .map((i) => ({
       ...i,
       kg: Number(i.quantityKg ?? 0),
       label: byproductLabel(i),
     }))
-    .sort(
-      (a, b) => b.kg - a.kg || (b.quantityCount ?? 0) - (a.quantityCount ?? 0),
+    .filter((i) => !countOnly || (i.quantityCount ?? 0) > 0)
+    .sort((a, b) =>
+      countOnly
+        ? (b.quantityCount ?? 0) - (a.quantityCount ?? 0)
+        : b.kg - a.kg || (b.quantityCount ?? 0) - (a.quantityCount ?? 0),
     );
 
   if (sorted.length === 0) {
@@ -245,20 +267,25 @@ function ByproductPanel({ items, total }: { items: Item[]; total: number }) {
         </TableHeader>
         <TableBody>
           {sorted.map((i) => {
-            const pct = total > 0 ? (i.kg / total) * 100 : 0;
+            const amount = countOnly ? (i.quantityCount ?? 0) : i.kg;
+            const pct = total > 0 ? (amount / total) * 100 : 0;
             return (
               <TableRow key={i.id}>
                 <TableCell className="font-mono text-xs">{i.sku}</TableCell>
                 <TableCell className="font-medium">{i.label}</TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {[
-                    (i.quantityCount ?? 0) > 0 ? `${i.quantityCount} ш` : null,
-                    i.kg > 0 || !i.quantityCount
-                      ? `${formatNumber(i.kg)} кг`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {countOnly
+                    ? `${i.quantityCount ?? 0} ш`
+                    : [
+                        (i.quantityCount ?? 0) > 0
+                          ? `${i.quantityCount} ш`
+                          : null,
+                        i.kg > 0 || !i.quantityCount
+                          ? `${formatNumber(i.kg)} кг`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">

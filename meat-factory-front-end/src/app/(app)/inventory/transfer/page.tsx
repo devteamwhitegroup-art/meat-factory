@@ -1,35 +1,37 @@
 import Link from "next/link";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { getClient } from "@/lib/apollo/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { InventoryStockDoc } from "@/lib/queries/inventory";
 import { unwrapList } from "@/lib/unwrap";
+import { requireCap } from "@/lib/auth/server";
+import { getFactories } from "@/lib/factory/server";
 import {
-  BYPRODUCT_FACTORY,
-  FACTORY_MN,
-  INTAKE_FACTORIES,
-} from "@/lib/format/enum";
-import { isCrossFactoryRole } from "@/lib/auth/roles";
-import { requireCap, sessionFactory } from "@/lib/auth/server";
-import { cn } from "@/lib/utils";
-import type { Factory } from "@/lib/gql/graphql";
+  byproductFactories,
+  intakeFactories,
+  isByproductSite,
+} from "@/lib/factory/factories";
 import { TransferForm } from "./transfer-form";
 
 type Props = { searchParams: Promise<{ factory?: string }> };
 
-// Send counted byproducts (гэдэс) from FACTORY_1/2 stock to the byproduct
-// factory. Owner/admin pick the sender via ?factory=; staff send from their own
-// (BE-scoped, so the stock query needs no factory for them).
+// Send counted byproducts (гэдэс) from an intake site's stock to the
+// byproduct site. Cross-factory roles pick the sender via ?factory=; staff
+// send from their own (BE-scoped, so the stock query needs no factory for them).
 export default async function TransferPage({ searchParams }: Props) {
-  const role = await requireCap("byproductTransfer");
-  const crossFactory = isCrossFactoryRole(role);
+  const session = await requireCap("BYPRODUCT_TRANSFER");
+  const factories = await getFactories();
+  const crossFactory = session.crossFactory;
+  const senders = intakeFactories(factories);
+  const target = byproductFactories(factories)
+    .map((f) => f.name)
+    .join(" / ");
   const sp = await searchParams;
-  const own = crossFactory ? null : await sessionFactory();
-  const from = crossFactory
-    ? INTAKE_FACTORIES.includes(sp.factory ?? "")
-      ? (sp.factory as Factory)
-      : null
-    : null;
-  const blocked = own === BYPRODUCT_FACTORY;
+  const from =
+    crossFactory && senders.some((f) => f.code === sp.factory)
+      ? (sp.factory as string)
+      : null;
+  const blocked = !crossFactory && isByproductSite(factories, session.factory);
   const ready = !blocked && (!crossFactory || !!from);
 
   const { data } = ready
@@ -57,9 +59,7 @@ export default async function TransferPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">
-        Дайвар илгээх → {FACTORY_MN[BYPRODUCT_FACTORY]}
-      </h1>
+      <h1 className="text-2xl font-semibold">Дайвар илгээх → {target}</h1>
       <InventoryTabs />
       <div className="text-sm text-muted-foreground">
         Тоолсон гэдсийг дайврын үйлдвэр рүү илгээнэ. Илгээгчийн нөөцөөс
@@ -67,19 +67,14 @@ export default async function TransferPage({ searchParams }: Props) {
       </div>
 
       {crossFactory ? (
-        <div className="inline-flex h-9 items-center rounded-lg bg-muted p-1">
-          {INTAKE_FACTORIES.map((f) => (
+        <div className={SEGMENTED}>
+          {senders.map((f) => (
             <Link
-              key={f}
-              href={`/inventory/transfer?factory=${f}`}
-              className={cn(
-                "inline-flex h-7 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap",
-                from === f
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-foreground/60 hover:text-foreground",
-              )}
+              key={f.code}
+              href={`/inventory/transfer?factory=${f.code}`}
+              className={segmentCls(from === f.code)}
             >
-              {FACTORY_MN[f]}
+              {f.name}
             </Link>
           ))}
         </div>

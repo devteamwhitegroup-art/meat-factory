@@ -1,7 +1,10 @@
 import { TDateRange, TPagination } from '../global/global.type';
 
+// Derived from installments (SalesTransactionController._resyncPaymentStatus):
+// nothing paid → PENDING, part → PARTIALLY_PAID, all → PAID.
 export enum PAYMENT_STATUS {
   PAID = 'PAID', // ТӨЛБӨР ХИЙСЭН
+  PARTIALLY_PAID = 'PARTIALLY_PAID', // ХЭСЭГЧЛЭН ТӨЛСӨН
   PENDING = 'PENDING' // ХҮЛЭЭГДЭЖ БУЙ
 }
 

@@ -4,55 +4,41 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { createHmac } from "node:crypto";
 
-import {
-  Attributes,
-  IncludeOptions,
-  Model,
-  Order,
-  WhereOptions,
-} from "sequelize";
+import { Attributes, Model, WhereOptions } from "sequelize";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { AdminModel } from "../../models/user/admin.model";
+import { RoleModel } from "../../models/user/role.model";
 import {
-  ADMIN_ROLE,
-  CROSS_FACTORY_ROLES,
-  FACTORY,
-  TAdmin,
   TAdminLoginInput,
   TCreateAdmin,
+  TUpdateAdmin,
 } from "../../types/user/admin.type";
+import { PERMISSION } from "../../types/user/permission.type";
+import { RoleController } from "./role.controller";
+import { FactoryController } from "../factory/factory.controller";
 import { findOrThrow } from "../../utils";
 
 const { ADMIN_JWT_TOKEN_SALT, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD } = config;
 
+// Every staff read carries its role — the FE shows role name + permissions.
+const ADMIN_INCLUDE = [{ model: RoleModel, as: "role" }];
+
 export class AdminController {
-  static findIdCheck(
-    id: string,
-    include?: Array<IncludeOptions>,
-    order?: Order,
-  ): Promise<TAdmin & Model> {
-    return findOrThrow(AdminModel, id, "admin not found", { include, order });
+  static findIdCheck(id: string): Promise<AdminModel> {
+    return findOrThrow(AdminModel, id, "admin not found", {
+      include: ADMIN_INCLUDE,
+    });
   }
 
   static async getExistingAdmin<M extends Model>(
     where: WhereOptions<Attributes<M>>,
     withPassword: boolean = false,
   ): Promise<AdminModel> {
-    let admin: AdminModel | null = null;
-    if (withPassword) {
-      admin = await AdminModel.scope("withPassword").findOne({
-        where,
-      });
-    } else {
-      admin = await AdminModel.findOne({
-        where,
-      });
-    }
-
-    if (!admin) {
-      throw new Error("Admin not found");
-    }
-
+    const admin = await (withPassword
+      ? AdminModel.scope("withPassword")
+      : AdminModel
+    ).findOne({ where, include: ADMIN_INCLUDE });
+    if (!admin) throw new Error("Admin not found");
     return admin;
   }
 
@@ -67,28 +53,27 @@ export class AdminController {
     if (!match) throw new Error("Password do not match");
   }
 
-  static async generateJwt(
-    doc: Pick<TContext, "id" | "role">,
-  ): Promise<string> {
+  // The token only identifies the account; permissions/factory are read live
+  // from the DB on every request (getTokenInfo), so role edits apply at once.
+  static async generateJwt(doc: Pick<TContext, "id">): Promise<string> {
     return jwt.sign(doc, ADMIN_JWT_TOKEN_SALT);
   }
 
-  static async _verifyJwt(token: string): Promise<TContext> {
-    return jwt.verify(token, ADMIN_JWT_TOKEN_SALT) as TContext;
+  static async _verifyJwt(token: string): Promise<Pick<TContext, "id">> {
+    return jwt.verify(token, ADMIN_JWT_TOKEN_SALT) as Pick<TContext, "id">;
   }
 
   static async login(
     doc: TAdminLoginInput,
-  ): Promise<{ admin: TAdmin; token: string }> {
+  ): Promise<{ admin: AdminModel; token: string }> {
     const { param, password } = doc;
 
     const admin = await this.getExistingAdmin<AdminModel>(
       { param: param.toLowerCase() },
       true,
     );
-    const { id } = admin;
     await this._matchPassword(password, admin.password);
-    const token = await this.generateJwt({ id, role: admin.role });
+    const token = await this.generateJwt({ id: admin.id });
 
     return { admin, token };
   }
@@ -96,60 +81,84 @@ export class AdminController {
   static async getTokenInfo(token: string): Promise<TContext | null> {
     if (!token) return null;
     const { id } = await this._verifyJwt(token);
-    // Read the live role from the DB row (do not trust the role baked
-    // into the JWT — it may have been changed/revoked since issuance).
     const admin = await this.findIdCheck(id);
-    return { id, role: admin.role, factory: admin.factory };
+    const role = admin.role;
+    if (!role) throw new Error("Эрх оноогоогүй байна");
+    return {
+      id,
+      permissions: role.permissions,
+      crossFactory: role.crossFactory,
+      factory: admin.factory,
+    };
   }
 
-  // The actor's factory boundary: null = owner/admin (both factories).
+  // ─── Permission guards (controllers re-check what the @auth directive
+  // already enforced at the field, plus finer business rules) ─────────────
+
+  static hasPermission(context: TContext, permission: PERMISSION): boolean {
+    return context.permissions.includes(permission);
+  }
+
+  // Actor needs ANY of the listed permissions.
+  static assertPermission(context: TContext, ...anyOf: PERMISSION[]): void {
+    if (!context || !anyOf.some((p) => context.permissions.includes(p)))
+      throw new Error("Энэ үйлдлийг хийх эрх хүрэхгүй байна");
+  }
+
+  // ─── Factory boundary ──────────────────────────────────────────────────
+
+  // The actor's factory boundary: null = cross-factory role (every site).
   // Public — the per-factory data scoping in other controllers routes here.
-  static scopeFactory(context: TContext): FACTORY | null {
-    if (CROSS_FACTORY_ROLES.includes(context.role)) return null;
+  static scopeFactory(context: TContext): string | null {
+    if (context.crossFactory) return null;
     if (!context.factory) throw new Error("Танд үйлдвэр оноогоогүй байна");
     return context.factory;
   }
 
-  // List filter: staff → own factory; owner/admin → the one asked for, or all.
+  // List filter: staff → own factory; cross-factory → the one asked for, or all.
   static readFactory(
     context: TContext,
-    requested?: FACTORY | null,
-  ): FACTORY | null {
-    return this.scopeFactory(context) ?? requested ?? null;
+    requested?: string | null,
+  ): string | null {
+    const own = this.scopeFactory(context);
+    if (own) return own;
+    if (requested) FactoryController.get(requested);
+    return requested ?? null;
   }
 
-  // Create target: staff → own factory; owner/admin must name one.
-  static writeFactory(
-    context: TContext,
-    requested?: FACTORY | null,
-  ): FACTORY {
+  // Create target: staff → own factory; cross-factory actors must name one.
+  static writeFactory(context: TContext, requested?: string | null): string {
     const factory = this.readFactory(context, requested);
     if (!factory) throw new Error("Үйлдвэр сонгоно уу");
+    FactoryController.assertActive(factory);
     return factory;
   }
 
   // Row guard: factory staff can't reach another factory's records.
-  static assertFactory(context: TContext, factory: FACTORY): void {
+  static assertFactory(context: TContext, factory: string): void {
     const own = this.scopeFactory(context);
     if (own && own !== factory) throw new Error("Олдсонгүй");
   }
 
-  // Owner/admin roles carry no factory; every other role needs one. A
+  // Cross-factory roles carry no factory; every other role needs one. A
   // factory-bound actor can only grant factory roles, in their own factory.
-  static _resolveFactory(
+  private static _resolveFactory(
     context: TContext,
-    role: ADMIN_ROLE,
-    factory?: FACTORY | null,
-  ): FACTORY | null {
+    role: RoleModel,
+    factory?: string | null,
+  ): string | null {
     const own = this.scopeFactory(context);
-    if (CROSS_FACTORY_ROLES.includes(role)) {
-      if (own) throw new Error("Only owner/admin can grant owner/admin roles");
+    if (role.crossFactory) {
+      if (own) throw new Error("Бүх үйлдвэрийн эрхийг зөвхөн админ онооно");
       return null;
     }
     const resolved = own ?? factory;
-    if (!resolved) throw new Error("factory is required for this role");
+    if (!resolved) throw new Error("Энэ эрхэд үйлдвэр заавал сонгоно");
+    FactoryController.get(resolved);
     return resolved;
   }
+
+  // ─── Staff accounts ────────────────────────────────────────────────────
 
   // ponytail: unpaginated — staff accounts number in the tens.
   static async getAdmins(
@@ -158,6 +167,7 @@ export class AdminController {
     const factory = this.scopeFactory(context);
     return await AdminModel.findAndCountAll({
       where: factory ? { factory } : {},
+      include: ADMIN_INCLUDE,
       order: [["createdAt", "ASC"]],
     });
   }
@@ -166,25 +176,24 @@ export class AdminController {
     doc: TCreateAdmin,
     context: TContext,
   ): Promise<AdminModel> {
-    const { param, password, role = ADMIN_ROLE.ADMIN } = doc;
-    if (!param || !param.trim()) throw new Error("param is required");
-    if (!password || !password.trim()) throw new Error("password is required");
-    if (role && !Object.values(ADMIN_ROLE).includes(role)) {
-      throw new Error(
-        `role must be one of: ${Object.values(ADMIN_ROLE).join(", ")}`,
-      );
-    }
+    const { param, password, roleId } = doc;
+    if (!param || !param.trim()) throw new Error("Нэвтрэх нэр оруулна уу");
+    if (!password || !password.trim()) throw new Error("Нууц үг оруулна уу");
+    if (!roleId) throw new Error("Эрх сонгоно уу");
+    const role = await RoleController.findIdCheck(roleId);
     const factory = this._resolveFactory(context, role, doc.factory);
     // beforeCreate hook on the model hashes the password.
-    return await AdminModel.create({
+    const created = await AdminModel.create({
       param: param.trim().toLowerCase(),
       password,
-      role,
+      roleId: role.id,
       factory,
     });
+    return this.findIdCheck(created.id);
   }
 
   static async seedAdmin(): Promise<void> {
+    const role = await RoleController.systemRole();
     await AdminModel.findOrCreate({
       where: {
         param: SEED_ADMIN_EMAIL.toLowerCase(),
@@ -192,56 +201,62 @@ export class AdminController {
       defaults: {
         param: SEED_ADMIN_EMAIL.toLowerCase(),
         password: SEED_ADMIN_PASSWORD,
-        role: ADMIN_ROLE.ADMIN,
+        roleId: role.id,
       },
     });
   }
 
-  // Dev-only: seed one staff account per operational role for testing
-  // the meat-factory workflow end to end.
+  // Dev-only: one account per default job role, at the first factory, for
+  // testing the workflow end to end.
   static async seedStaff(): Promise<void> {
-    const staff: Array<{ param: string; role: ADMIN_ROLE }> = [
-      { param: "store@example.com", role: ADMIN_ROLE.STOREKEEPER },
-      { param: "accountant@example.com", role: ADMIN_ROLE.ACCOUNTANT },
-      { param: "doctor@example.com", role: ADMIN_ROLE.DOCTOR },
+    const factory = FactoryController.all()[0];
+    if (!factory) throw new Error("No factories configured");
+    const staff: Array<{ param: string; role: string }> = [
+      { param: "store@example.com", role: "Нярав" },
+      { param: "accountant@example.com", role: "Нягтлан" },
+      { param: "doctor@example.com", role: "Эмч" },
     ];
     for (const { param, role } of staff) {
+      const r = await RoleController.byName(role);
       await AdminModel.findOrCreate({
         where: { param: param.toLowerCase() },
         defaults: {
           param: param.toLowerCase(),
           password: SEED_ADMIN_PASSWORD,
-          role,
-          factory: FACTORY.FACTORY_1,
+          roleId: r.id,
+          factory: factory.code,
         },
       });
     }
   }
 
   static async currentAdmin(context: TContext): Promise<AdminModel> {
-    const { id } = context;
-    return await this.findIdCheck(id);
+    return await this.findIdCheck(context.id);
   }
 
   static async updateAdmin(
-    doc: Partial<TAdmin> & { id: string },
+    doc: TUpdateAdmin,
     context: TContext,
   ): Promise<AdminModel> {
-    const { id, param, password, role, factory } = doc;
+    const { id, param, password, roleId, factory } = doc;
     const admin = await this.findIdCheck(id);
     const own = this.scopeFactory(context);
     if (own && admin.factory !== own) throw new Error("admin not found");
+    const role = roleId
+      ? await RoleController.findIdCheck(roleId)
+      : (admin.role as RoleModel);
     admin.factory = this._resolveFactory(
       context,
-      role ?? admin.role,
+      role,
       factory ?? admin.factory,
     );
     // Login matches on the lowercased param — store it the same way.
     if (param?.trim()) admin.param = param.trim().toLowerCase();
     if (password) admin.password = password;
-    if (role) admin.role = role;
+    admin.roleId = role.id;
 
-    return await admin.save();
+    await admin.save();
+    return this.findIdCheck(id);
   }
 
   static async deleteAdmin(

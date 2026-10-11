@@ -17,12 +17,16 @@ import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/money";
-import { FACTORY_MN, isPreButchered } from "@/lib/format/enum";
+import { getFactories } from "@/lib/factory/server";
+import {
+  factoryKind,
+  factoryName,
+  isPreButchered,
+} from "@/lib/factory/factories";
 import { compact } from "@/lib/compact";
 import { BackButton } from "@/components/common/BackButton";
-import { cookies } from "next/headers";
-import { env } from "@/lib/env";
-import { can } from "@/lib/auth/roles";
+import { canCreateRegistration } from "@/lib/auth/roles";
+import { getSession } from "@/lib/auth/server";
 import { MedicalNumbersCard } from "./_components/MedicalNumbersCard";
 import { HerderInfoCard } from "./_components/HerderInfoCard";
 
@@ -47,13 +51,20 @@ export default async function RegistrationDetailPage({ params }: Props) {
   const isOpen = status === "REGISTERED";
   // FACTORY_2 (pre-butchered): no verify / byproduct steps — гэдэс is counted
   // on the weigh page and finance settles straight from WEIGHED.
-  const pre = isPreButchered(r.factory);
+  const [session, factories] = await Promise.all([
+    getSession(),
+    getFactories(),
+  ]);
+  const pre = isPreButchered(factories, r.factory);
   const bundles = compact(r.byproductBundles).filter((b) => b.id);
 
-  // Only render next-step buttons the current role can actually use. The
+  // Only render next-step buttons the account can actually use. The
   // back-end + page gates would block navigation anyway, but hiding the
-  // buttons keeps the UI honest (e.g. a Guard never sees "Хэмжүүр").
-  const role = (await cookies()).get(env.ROLE_COOKIE_NAME)?.value ?? null;
+  // buttons keeps the UI honest.
+  const canCreate = canCreateRegistration(
+    session.perms,
+    factoryKind(factories, session.factory),
+  );
 
   return (
     <div className="space-y-6">
@@ -68,24 +79,55 @@ export default async function RegistrationDetailPage({ params }: Props) {
               </h1>
               <StatusBadge status={status} />
               {r.factory ? (
-                <Badge variant="outline">{FACTORY_MN[r.factory]}</Badge>
+                <Badge variant="outline">{factoryName(factories, r.factory)}</Badge>
               ) : null}
             </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {status === "REGISTERED" && can(role, "weigh") && (
+          {/* Back-to-back intake: start the next registration from here. */}
+          {canCreate && (
             <Link
-              href={`/registrations/${r.id}/weigh`}
-              className={buttonVariants()}
+              href="/registrations/new"
+              className={buttonVariants({ variant: "outline" })}
             >
-              Хэмжүүр
+              Шинэ бүртгэл
             </Link>
           )}
+          {/* Intake fix: direct the same day, a change request after. */}
+          {(status === "REGISTERED" ||
+            status === "WEIGHED" ||
+            status === "VERIFIED") &&
+            session.can("REGISTRATION_CREATE") && (
+              <Link
+                href={`/registrations/${r.id}/edit`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                {r.editableByMe ? "Засах" : "Засварын хүсэлт"}
+              </Link>
+            )}
+          {/* Хойд үйлдвэр weighs on the intake form → straight to verify. */}
+          {status === "REGISTERED" &&
+            session.can("REGISTRATION_WEIGH") &&
+            (pre && compact(r.weighingEntries).length > 0 ? (
+              <Link
+                href={`/registrations/${r.id}/verify`}
+                className={buttonVariants()}
+              >
+                Баталгаажуулах
+              </Link>
+            ) : (
+              <Link
+                href={`/registrations/${r.id}/weigh`}
+                className={buttonVariants()}
+              >
+                Хэмжүүр
+              </Link>
+            ))}
           {(status === "WEIGHED" ||
             status === "VERIFIED" ||
             status === "PAYMENT_PENDING") &&
-            can(role, "weighFix") && (
+            session.can("REGISTRATION_WEIGH_FIX") && (
               <Link
                 href={`/registrations/${r.id}/weigh`}
                 className={buttonVariants({ variant: "outline" })}
@@ -93,7 +135,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 Жин засах
               </Link>
             )}
-          {status === "VERIFIED" && !pre && can(role, "byproduct") && (
+          {status === "VERIFIED" && !pre && session.can("REGISTRATION_WEIGH") && (
             <Link
               href={`/registrations/${r.id}/byproduct`}
               className={buttonVariants()}
@@ -104,7 +146,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
           {status !== "REGISTERED" &&
             status !== "CANCELLED" &&
             !pre &&
-            can(role, "verify") && (
+            session.can("REGISTRATION_VERIFY") && (
               <Link
                 href={`/registrations/${r.id}/verify`}
                 className={buttonVariants(
@@ -119,7 +161,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
             status === "PAYMENT_PENDING" ||
             status === "PARTIALLY_SETTLED" ||
             status === "SETTLED") &&
-            can(role, "settle") && (
+            session.can("SETTLEMENT_CREATE", "SETTLEMENT_PAY") && (
               <Link
                 href={`/registrations/${r.id}/settlement`}
                 className={buttonVariants()}
@@ -147,7 +189,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 }
               : null
           }
-          canEdit={can(role, "herderEdit")}
+          canEdit={session.can("HERDER_EDIT")}
         />
 
         <Card>
@@ -189,10 +231,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
           number: n.number ?? "",
           status: n.status ?? "PENDING",
         }))}
-        approved={!!r.medicalNumberApproved}
         closed={status === "CANCELLED" || status === "SETTLED"}
-        canEdit={can(role, "medicalNumber")}
-        canCheck={can(role, "medicalCheck")}
+        canEdit={session.can("MEDICAL_NUMBER_ENTER")}
+        canCheck={session.can("MEDICAL_NUMBER_CHECK")}
       />
 
       <Card>
@@ -202,7 +243,12 @@ export default async function RegistrationDetailPage({ params }: Props) {
         <CardContent className="flex flex-wrap gap-3 text-sm">
           {compact(r.animalLines).map((l) => (
             <div key={l.id!} className="rounded-md border px-3 py-1.5">
-              {l.animalType}: <b>{l.count}</b>
+              {l.animalType}
+              {l.count ? (
+                <>
+                  : <b>{l.count}</b>
+                </>
+              ) : null}
             </div>
           ))}
         </CardContent>

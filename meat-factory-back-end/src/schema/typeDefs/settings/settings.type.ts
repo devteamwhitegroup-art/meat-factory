@@ -1,14 +1,16 @@
 export default `#graphql
+    # A factory's thermal printer (one per factory). id = the relay's
+    # PRINTER_KEYS value.
     type Printer {
         id: ID
-        name: String
+        factory: String
         ip: String
     }
 
     input PrinterInput {
         # Omit for a new printer; send the existing id to keep it.
         id: ID
-        name: String!
+        factory: String!
         ip: String!
     }
 
@@ -39,6 +41,6 @@ export default `#graphql
             domesticAlertThresholdKg: Float
             # Replaces the whole printer list.
             printers: [PrinterInput!]
-        ): SettingsResponse @auth(permissions: ["ADMIN"])
+        ): SettingsResponse @auth(permissions: [SETTINGS_MANAGE])
     }
 `;

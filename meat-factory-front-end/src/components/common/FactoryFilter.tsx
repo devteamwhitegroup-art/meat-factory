@@ -8,21 +8,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { FACTORY_MN } from "@/lib/format/enum";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 
-const OPTIONS: [string, string][] = [
-  ["", "Бүх үйлдвэр"],
-  ...Object.entries(FACTORY_MN),
-];
-
-// Owner/admin list switch: writes `?factory=` (empty = both factories) so the
+// Cross-factory list switch: writes `?factory=` (empty = every factory) so the
 // server page refetches. Staff never see it — the BE scopes them already.
 export function FactoryFilter() {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+  const { active } = useFactories();
   const current = sp.get("factory") ?? "";
+  const options: [string, string][] = [
+    ["", "Бүх үйлдвэр"],
+    ...active.map((f): [string, string] => [f.code, f.name]),
+  ];
 
   function set(v: string) {
     const params = new URLSearchParams(sp.toString());
@@ -34,18 +34,13 @@ export function FactoryFilter() {
   }
 
   return (
-    <div className="inline-flex h-9 items-center rounded-lg bg-muted p-1">
-      {OPTIONS.map(([v, label]) => (
+    <div className={SEGMENTED}>
+      {options.map(([v, label]) => (
         <button
           key={v}
           type="button"
           onClick={() => set(v)}
-          className={cn(
-            "inline-flex h-7 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all",
-            current === v
-              ? "bg-background text-foreground shadow-sm"
-              : "text-foreground/60 hover:text-foreground",
-          )}
+          className={segmentCls(current === v)}
         >
           {label}
         </button>
@@ -54,7 +49,7 @@ export function FactoryFilter() {
   );
 }
 
-// Controlled factory select for owner/admin create forms (the BE requires a
+// Controlled factory select for cross-factory create forms (the BE requires a
 // factory from them; staff are stamped with their own and never see this).
 export function FactoryPicker({
   value,
@@ -63,17 +58,18 @@ export function FactoryPicker({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const { active, nameOf } = useFactories();
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
       <SelectTrigger aria-label="Үйлдвэр" className="h-11 min-w-40">
         <SelectValue placeholder="Үйлдвэр сонгох">
-          {value ? <span>{FACTORY_MN[value]}</span> : null}
+          {value ? <span>{nameOf(value)}</span> : null}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {Object.entries(FACTORY_MN).map(([v, label]) => (
-          <SelectItem key={v} value={v}>
-            {label}
+        {active.map((f) => (
+          <SelectItem key={f.code} value={f.code}>
+            {f.name}
           </SelectItem>
         ))}
       </SelectContent>

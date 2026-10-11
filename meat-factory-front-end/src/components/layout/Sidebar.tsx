@@ -2,26 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ROLE_MN } from "@/lib/format/enum";
 import { cn } from "@/lib/utils";
 import { useLogout } from "@/lib/auth/useLogout";
-import { navItemsFor, navIsActive, type StaffRole } from "@/lib/auth/roles";
+import { activeNavHref, type NavItem } from "@/lib/auth/roles";
 
 export function Sidebar({
-  role,
-  factory,
+  items,
+  roleName,
+  name,
+  brand,
   defaultCollapsed = false,
 }: {
-  role: StaffRole | null;
-  factory: string | null;
+  items: NavItem[];
+  roleName: string | null;
+  name: string | null;
+  brand: string;
   defaultCollapsed?: boolean;
 }) {
   const pathname = usePathname();
-  const items = navItemsFor(role, factory);
+  const activeHref = activeNavHref(items, pathname, useSearchParams());
   const logout = useLogout();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -53,12 +56,7 @@ export function Sidebar({
         )}
       >
         {collapsed ? null : (
-          <div className="text-sm font-semibold tracking-wide">
-            Plant 01
-            <div className="text-[11px] font-normal text-muted-foreground">
-              Meat Processing
-            </div>
-          </div>
+          <div className="text-sm font-semibold tracking-wide">{brand}</div>
         )}
         <button
           type="button"
@@ -80,7 +78,7 @@ export function Sidebar({
       {collapsed ? null : (
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2">
           {items.map((i) => {
-            const active = navIsActive(pathname, i.href);
+            const active = i.href === activeHref;
             return (
               <Link
                 key={i.href}
@@ -114,9 +112,15 @@ export function Sidebar({
         </div>
       ) : (
         <div className="mt-auto space-y-2 border-t p-2">
-          {role ? (
-            <div className="px-1 text-xs text-muted-foreground">
-              {ROLE_MN[role] ?? role}
+          {roleName || name ? (
+            <div className="truncate px-1 text-xs text-muted-foreground">
+              {roleName}
+              {name ? (
+                <span className="font-medium text-foreground">
+                  {roleName ? " · " : ""}
+                  {name}
+                </span>
+              ) : null}
             </div>
           ) : null}
           <div className="flex items-center gap-1">

@@ -1,19 +1,9 @@
 import Link from "next/link";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { requireCap } from "@/lib/auth/server";
 import { CustomerSalesTab } from "./_components/CustomerSalesTab";
 import { HerderSettlementsTab } from "./_components/HerderSettlementsTab";
-
-const TAB_LIST =
-  "inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1";
-function tabCls(active: boolean) {
-  return (
-    "inline-flex h-7 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all " +
-    (active
-      ? "bg-background text-foreground shadow-sm"
-      : "text-foreground/60 hover:text-foreground")
-  );
-}
 
 type Props = {
   searchParams: Promise<{
@@ -31,7 +21,7 @@ type Props = {
 // (SalesTransaction). Different shapes, different queries — just sharing the
 // date filter and page chrome.
 export default async function SalesPage({ searchParams }: Props) {
-  await requireCap("sales");
+  await requireCap("SALES_MANAGE");
   const sp = await searchParams;
   const tab = sp.tab === "herders" ? "herders" : "customers";
   const tabHref = (t: string) => {
@@ -49,11 +39,17 @@ export default async function SalesPage({ searchParams }: Props) {
         <DateRangeFilter />
       </div>
 
-      <div className={TAB_LIST}>
-        <Link href={tabHref("customers")} className={tabCls(tab === "customers")}>
+      <div className={SEGMENTED}>
+        <Link
+          href={tabHref("customers")}
+          className={segmentCls(tab === "customers")}
+        >
           Харилцагч
         </Link>
-        <Link href={tabHref("herders")} className={tabCls(tab === "herders")}>
+        <Link
+          href={tabHref("herders")}
+          className={segmentCls(tab === "herders")}
+        >
           Малчид
         </Link>
       </div>

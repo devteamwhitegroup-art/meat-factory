@@ -1,27 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ROLE_MN } from "@/lib/format/enum";
 import { useLogout } from "@/lib/auth/useLogout";
-import { navIsActive, type NavItem, type StaffRole } from "@/lib/auth/roles";
+import { activeNavHref, type NavItem } from "@/lib/auth/roles";
 import { cn } from "@/lib/utils";
 
-// Kiosk shell top bar for operator roles (gate / scale / store). They have no
-// sidebar, so nav + role + theme + logout all live here. Office roles use the
-// sidebar instead and render no top bar.
+// Kiosk shell top bar for single-purpose roles. They have no sidebar, so
+// nav + role + theme + logout all live here. Other roles use the sidebar
+// instead and render no top bar.
 export function Topbar({
-  role,
+  roleName,
+  name = null,
   navItems = [],
-  brand = "Plant 01",
+  brand,
 }: {
-  role: StaffRole | null;
+  roleName: string | null;
+  name?: string | null;
   navItems?: NavItem[];
-  brand?: string;
+  brand: string;
 }) {
-  const pathname = usePathname();
+  const activeHref = activeNavHref(navItems, usePathname(), useSearchParams());
   const logout = useLogout();
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
@@ -29,7 +30,7 @@ export function Topbar({
         <div className="text-sm font-semibold">{brand}</div>
         <nav className="flex items-center gap-1">
           {navItems.map((i) => {
-            const active = navIsActive(pathname, i.href);
+            const active = i.href === activeHref;
             return (
               <Link
                 key={i.href}
@@ -48,9 +49,15 @@ export function Topbar({
         </nav>
       </div>
       <div className="flex items-center gap-3 text-sm">
-        {role ? (
+        {roleName || name ? (
           <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {ROLE_MN[role] ?? role}
+            {roleName}
+            {name ? (
+              <span className="font-medium text-foreground">
+                {roleName ? " · " : ""}
+                {name}
+              </span>
+            ) : null}
           </span>
         ) : null}
         <ThemeToggle />

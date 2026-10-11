@@ -23,7 +23,6 @@ import { formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
 import { SignatureField } from "@/components/common/SignatureField";
-import { PrintButton } from "@/components/common/PrintButton";
 
 // Derive the (deeply-nested) registration + settlement shapes straight from
 // the query document, so the receipt always matches what the page fetches.
@@ -57,19 +56,16 @@ export function SettlementReceipt({
   onReleaseHold: () => void;
   onSetStorekeeperSignature: (fileId: string | null) => void;
 }) {
-  const herderSignatureUrl = reg.agreementSignature?.url ?? null;
   const storekeeperSignatureUrl = existing.storekeeperSignature?.url ?? null;
+  // Priced wrappers only — unpriced ones (0₮) aren't negotiated with the
+  // herder and carry no credit.
   const bundles = compact(reg.byproductBundles).filter(
-    (b) => Number(b.count ?? 0) > 0,
+    (b) => Number(b.count ?? 0) > 0 && Number(b.unitPrice ?? 0) > 0,
   );
 
+  // Print button lives in the page header (settlement-client).
   return (
     <section data-print="settlement">
-      <div className="mb-3 flex justify-end print-hide">
-        {existing.id ? (
-          <PrintButton type="SETTLEMENT_RECEIPT" id={existing.id} />
-        ) : null}
-      </div>
       <div className="hidden print:mb-4 print:block">
         <div className="text-2xl font-semibold">
           Тооцооны баримт — Бүртгэл {reg.registrationCode ?? "—"}
@@ -162,18 +158,9 @@ export function SettlementReceipt({
             <div className="text-right">
               −{formatNumber(existing.totalSlaughterCost)}
             </div>
-            <div className="text-muted-foreground">
-              Дайвар (гэдэс) — бой зардлаас хасна
-            </div>
+            <div className="text-muted-foreground">Дайвар</div>
             <div className="text-right">
               +{formatNumber(existing.totalByproductAmount)}
-            </div>
-            <div className="font-medium">Цэвэр бой зардал</div>
-            <div className="text-right font-medium">
-              {formatNumber(
-                Number(existing.totalSlaughterCost ?? 0) -
-                  Number(existing.totalByproductAmount ?? 0),
-              )}
             </div>
             <div className="text-base font-semibold">Малчинд өгөх дүн</div>
             <div className="text-right text-base font-semibold">
@@ -382,7 +369,7 @@ export function SettlementReceipt({
             ) : null}
 
             {/* Storekeeper signature — drawn once, reused on every printed
-                receipt from then on (see herderSignatureUrl above). */}
+                receipt from then on. */}
             {canSign ? (
               <SignatureField
                 value={existing.storekeeperSignatureFileId ?? null}
@@ -392,24 +379,9 @@ export function SettlementReceipt({
               />
             ) : null}
           </div>
+          {/* No herder signature: they've left by the time the money is sent
+              (they signed the weigh slip). */}
           <div className="mt-4 hidden grid-cols-2 gap-x-8 print:grid">
-            <div>
-              {/* Herder already signed the weigh/agreement slip — reuse that
-                  signature here instead of leaving a blank line to re-sign. */}
-              {herderSignatureUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={herderSignatureUrl}
-                  alt="Малчны гарын үсэг"
-                  className="h-16 w-auto object-contain"
-                />
-              ) : (
-                <div className="h-16" />
-              )}
-              <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-                Малчны гарын үсэг
-              </div>
-            </div>
             <div>
               {storekeeperSignatureUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

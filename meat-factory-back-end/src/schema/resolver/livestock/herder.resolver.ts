@@ -6,6 +6,7 @@ import {
   TListHerders,
   TUpdateHerder,
 } from "../../../types/livestock/herder.type";
+import { TContext } from "../../../types/global/global.type";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 // Lazy-load the catalogue row when the controller didn't eager-include it
@@ -38,11 +39,15 @@ export default {
     herder: wrapOne("herder", ({ id }: { id: string }) =>
       HerderController.getById(id),
     ),
+    herderStats: wrapOne("stats", ({ id }: { id: string }) =>
+      HerderController.stats(id),
+    ),
   },
   Mutation: {
     createHerder: wrapOne(
       "herder",
-      (doc: TCreateHerder) => HerderController.create(doc),
+      (doc: TCreateHerder, context: TContext) =>
+        HerderController.create(doc, context),
       "Herder created successfully",
     ),
     updateHerder: wrapOne(

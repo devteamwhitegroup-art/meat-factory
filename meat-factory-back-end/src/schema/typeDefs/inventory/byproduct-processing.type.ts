@@ -17,7 +17,7 @@ export default `#graphql
         id: ID
         # BP-YYYYMMDD-N
         code: String
-        factory: FACTORY
+        factory: String
         wrapperId: ID
         wrapper: ByproductWrapper
         bundleCount: Int
@@ -70,34 +70,35 @@ export default `#graphql
 
     extend type Query {
         byproductProcessings(
-            factory: FACTORY
+            factory: String
             wrapperId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): ByproductProcessingsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
-        byproductProcessing(id: ID!): ByproductProcessingResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): ByproductProcessingsResponse @auth(permissions: [BYPRODUCT_PROCESS])
+        byproductProcessing(id: ID!): ByproductProcessingResponse @auth(permissions: [BYPRODUCT_PROCESS])
         # Expected vs actual kg per organ over a period.
         byproductProcessingSummary(
-            factory: FACTORY
+            factory: String
             dateRange: DateRangeInput
-        ): ByproductProcessingSummaryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): ByproductProcessingSummaryResponse @auth(permissions: [BYPRODUCT_PROCESS])
     }
 
     extend type Mutation {
         # FACTORY_3 only. One line per active item of the wrapper.
         createByproductProcessing(
-            factory: FACTORY
+            factory: String
             wrapperId: ID!
             bundleCount: Int!
             lines: [ByproductProcessingLineInput!]!
             notes: String
-        ): ByproductProcessingResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): ByproductProcessingResponse @auth(permissions: [BYPRODUCT_PROCESS])
 
         # Send counted byproducts from FACTORY_1/2 stock to FACTORY_3.
         transferByproducts(
-            fromFactory: FACTORY
+            fromFactory: String
+            toFactory: String
             lines: [ByproductTransferLineInput!]!
             notes: String
-        ): Response @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): Response @auth(permissions: [BYPRODUCT_TRANSFER])
     }
 `;

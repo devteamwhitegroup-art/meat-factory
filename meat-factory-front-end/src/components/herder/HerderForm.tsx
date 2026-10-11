@@ -29,26 +29,33 @@ import { compact } from "@/lib/compact";
 // Either pick an address from the catalogue (addressId) or type one in
 // (address). At least one is required; both are allowed when admin wants to
 // override the catalogue label for an unusual herder.
-export const herderSchema = z
-  .object({
-    name: z.string().min(1, "Нэр шаардлагатай"),
-    registrationNo: z.string().min(1, "Регистрийн дугаар шаардлагатай"),
-    phone: z.string().optional(),
-    bankAccount: z.string().optional(),
-    bankName: z.string().optional(),
-    accountHolderName: z.string().optional(),
-    addressId: z.string().optional(),
-    address: z.string().optional(),
-  })
-  .refine(
-    (v) =>
-      (v.addressId && v.addressId.length > 0) ||
-      (v.address && v.address.trim().length > 0),
-    {
-      path: ["addressId"],
-      message: "Хаяг сонгох эсвэл бичих",
-    },
-  );
+const herderFields = z.object({
+  name: z.string().min(1, "Нэр шаардлагатай"),
+  registrationNo: z.string().min(1, "Регистрийн дугаар шаардлагатай"),
+  phone: z.string().optional(),
+  bankAccount: z.string().optional(),
+  bankName: z.string().optional(),
+  accountHolderName: z.string().optional(),
+  addressId: z.string().optional(),
+  address: z.string().optional(),
+});
+
+// эмч's quick add at intake: who + how to reach them. Phone required, address
+// optional, no bank fields (нярав fills those later). Mirrors BE create.
+export const herderQuickSchema = herderFields.refine((v) => !!v.phone?.trim(), {
+  path: ["phone"],
+  message: "Утас шаардлагатай",
+});
+
+export const herderSchema = herderFields.refine(
+  (v) =>
+    (v.addressId && v.addressId.length > 0) ||
+    (v.address && v.address.trim().length > 0),
+  {
+    path: ["addressId"],
+    message: "Хаяг сонгох эсвэл бичих",
+  },
+);
 export type HerderFormValues = z.infer<typeof herderSchema>;
 
 export const herderFormDefaults: HerderFormValues = {
@@ -79,8 +86,11 @@ export function herderMutationVars(values: HerderFormValues) {
 
 export function HerderFormFields({
   form,
+  quick = false,
 }: {
   form: UseFormReturn<HerderFormValues>;
+  // herderQuickSchema mode: hide bank fields, address optional.
+  quick?: boolean;
 }) {
   // Address catalogue for the dropdown.
   const { data: addrData } = useQuery(HerderAddressListDoc, {
@@ -130,45 +140,49 @@ export function HerderFormFields({
           </FormItem>
         )}
       />
-      <FormField
-        control={form.control}
-        name="bankAccount"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Дансны дугаар</FormLabel>
-            <FormControl>
-              <Input {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="bankName"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Банкны нэр</FormLabel>
-            <FormControl>
-              <Input placeholder="ж: Хаан банк" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="accountHolderName"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Дансны эзэмшигчийн нэр</FormLabel>
-            <FormControl>
-              <Input placeholder="(зөвхөн өөр хүний данс үед)" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {quick ? null : (
+        <>
+          <FormField
+            control={form.control}
+            name="bankAccount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Дансны дугаар</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="bankName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Банкны нэр</FormLabel>
+                <FormControl>
+                  <Input placeholder="ж: Хаан банк" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="accountHolderName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Дансны эзэмшигчийн нэр</FormLabel>
+                <FormControl>
+                  <Input placeholder="(зөвхөн өөр хүний данс үед)" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      )}
       <FormField
         control={form.control}
         name="addressId"
@@ -179,7 +193,7 @@ export function HerderFormFields({
           const selected = addresses.find((a) => a.id === field.value);
           return (
             <FormItem>
-              <FormLabel>Хаяг</FormLabel>
+              <FormLabel>{quick ? "Хаяг (заавал биш)" : "Хаяг"}</FormLabel>
               <FormControl>
                 <Select
                   value={field.value || null}

@@ -1,5 +1,4 @@
 import { TDateRange, TPagination } from "../global/global.type";
-import { FACTORY } from "../user/admin.type";
 
 // The vet (эмч) checks each number against the government service and records
 // the outcome here. A registration counts as approved (medicalNumberApproved)
@@ -26,6 +25,6 @@ export type TGetMedicalNumbers = {
   status?: MEDICAL_NUMBER_STATUS;
   // Partial match on the digits.
   number?: string;
-  factory?: FACTORY;
+  factory?: string;
   dateRange?: TDateRange;
 } & TPagination;

@@ -28,20 +28,15 @@ import {
   UpdateWeighingEntryDoc,
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
+import { useDraft } from "@/lib/hooks/useDraft";
 import { compact } from "@/lib/compact";
-import { isPreButchered } from "@/lib/format/enum";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { WeighEntryDialog } from "./_components/WeighEntryDialog";
 import { WeighingHistoryList } from "./_components/WeighingHistoryList";
 import { SlaughterCostSummary } from "./_components/SlaughterCostSummary";
 import { WeighingAuditLog } from "./_components/WeighingAuditLog";
 import { GedesCountEditor } from "./_components/GedesCountEditor";
-import { can } from "@/lib/auth/roles";
-
-function readRole(): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(/(?:^|;\s*)mf_role=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
+import { can, readPermsCookie } from "@/lib/auth/roles";
 
 // Mirrors the back-end rule (WeighingController._assertWeighingEditable):
 // while weighing is in progress (REGISTERED) the scale operator may
@@ -49,7 +44,7 @@ function readRole(): string | null {
 // PAYMENT_PENDING — a Settlement may already exist, just not paid yet) only
 // manager/admin may, and it's logged; once money has actually moved
 // (SETTLED / PARTIALLY_SETTLED) or the registration is CANCELLED, nobody may.
-function canEditEntries(status: string, role: string | null): boolean {
+function canEditEntries(status: string, perms: string[] | null): boolean {
   if (
     status === "SETTLED" ||
     status === "PARTIALLY_SETTLED" ||
@@ -61,8 +56,8 @@ function canEditEntries(status: string, role: string | null): boolean {
     status === "VERIFIED" ||
     status === "PAYMENT_PENDING"
   )
-    return can(role, "weighFix");
-  return can(role, "weigh");
+    return can(perms, "REGISTRATION_WEIGH_FIX");
+  return can(perms, "REGISTRATION_WEIGH");
 }
 
 export function WeighClient({ id }: { id: string }) {
@@ -84,11 +79,12 @@ export function WeighClient({ id }: { id: string }) {
   // BE value).
   const [gedes, setGedes] = useState<Record<string, string>>({});
 
-  const [role, setRole] = useState<string | null>(null);
-  // role comes from a client-only cookie; defer to post-mount to avoid an
-  // SSR/client hydration mismatch (documented client-only-after-mount pattern).
+  const [perms, setPerms] = useState<string[] | null>(null);
+  // permissions come from a client-only cookie; defer to post-mount to avoid
+  // an SSR/client hydration mismatch (client-only-after-mount pattern).
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setRole(readRole()), []);
+  useEffect(() => setPerms(readPermsCookie()), []);
+  const { isPreButchered } = useFactories();
 
   const [editing, setEditing] = useState<{ id: string; seq: number } | null>(
     null,
@@ -110,6 +106,19 @@ export function WeighClient({ id }: { id: string }) {
   const [price, setPrice] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // In-progress entry + unsaved гэдэс counts survive leaving the page (saved
+  // weighings are already on the server).
+  const clearDraft = useDraft(
+    `weigh:${id}`,
+    { gedes, tab, keypad, price, photoFileId },
+    (d) => {
+      setGedes(d.gedes);
+      setTab(d.tab);
+      setKeypad(d.keypad);
+      setPrice(d.price);
+      setPhotoFileId(d.photoFileId);
+    },
+  );
 
   if (fetching && !reg) {
     return (
@@ -197,6 +206,7 @@ export function WeighClient({ id }: { id: string }) {
       {
         success: "Жин бүртгэл дууссан",
         onSuccess: () => {
+          clearDraft();
           router.push(`/registrations/${id}`);
           router.refresh();
         },
@@ -259,7 +269,7 @@ export function WeighClient({ id }: { id: string }) {
     entriesByType[t].push(w);
   }
 
-  const editable = canEditEntries(reg.status ?? "", role);
+  const editable = canEditEntries(reg.status ?? "", perms);
 
   // Display numbering restarts at 1 per animal type (capture order), so it
   // stays contiguous even after a middle entry is removed.

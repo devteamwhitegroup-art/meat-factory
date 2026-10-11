@@ -33,7 +33,7 @@ import { compact } from "@/lib/compact";
 import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from "@/lib/format/enum";
 import { cn } from "@/lib/utils";
 
-type CustomerLite = {
+export type CustomerLite = {
   id: string;
   name: string;
   kind?: string | null;
@@ -65,6 +65,8 @@ export function CustomerCombobox({
   onChange,
   invalid,
   kind,
+  initialSelected,
+  onSelect,
 }: {
   value: string;
   onChange: (id: string) => void;
@@ -74,6 +76,10 @@ export function CustomerCombobox({
   // ULAANBAATAR_BROKER. When set it both filters the search list AND locks the
   // kind of any customer created inline.
   kind?: string;
+  // Label for a preset `value` (restored draft) + the picked customer, so a
+  // caller can keep it.
+  initialSelected?: CustomerLite | null;
+  onSelect?: (c: CustomerLite) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,7 +87,9 @@ export function CustomerCombobox({
   const [dialogOpen, setDialogOpen] = useState(false);
   // Remember the chosen customer so the trigger can show it even when it's not
   // part of the current (filtered) result page.
-  const [selectedCache, setSelectedCache] = useState<CustomerLite | null>(null);
+  const [selectedCache, setSelectedCache] = useState<CustomerLite | null>(
+    initialSelected ?? null,
+  );
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 250);
@@ -106,12 +114,14 @@ export function CustomerCombobox({
 
   function pick(c: CustomerLite) {
     setSelectedCache(c);
+    onSelect?.(c);
     onChange(c.id);
     setOpen(false);
   }
 
   function handleCreated(c: CustomerLite) {
     setSelectedCache(c);
+    onSelect?.(c);
     onChange(c.id);
     setDialogOpen(false);
     setOpen(false);

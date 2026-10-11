@@ -37,24 +37,24 @@ export default `#graphql
         medicalNumbers(
             status: MEDICAL_NUMBER_STATUS
             number: String
-            factory: FACTORY
+            factory: String
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): MedicalNumbersResponse @auth(permissions: ["ADMIN", "DOCTOR"])
+        ): MedicalNumbersResponse @auth(permissions: [MEDICAL_NUMBER_CHECK, MEDICAL_NUMBER_ENTER])
     }
 
     extend type Mutation {
         addMedicalNumber(
             registrationId: ID!
             number: String!
-        ): MedicalNumberResponse @auth(permissions: ["ADMIN", "STOREKEEPER", "DOCTOR"])
+        ): MedicalNumberResponse @auth(permissions: [MEDICAL_NUMBER_ENTER])
 
         # PENDING (unchecked) numbers only.
-        removeMedicalNumber(id: ID!): Response @auth(permissions: ["ADMIN", "STOREKEEPER", "DOCTOR"])
+        removeMedicalNumber(id: ID!): Response @auth(permissions: [MEDICAL_NUMBER_ENTER])
 
         setMedicalNumberStatus(
             id: ID!
             status: MEDICAL_NUMBER_STATUS!
-        ): MedicalNumberResponse @auth(permissions: ["ADMIN", "DOCTOR"])
+        ): MedicalNumberResponse @auth(permissions: [MEDICAL_NUMBER_CHECK])
     }
 `;

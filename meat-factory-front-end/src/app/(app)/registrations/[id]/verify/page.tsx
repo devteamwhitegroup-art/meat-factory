@@ -4,7 +4,8 @@ import { requireCap } from "@/lib/auth/server";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function VerifyPage({ params }: Props) {
-  await requireCap("verify");
+  const session = await requireCap("REGISTRATION_VERIFY");
   const { id } = await params;
-  return <VerifyClient id={id} />;
+  // Хойд үйлдвэр verify = finishing weighing (нярав / admin).
+  return <VerifyClient id={id} canFinishWeighing={session.can("REGISTRATION_WEIGH")} />;
 }

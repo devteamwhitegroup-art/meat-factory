@@ -88,7 +88,9 @@ export const createHerderModel = (sequelize: Sequelize) => {
       sequelize,
       indexes: [
         { fields: ["name"] },
-        { fields: ["registration_no"] },
+        // One herder per register / phone (Postgres lets multiple NULL phones).
+        { unique: true, fields: ["registration_no"] },
+        { unique: true, fields: ["phone"] },
         { fields: ["address_id"] },
       ],
     },

@@ -3,7 +3,6 @@ import {
   REGISTRATION_STATUS,
   TRegistration,
 } from "../../types/livestock/registration.type";
-import { FACTORY } from "../../types/user/admin.type";
 import { HerderModel } from "./herder.model";
 import { RegistrationAnimalLineModel } from "./registration-animal-line.model";
 import { WeighingEntryModel } from "./weighing-entry.model";
@@ -39,7 +38,7 @@ export class RegistrationModel extends Model implements TRegistration {
   public guardId!: string;
   public status!: REGISTRATION_STATUS;
   // Receiving factory — see isPreButchered() in the registration type.
-  public factory!: FACTORY;
+  public factory!: string;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -151,11 +150,10 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: REGISTRATION_STATUS.REGISTERED,
       },
-      // Pre-split rows were all live-animal intake → FACTORY_1.
+      // Factories.code — kind rules live in FactoryController.
       factory: {
-        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        type: DataTypes.STRING(32),
         allowNull: false,
-        defaultValue: FACTORY.FACTORY_1,
       },
     },
     {

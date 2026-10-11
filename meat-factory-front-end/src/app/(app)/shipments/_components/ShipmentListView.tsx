@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,8 +16,9 @@ import { unwrapList } from "@/lib/unwrap";
 import {
   SHIPMENT_STATUS_MN,
   DOMESTIC_MARKET_MN,
-  FACTORY_MN,
 } from "@/lib/format/enum";
+import { getFactories } from "@/lib/factory/server";
+import { factoryName } from "@/lib/factory/factories";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { formatNumber, formatMNT } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
@@ -47,27 +49,20 @@ const MARKET_COLOR: Record<string, string> = {
   LOCAL: "border-0 bg-violet-100 text-violet-800",
 };
 
-const PAGE_TITLE: Record<"EXPORT" | "DOMESTIC", string> = {
-  EXPORT: "Экспортын ачилт",
-  DOMESTIC: "Дотоод ачилт",
+const CATEGORY_TAB: Record<"EXPORT" | "DOMESTIC", string> = {
+  EXPORT: "Экспорт",
+  DOMESTIC: "Дотоод",
 };
-
-// shadcn-style tab look, recreated with <Link>s (this is a server component, so
-// the interactive <Tabs> primitive can't be used).
-const TAB_LIST =
-  "inline-flex h-9 w-fit items-center justify-center rounded-lg bg-muted p-1";
-function tabCls(active: boolean) {
-  return (
-    "inline-flex h-7 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-all " +
-    (active
-      ? "bg-background text-foreground shadow-sm"
-      : "text-foreground/60 hover:text-foreground")
-  );
-}
+const NEW_LABEL: Record<"EXPORT" | "DOMESTIC", string> = {
+  EXPORT: "Шинэ экспортын ачилт",
+  DOMESTIC: "Шинэ дотоод ачилт",
+};
 
 export type ShipmentCategory = "EXPORT" | "DOMESTIC";
 
 export type ShipmentListSearchParams = {
+  // export | domestic
+  tab?: string;
   factory?: string;
   status?: string;
   market?: string;
@@ -76,23 +71,30 @@ export type ShipmentListSearchParams = {
   to?: string;
 };
 
-// Shared list body for both /shipments/export and /shipments/domestic. The
-// only axes that differ: the fixed `category` and (domestic only) a
-// LOCAL/ULAANBAATAR market sub-filter + badge column.
+// The single /shipments list; `?tab=export|domestic` picks the category.
+// Domestic adds a LOCAL/ULAANBAATAR market sub-filter + badge column.
 export async function ShipmentListView({
   category,
+  categories,
   searchParams: sp,
   crossFactory,
+  canCreate,
 }: {
   category: ShipmentCategory;
+  // Tabs offered (Үйлдвэр 3 ships domestic only).
+  categories: ShipmentCategory[];
   searchParams: ShipmentListSearchParams;
   // Owner/admin: factory filter + column. Staff are BE-scoped to their own.
   crossFactory: boolean;
+  // нягтлан only views.
+  canCreate: boolean;
 }) {
   const isDomestic = category === "DOMESTIC";
-  const factory =
-    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
-  const base = `/shipments/${category.toLowerCase()}`;
+  const factories = await getFactories();
+  const factory = factories.some((f) => f.code === sp.factory)
+    ? (sp.factory as string)
+    : null;
+  const base = "/shipments";
 
   const status =
     sp.status && STATUS_TABS.some((t) => t.value === sp.status)
@@ -106,7 +108,7 @@ export async function ShipmentListView({
 
   // Preserve all active filters in a generated href, overriding one key.
   const hrefWith = (overrides: { status?: string; market?: string }) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ tab: category.toLowerCase() });
     const st = overrides.status ?? status ?? "";
     const mk = overrides.market ?? market ?? "";
     if (st) params.set("status", st);
@@ -114,8 +116,16 @@ export async function ShipmentListView({
     if (factory) params.set("factory", factory);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
-    const qs = params.toString();
-    return qs ? `${base}?${qs}` : base;
+    return `${base}?${params}`;
+  };
+  // Switching category keeps status / factory / dates, drops the market.
+  const tabHref = (c: ShipmentCategory) => {
+    const params = new URLSearchParams({ tab: c.toLowerCase() });
+    if (status) params.set("status", status);
+    if (factory) params.set("factory", factory);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    return `${base}?${params}`;
   };
 
   const { data } = await getClient().query({
@@ -138,12 +148,32 @@ export async function ShipmentListView({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{PAGE_TITLE[category]}</h1>
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="text-2xl font-semibold">Ачилт</h1>
+          {categories.length > 1 ? (
+            <div className={SEGMENTED}>
+              {categories.map((c) => (
+                <Link
+                  key={c}
+                  href={tabHref(c)}
+                  className={segmentCls(c === category)}
+                >
+                  {CATEGORY_TAB[c]}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter />
-          <Link href={`${base}/new`} className={buttonVariants()}>
-            Шинэ ачилт
-          </Link>
+          {canCreate ? (
+            <Link
+              href={`/shipments/${category.toLowerCase()}/new`}
+              className={buttonVariants()}
+            >
+              {NEW_LABEL[category]}
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -151,12 +181,12 @@ export async function ShipmentListView({
         {crossFactory ? <FactoryFilter /> : null}
         {/* Domestic-only LOCAL / ULAANBAATAR sub-filter. */}
         {isDomestic ? (
-          <div className={TAB_LIST}>
+          <div className={SEGMENTED}>
             {MARKET_TABS.map((t) => (
               <Link
                 key={t.value}
                 href={hrefWith({ market: t.value })}
-                className={tabCls((market ?? "") === t.value)}
+                className={segmentCls((market ?? "") === t.value)}
               >
                 {t.label}
               </Link>
@@ -165,12 +195,12 @@ export async function ShipmentListView({
         ) : null}
 
         {/* Status filter. */}
-        <div className={TAB_LIST}>
+        <div className={SEGMENTED}>
           {STATUS_TABS.map((t) => (
             <Link
               key={t.value}
               href={hrefWith({ status: t.value })}
-              className={tabCls((status ?? "") === t.value)}
+              className={segmentCls((status ?? "") === t.value)}
             >
               {t.label}
             </Link>
@@ -216,7 +246,7 @@ export async function ShipmentListView({
                   {crossFactory ? (
                     <TableCell>
                       <Badge variant="outline">
-                        {FACTORY_MN[s.factory ?? ""] ?? "—"}
+                        {factoryName(factories, s.factory)}
                       </Badge>
                     </TableCell>
                   ) : null}

@@ -37,14 +37,14 @@ export default `#graphql
         createHerderAddress(
             name: String!
             isActive: Boolean
-        ): HerderAddressResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): HerderAddressResponse @auth(permissions: [CATALOG_MANAGE, HERDER_EDIT])
 
         updateHerderAddress(
             id: ID!
             name: String
             isActive: Boolean
-        ): HerderAddressResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): HerderAddressResponse @auth(permissions: [CATALOG_MANAGE, HERDER_EDIT])
 
-        deleteHerderAddress(id: ID!): Response @auth(permissions: ["ADMIN"])
+        deleteHerderAddress(id: ID!): Response @auth(permissions: [CATALOG_MANAGE])
     }
 `;

@@ -12,6 +12,8 @@ import { authDirectiveTransformer } from "./schema/directives/auth.directive";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import router from "./routes";
 import { errorMessage } from "./utils";
+import { RoleController } from "./controller/user/role.controller";
+import { FactoryController } from "./controller/factory/factory.controller";
 const { PORT } = config;
 
 const app = express();
@@ -54,11 +56,19 @@ const httpServer = http.createServer(app);
       }),
     );
 
-    Promise.all([httpServer.listen({ port: PORT }), connectDatabase()]).then(
-      () => {
+    Promise.all([httpServer.listen({ port: PORT }), connectDatabase()])
+      .then(async () => {
+        // First boot of an empty DB: the owner role + the client's sites.
+        // Then warm the in-process factory cache the rule checks read from.
+        await RoleController.seedDefaults();
+        await FactoryController.seedDefaults();
+        await FactoryController.load();
         console.log(`🚀 Server ready at http://localhost:${PORT}`);
-      },
-    );
+      })
+      .catch((error) => {
+        console.error("Failed to start server:", errorMessage(error));
+        process.exit(1);
+      });
   } catch (error) {
     console.error("Failed to start server:", errorMessage(error));
     process.exit(1);

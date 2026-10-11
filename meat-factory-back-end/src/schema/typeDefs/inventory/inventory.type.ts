@@ -15,7 +15,7 @@ export default `#graphql
 
     type InventoryItem {
         id: ID
-        factory: FACTORY
+        factory: String
         sku: String
         productType: PRODUCT_TYPE
         # Animal catalogue FK for MEAT rows. Null for byproducts.
@@ -42,6 +42,9 @@ export default `#graphql
         balanceAfterCount: Int
         sourceRegistrationId: ID
         sourceShipmentId: ID
+        # Human codes of the source, for links (REG-… / SHIP-…).
+        registrationCode: String
+        shipmentCode: String
         createdById: ID
         notes: String
         createdAt: Date
@@ -95,31 +98,49 @@ export default `#graphql
         stats: InventoryStats
     }
 
+    # Admin: meat on hand at its FIFO cost (remaining purchase lots).
+    type InventoryValuationRow {
+        factory: String
+        animalType: String
+        kg: Float
+        value: Float
+        avgCostPerKg: Float
+    }
+
+    type InventoryValuationResponse {
+        success: Boolean
+        message: String
+        rows: [InventoryValuationRow]
+    }
+
     extend type Query {
+        inventoryValuation(factory: String): InventoryValuationResponse @auth(permissions: [DASHBOARD_VIEW])
+
         # factory: owner/admin filter (omit = both); staff always see their own.
         inventoryStock(
-            factory: FACTORY
+            factory: String
             productType: PRODUCT_TYPE
             animalId: ID
             byproductName: String
-        ): InventoryItemsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): InventoryItemsResponse @auth(permissions: [INVENTORY_VIEW])
 
         inventoryMovements(
-            factory: FACTORY
+            factory: String
+            productType: PRODUCT_TYPE
             inventoryItemId: ID
             movementType: MOVEMENT_TYPE
             source: MOVEMENT_SOURCE
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): InventoryMovementsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): InventoryMovementsResponse @auth(permissions: [INVENTORY_VIEW])
 
-        inventoryStats(factory: FACTORY): InventoryStatsResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        inventoryStats(factory: String): InventoryStatsResponse @auth(permissions: [INVENTORY_VIEW])
     }
 
     extend type Mutation {
         adjustInventory(
             # Owner/admin must pick; staff adjust their own factory.
-            factory: FACTORY
+            factory: String
             productType: PRODUCT_TYPE!
             animalId: ID
             byproductName: String
@@ -128,6 +149,6 @@ export default `#graphql
             quantityCount: Int
             direction: MOVEMENT_TYPE!
             notes: String
-        ): InventoryItemResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): InventoryItemResponse @auth(permissions: [INVENTORY_ADJUST])
     }
 `;

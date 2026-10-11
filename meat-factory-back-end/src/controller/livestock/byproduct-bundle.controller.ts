@@ -1,4 +1,7 @@
 import { Op } from "sequelize";
+import { AdminController } from "../user/admin.controller";
+import { PERMISSION } from "../../types/user/permission.type";
+import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { ByproductBundleModel } from "../../models/livestock/byproduct-bundle.model";
@@ -6,7 +9,6 @@ import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { RegistrationController } from "./registration.controller";
 import {
-  isPreButchered,
   REGISTRATION_STATUS,
 } from "../../types/livestock/registration.type";
 import {
@@ -16,7 +18,6 @@ import {
 import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext } from "../../types/global/global.type";
-import { ADMIN_ROLE, FACTORY } from "../../types/user/admin.type";
 
 // Incoming byproducts (Дайвар) — sub-domain of the registration aggregate.
 // Intake is гэдэс COUNT only, one bundle row per wrapper: count received, how
@@ -101,7 +102,7 @@ export class ByproductBundleController {
   // Kept bundles → stock lines, counted in pieces (SKU per wrapper name).
   static async bundleStockLines(
     registrationId: string,
-    factory: FACTORY,
+    factory: string,
   ): Promise<TStockLine[]> {
     const bundles = await this.bundlesFor(registrationId);
     return bundles.map((b) => ({
@@ -115,8 +116,9 @@ export class ByproductBundleController {
   }
 
   // Replace this registration's bundles.
-  //   FACTORY_1 — after VERIFIED, before the settlement locks the amounts
-  //     (the herder's take decides the credit).
+  //   FACTORY_1 — at verify (WEIGHED: the herder decides, per priced wrapper,
+  //     how many to take) and correctable after VERIFIED, until the
+  //     settlement locks the amounts (the herder's take decides the credit).
   //   FACTORY_2 — while REGISTERED (receiving); the herder never takes any
   //     back. finishWeighing stocks what's recorded.
   static async setBundles(
@@ -128,14 +130,14 @@ export class ByproductBundleController {
       registrationId,
       context,
     );
-    const pre = isPreButchered(reg);
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.ADMIN,
-    ]);
-    RegistrationController.assertStatus(reg, [
-      pre ? REGISTRATION_STATUS.REGISTERED : REGISTRATION_STATUS.VERIFIED,
-    ]);
+    const pre = FactoryController.isPreButchered(reg.factory);
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
+    RegistrationController.assertStatus(
+      reg,
+      pre
+        ? [REGISTRATION_STATUS.REGISTERED]
+        : [REGISTRATION_STATUS.WEIGHED, REGISTRATION_STATUS.VERIFIED],
+    );
 
     const rows = await this._validateBundles(registrationId, bundles, pre);
     await sequelize.transaction(async (t) => {
@@ -155,7 +157,8 @@ export class ByproductBundleController {
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
     });
-    const animalIds = new Set(lines.map((l) => l.animalId));
+    // One bundle per slaughtered head at most (FACTORY_1).
+    const heads = new Map(lines.map((l) => [l.animalId, l.count]));
     const wrappers = await ByproductWrapperModel.findAll({
       where: { id: { [Op.in]: bundles.map((b) => b.wrapperId) } },
     });
@@ -163,7 +166,7 @@ export class ByproductBundleController {
     const seen = new Set<string>();
     return bundles.map((b) => {
       const w = wrapperById.get(b.wrapperId);
-      if (!w || !animalIds.has(w.animalId))
+      if (!w || !heads.has(w.animalId))
         throw new Error("Гэдэс энэ бүртгэлийн малд хамаарахгүй байна");
       if (seen.has(b.wrapperId)) throw new Error(`Давхардсан гэдэс: ${w.name}`);
       seen.add(b.wrapperId);
@@ -171,7 +174,15 @@ export class ByproductBundleController {
       const herderCount = pre ? 0 : Math.floor(Number(b.herderCount ?? 0));
       if (!Number.isFinite(count) || count < 0)
         throw new Error("Гэдэсний тоо сөрөг байж болохгүй");
-      if (!Number.isFinite(herderCount) || herderCount < 0 || herderCount > count)
+      if (!pre && count > (heads.get(w.animalId) ?? 0))
+        throw new Error(
+          `${w.name}: тоо төхөөрсөн малын тооноос (${heads.get(w.animalId)}) их байна`,
+        );
+      if (
+        !Number.isFinite(herderCount) ||
+        herderCount < 0 ||
+        herderCount > count
+      )
         throw new Error(`${w.name}: малчны авах тоо 0–${count} байх ёстой`);
       return {
         registrationId,

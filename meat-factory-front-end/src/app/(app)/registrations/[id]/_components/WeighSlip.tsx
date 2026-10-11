@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
 import { formatNumber } from "@/lib/format/money";
-import { isPreButchered } from "@/lib/format/enum";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { fmtDate } from "@/lib/format/date";
 import { compact } from "@/lib/compact";
 import { PrintButton } from "@/components/common/PrintButton";
@@ -31,6 +31,7 @@ type Reg = NonNullable<
 // The гэдэс credit is decided after verify and shows on the settlement receipt.
 // FACTORY_2 (pre-butchered) has no бой зардал, so its column is hidden.
 export function WeighSlip({ reg }: { reg: Reg }) {
+  const { isPreButchered } = useFactories();
   const entries = compact(reg.weighingEntries);
   const showBoy = !isPreButchered(reg.factory);
 
@@ -72,7 +73,19 @@ export function WeighSlip({ reg }: { reg: Reg }) {
       net: meat - boy,
     };
   });
-  const netPayable = gross - totalBoy;
+  // Хойд үйлдвэр: counted гэдэс are all kept and credited at their price —
+  // same as the settlement. (FACTORY_1 decides the herder's take at verify.)
+  const gedes = isPreButchered(reg.factory)
+    ? compact(reg.byproductBundles)
+        .map((b) => ({
+          label: `${b.wrapperName} (${b.animalType})`,
+          kept: Number(b.count ?? 0) - Number(b.herderCount ?? 0),
+          price: Number(b.unitPrice ?? 0),
+        }))
+        .filter((b) => b.kept > 0 && b.price > 0)
+    : [];
+  const gedesTotal = gedes.reduce((s, b) => s + b.kept * b.price, 0);
+  const netPayable = gross - totalBoy + gedesTotal;
   const sig = reg.agreementSignature?.url ?? null;
 
   return (
@@ -145,6 +158,24 @@ export function WeighSlip({ reg }: { reg: Reg }) {
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Нийт мах</div>
             <div className="text-right tabular-nums">{formatNumber(gross)}</div>
+            {gedes.map((b) => (
+              <div key={b.label} className="contents">
+                <div className="text-muted-foreground">
+                  {b.label} {b.kept} × {formatNumber(b.price)}
+                </div>
+                <div className="text-right tabular-nums">
+                  +{formatNumber(b.kept * b.price)}
+                </div>
+              </div>
+            ))}
+            {gedes.length > 0 ? (
+              <>
+                <div className="text-muted-foreground">Нийт гэдэс</div>
+                <div className="text-right tabular-nums">
+                  {formatNumber(gedesTotal)}
+                </div>
+              </>
+            ) : null}
             {showBoy && (
               <>
                 <div className="text-muted-foreground">Нийт бой зардал</div>

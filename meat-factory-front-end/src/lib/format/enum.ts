@@ -1,31 +1,8 @@
 // Mongolian Cyrillic labels for every back-end enum. Single source of
 // truth — UI components must NOT hardcode Cyrillic enum strings.
 
-export const ROLE_MN: Record<string, string> = {
-  ADMIN: "Админ",
-  STOREKEEPER: "Нярав",
-  ACCOUNTANT: "Нягтлан",
-  DOCTOR: "Эмч",
-};
-
-// Factory display names — rename here, never in the BE enum.
-export const FACTORY_MN: Record<string, string> = {
-  FACTORY_1: "Урд үйлдвэр",
-  FACTORY_2: "Хойт үйлдвэр",
-  FACTORY_3: "Дайвар үйлдвэр",
-};
-
-// FACTORY_3 is the byproduct factory: it receives counted гэдэс from 1 & 2 and
-// disassembles/weighs it; it never receives livestock. Mirrors BE.
-export const BYPRODUCT_FACTORY = "FACTORY_3";
-// Factories that take livestock intake (registration form picker).
-export const INTAKE_FACTORIES = ["FACTORY_1", "FACTORY_2"];
-
-// FACTORY_2 only receives pre-butchered meat: no stamp, no slaughter cost, no
-// verify step — meat + гэдэс are stocked when weighing is finished and
-// finance settles later. Mirrors BE isPreButchered().
-export const isPreButchered = (factory?: string | null): boolean =>
-  factory === "FACTORY_2";
+// Roles and factories are admin-managed catalogues: their names come from
+// the `roles` / `factories` queries (see src/lib/factory/), not from here.
 
 // Animal labels are not enums: the catalogue stores the Mongolian name as
 // `Animal.name`, which is the value carried by `animalType` on every record —
@@ -55,8 +32,18 @@ export const MEDICAL_NUMBER_STATUS_COLOR: Record<string, string> = {
   REJECTED: "border-0 bg-red-100 text-red-800",
 };
 
+export const CHANGE_REQUEST_STATUS_MN: Record<string, string> = {
+  PENDING: "Хүлээгдэж буй",
+  APPROVED: "Зөвшөөрсөн",
+  REJECTED: "Татгалзсан",
+};
+
+// Same PENDING / APPROVED / REJECTED palette.
+export const CHANGE_REQUEST_STATUS_COLOR = MEDICAL_NUMBER_STATUS_COLOR;
+
 export const PAYMENT_STATUS_MN: Record<string, string> = {
   PAID: "Төлбөр хийсэн",
+  PARTIALLY_PAID: "Хэсэгчлэн төлсөн",
   PENDING: "Хүлээгдэж буй",
 };
 
@@ -99,7 +86,7 @@ export const MOVEMENT_SOURCE_MN: Record<string, string> = {
   VERIFICATION: "Баталгаажуулалт",
   SETTLEMENT: "Тооцоо",
   BYPRODUCT: "Дайвар хадгалалт",
-  WEIGHING: "Жинлэлт (Үйлдвэр 2)",
+  WEIGHING: "Жинлэлт (задалсан мах)",
   TRANSFER: "Дайвар шилжүүлэг",
   PROCESSING: "Дайвар задлалт",
   SHIPMENT: "Ачилт",

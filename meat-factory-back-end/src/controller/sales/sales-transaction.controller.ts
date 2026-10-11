@@ -6,6 +6,7 @@ import { SalesInstallmentModel } from "../../models/sales/sales-installment.mode
 import { CustomerModel } from "../../models/customer/customer.model";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
+import { ShipmentSaleEntryModel } from "../../models/shipment/shipment-sale-entry.model";
 import {
   PAYMENT_STATUS,
   PRODUCT_TYPE,
@@ -151,31 +152,9 @@ export class SalesTransactionController {
     });
     if (existing) return existing; // idempotent
 
-    const groups = await ShipmentSaleLineModel.findAll({
-      where: { shipmentId: shipment.id },
-      transaction: t,
-    });
-    if (groups.length === 0) return null; // nothing to invoice
-
-    const lineRows = groups.map((g) => {
-      const qty = Number(g.totalWeightKg);
-      const price = g.pricePerKg != null ? Number(g.pricePerKg) : null;
-      return {
-        productType: g.productType,
-        animalType: g.animalType,
-        byproductName: g.byproductName,
-        quantityKg: qty,
-        unitPrice: price,
-        lineAmount: price != null ? Number((qty * price).toFixed(2)) : null,
-      };
-    });
-    const totalWeightKg = Number(
-      lineRows.reduce((s, r) => s + r.quantityKg, 0).toFixed(2),
-    );
-    const allPriced = lineRows.every((r) => r.unitPrice != null);
-    const amount = allPriced
-      ? Number(lineRows.reduce((s, r) => s + (r.lineAmount ?? 0), 0).toFixed(2))
-      : null;
+    const lineRows = await this._shipmentRows(shipment.id, t);
+    if (lineRows.length === 0) return null; // nothing to invoice
+    const { totalWeightKg, amount } = this._totals(lineRows);
 
     for (let attempt = 0; attempt < MAX_CODE_RETRIES; attempt++) {
       try {
@@ -211,6 +190,74 @@ export class SalesTransactionController {
     throw new Error("Failed to generate a unique transaction code");
   }
 
+  // Invoice rows for a shipment: one per product group. Reported groups bill
+  // the sold kg at the sales report's amount (unit price = its average);
+  // unreported ones bill the loaded kg with no price yet.
+  private static async _shipmentRows(shipmentId: string, t?: Transaction) {
+    const groups = await ShipmentSaleLineModel.findAll({
+      where: { shipmentId },
+      include: [{ model: ShipmentSaleEntryModel, as: "entries" }],
+      transaction: t,
+    });
+    return groups.map((g) => {
+      const entries = g.entries ?? [];
+      const sold = entries.reduce((s, e) => s + Number(e.weightKg), 0);
+      const total = entries.reduce(
+        (s, e) => s + Number(e.weightKg) * Number(e.pricePerKg),
+        0,
+      );
+      const reported = entries.length > 0;
+      return {
+        productType: g.productType,
+        animalType: g.animalType,
+        byproductName: g.byproductName,
+        quantityKg: Number(
+          (reported ? sold : Number(g.totalWeightKg)).toFixed(2),
+        ),
+        unitPrice: reported ? Number((total / sold).toFixed(2)) : null,
+        lineAmount: reported ? Number(total.toFixed(2)) : null,
+      };
+    });
+  }
+
+  private static _totals(
+    rows: { quantityKg: number; lineAmount: number | null }[],
+  ) {
+    const allPriced = rows.every((r) => r.lineAmount != null);
+    return {
+      totalWeightKg: Number(
+        rows.reduce((s, r) => s + r.quantityKg, 0).toFixed(2),
+      ),
+      amount: allPriced
+        ? Number(rows.reduce((s, r) => s + (r.lineAmount ?? 0), 0).toFixed(2))
+        : null,
+    };
+  }
+
+  // Sales report changed after delivery → rebuild the shipment's invoice
+  // lines and amount (payment status re-checked against the new amount).
+  static async syncFromShipment(
+    shipmentId: string,
+    t?: Transaction,
+  ): Promise<void> {
+    const tx = await SalesTransactionModel.findOne({
+      where: { shipmentId },
+      transaction: t,
+    });
+    if (!tx) return; // not delivered yet — created at delivery
+    const rows = await this._shipmentRows(shipmentId, t);
+    await SalesLineItemModel.destroy({
+      where: { salesTransactionId: tx.id },
+      transaction: t,
+    });
+    await SalesLineItemModel.bulkCreate(
+      rows.map((r) => ({ ...r, salesTransactionId: tx.id })),
+      { transaction: t },
+    );
+    await tx.update(this._totals(rows), { transaction: t });
+    await this._resyncPaymentStatus(tx.id, t);
+  }
+
   // Recompute the parent transaction's amount from its line items — null
   // until every line has a price. Mirrors ShipmentController._recomputeTotal.
   private static async _recomputeAmount(
@@ -219,7 +266,8 @@ export class SalesTransactionController {
     const lines = await SalesLineItemModel.findAll({
       where: { salesTransactionId },
     });
-    const allPriced = lines.length > 0 && lines.every((l) => l.unitPrice != null);
+    const allPriced =
+      lines.length > 0 && lines.every((l) => l.unitPrice != null);
     const amount = allPriced
       ? Number(
           lines.reduce((s, l) => s + Number(l.lineAmount ?? 0), 0).toFixed(2),
@@ -260,6 +308,16 @@ export class SalesTransactionController {
       throw new Error("Эхлээд гүйлгээний дүнг тохируулна уу");
     if (tx.paymentStatus === PAYMENT_STATUS.PAID)
       throw new Error("Transaction already paid");
+    // One-shot full payment only. Once installments are logged the status
+    // follows them — the remainder is logged as another installment.
+    const logged =
+      ((await SalesInstallmentModel.sum("amountMnt", {
+        where: { salesTransactionId: id },
+      })) as number | null) ?? 0;
+    if (logged > 0)
+      throw new Error(
+        `Үлдэгдэл ${Number(tx.amount) - logged}₮ — төлбөрийг хуваан төлөлтөөр бүртгэнэ үү`,
+      );
     await tx.update({
       paymentStatus: PAYMENT_STATUS.PAID,
       paidAt: new Date(),
@@ -322,26 +380,23 @@ export class SalesTransactionController {
         transaction: t,
       })) as number | null) ?? 0;
     const total = Number(tx.amount);
-    const paidEnough = sum >= total - 0.01;
-    if (paidEnough && tx.paymentStatus !== PAYMENT_STATUS.PAID) {
+    const status =
+      sum >= total - 0.01
+        ? PAYMENT_STATUS.PAID
+        : sum > 0
+          ? PAYMENT_STATUS.PARTIALLY_PAID
+          : PAYMENT_STATUS.PENDING;
+    if (status === tx.paymentStatus) return;
+    let paidAt: Date | null = null;
+    if (status === PAYMENT_STATUS.PAID) {
       const latest = await SalesInstallmentModel.findOne({
         where: { salesTransactionId: txId },
         order: [["paidAt", "DESC"]],
         transaction: t,
       });
-      await tx.update(
-        {
-          paymentStatus: PAYMENT_STATUS.PAID,
-          paidAt: latest?.paidAt ?? new Date(),
-        },
-        { transaction: t },
-      );
-    } else if (!paidEnough && tx.paymentStatus === PAYMENT_STATUS.PAID) {
-      await tx.update(
-        { paymentStatus: PAYMENT_STATUS.PENDING, paidAt: null },
-        { transaction: t },
-      );
+      paidAt = latest?.paidAt ?? new Date();
     }
+    await tx.update({ paymentStatus: status, paidAt }, { transaction: t });
   }
 
   static async addInstallment(

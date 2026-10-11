@@ -31,75 +31,53 @@ import {
   AdminsDoc,
   CreateAdminDoc,
   DeleteAdminDoc,
+  RolesDoc,
   UpdateAdminDoc,
 } from "@/lib/queries/admin";
-import { FACTORY_MN, ROLE_MN } from "@/lib/format/enum";
-import type { Admin_Role as AdminRole, Factory } from "@/lib/gql/graphql";
-import { isCrossFactoryRole } from "@/lib/auth/roles";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 import { cn } from "@/lib/utils";
-
-const ROLES = Object.keys(ROLE_MN) as AdminRole[];
-const FACTORIES = Object.keys(FACTORY_MN) as Factory[];
-
-// Shown on the role picker so the admin chooses by job, not by name.
-const ROLE_DESC: Record<string, string> = {
-  ADMIN: "Бүх эрх, бүх үйлдвэр. Ажилтан болон тохиргоог удирдана.",
-  STOREKEEPER:
-    "Бүртгэл, жинлэлт, үнэ тохиролцох, дайвар, нөөц, ачилт — бүх мэдээлэл оруулна.",
-  ACCOUNTANT: "Малчны төлбөр, борлуулалт, харилцагч, тайлан.",
-  DOCTOR: "Эмнэлгийн дугаар бүртгэж, баталгаажуулна.",
-};
-
-const ROLE_COLOR: Record<string, string> = {
-  ADMIN: "border-0 bg-slate-800 text-white",
-  STOREKEEPER: "border-0 bg-blue-100 text-blue-800",
-  ACCOUNTANT: "border-0 bg-emerald-100 text-emerald-800",
-  DOCTOR: "border-0 bg-amber-100 text-amber-800",
-};
 
 // id null = new account. Blank password while editing = keep the current one.
 type Draft = {
   id: string | null;
   param: string;
-  role: AdminRole;
-  factory: Factory | null;
+  roleId: string;
+  factory: string | null;
   password: string;
 };
 
-const BLANK: Draft = {
-  id: null,
-  param: "",
-  role: "STOREKEEPER",
-  factory: null,
-  password: "",
-};
-
 // Staff accounts: a table filtered by `?factory=`; create/edit in a side sheet.
-// Only ADMIN reaches this page, and ADMIN assigns every other role to one
-// factory.
+// Each account gets one role (Систем тохиргоо › Эрх) and, unless the role
+// spans every factory, one site.
 export function AdminsSection() {
   const { data, loading, refetch } = useQuery(AdminsDoc, {
     fetchPolicy: "cache-and-network",
   });
+  const { data: rolesData } = useQuery(RolesDoc);
   const [create] = useMutation(CreateAdminDoc);
   const [update] = useMutation(UpdateAdminDoc);
   const [remove] = useMutation(DeleteAdminDoc);
-  const filter = (useSearchParams().get("factory") || null) as Factory | null;
+  const { active: factories, nameOf } = useFactories();
+  const filter = useSearchParams().get("factory") || null;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const roles = compact(rolesData?.roles?.roles);
+  const roleById = new Map(roles.map((r) => [r.id ?? "", r]));
   const admins = compact(data?.admins?.admins).filter(
     (a) => !filter || a.factory === filter,
   );
   const patch = (p: Partial<Draft>) =>
     setDraft((d) => (d ? { ...d, ...p } : d));
+  const crossFactory = (roleId: string) => !!roleById.get(roleId)?.crossFactory;
 
   async function onSave(d: Draft) {
     const param = d.param.trim();
-    const cross = isCrossFactoryRole(d.role);
+    const cross = crossFactory(d.roleId);
     if (!param) return void toast.error("Нэвтрэх нэр оруулна уу");
+    if (!d.roleId) return void toast.error("Эрх сонгоно уу");
     if (!d.id && !d.password.trim())
       return void toast.error("Нууц үг оруулна уу");
     if (!cross && !d.factory) return void toast.error("Үйлдвэр сонгоно уу");
@@ -113,7 +91,7 @@ export function AdminsSection() {
                 variables: {
                   id: d.id,
                   param,
-                  role: d.role,
+                  roleId: d.roleId,
                   factory,
                   password: d.password.trim() || null,
                 },
@@ -124,7 +102,7 @@ export function AdminsSection() {
                 variables: {
                   param,
                   password: d.password,
-                  role: d.role,
+                  roleId: d.roleId,
                   factory,
                 },
               })
@@ -154,7 +132,15 @@ export function AdminsSection() {
         <FactoryFilter />
         <Button
           className="gap-2"
-          onClick={() => setDraft({ ...BLANK, factory: filter })}
+          onClick={() =>
+            setDraft({
+              id: null,
+              param: "",
+              roleId: roles.find((r) => !r.isSystem)?.id ?? "",
+              factory: filter,
+              password: "",
+            })
+          }
         >
           <PlusIcon className="size-4" />
           Ажилтан нэмэх
@@ -179,58 +165,57 @@ export function AdminsSection() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {admins.map((a) => {
-                const role = a.role ?? "STOREKEEPER";
-                return (
-                  <TableRow key={a.id!}>
-                    <TableCell className="font-medium">{a.param}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={ROLE_COLOR[role] ?? "border-0 bg-muted"}
-                      >
-                        {ROLE_MN[role] ?? role}
+              {admins.map((a) => (
+                <TableRow key={a.id!}>
+                  <TableCell className="font-medium">{a.param}</TableCell>
+                  <TableCell>
+                    {a.role ? (
+                      <Badge className="border-0 bg-blue-100 text-blue-800">
+                        {a.role.name}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {isCrossFactoryRole(role) ? (
-                        <span className="text-muted-foreground">
-                          Бүх үйлдвэр
-                        </span>
-                      ) : a.factory ? (
-                        FACTORY_MN[a.factory]
-                      ) : (
-                        <span className="text-destructive">Оноогоогүй</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Засах"
-                        onClick={() =>
-                          setDraft({
-                            id: a.id!,
-                            param: a.param ?? "",
-                            role,
-                            factory: a.factory ?? null,
-                            password: "",
-                          })
-                        }
-                      >
-                        <PencilIcon className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Устгах"
-                        onClick={() => onDelete(a.id!, a.param ?? "")}
-                      >
-                        <Trash2Icon className="size-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                    ) : (
+                      <span className="text-destructive">Оноогоогүй</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {a.role?.crossFactory ? (
+                      <span className="text-muted-foreground">
+                        Бүх үйлдвэр
+                      </span>
+                    ) : a.factory ? (
+                      nameOf(a.factory)
+                    ) : (
+                      <span className="text-destructive">Оноогоогүй</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Засах"
+                      onClick={() =>
+                        setDraft({
+                          id: a.id!,
+                          param: a.param ?? "",
+                          roleId: a.role?.id ?? "",
+                          factory: a.factory ?? null,
+                          password: "",
+                        })
+                      }
+                    >
+                      <PencilIcon className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Устгах"
+                      onClick={() => onDelete(a.id!, a.param ?? "")}
+                    >
+                      <Trash2Icon className="size-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
@@ -272,12 +257,12 @@ export function AdminsSection() {
 
               <fieldset className="space-y-2">
                 <legend className="mb-2 text-sm font-medium">Эрх</legend>
-                {ROLES.map((r) => (
+                {roles.map((r) => (
                   <label
-                    key={r}
+                    key={r.id!}
                     className={cn(
                       "flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors",
-                      draft.role === r
+                      draft.roleId === r.id
                         ? "border-primary bg-primary/5"
                         : "hover:bg-muted/50",
                     )}
@@ -285,29 +270,30 @@ export function AdminsSection() {
                     <input
                       type="radio"
                       name="staff-role"
-                      checked={draft.role === r}
-                      onChange={() => patch({ role: r })}
+                      checked={draft.roleId === r.id}
+                      onChange={() => patch({ roleId: r.id! })}
                       className="mt-1 h-4 w-4"
                     />
                     <div className="space-y-0.5">
-                      <div className="font-medium">{ROLE_MN[r]}</div>
+                      <div className="font-medium">{r.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {ROLE_DESC[r]}
+                        {r.crossFactory ? "Бүх үйлдвэр · " : ""}
+                        {compact(r.permissions).length} зөвшөөрөл
                       </div>
                     </div>
                   </label>
                 ))}
               </fieldset>
 
-              {!isCrossFactoryRole(draft.role) ? (
+              {draft.roleId && !crossFactory(draft.roleId) ? (
                 <fieldset className="space-y-2">
                   <legend className="mb-2 text-sm font-medium">Үйлдвэр</legend>
-                  {FACTORIES.map((f) => (
+                  {factories.map((f) => (
                     <label
-                      key={f}
+                      key={f.code}
                       className={cn(
                         "flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors",
-                        draft.factory === f
+                        draft.factory === f.code
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50",
                       )}
@@ -315,11 +301,11 @@ export function AdminsSection() {
                       <input
                         type="radio"
                         name="staff-factory"
-                        checked={draft.factory === f}
-                        onChange={() => patch({ factory: f })}
+                        checked={draft.factory === f.code}
+                        onChange={() => patch({ factory: f.code })}
                         className="h-4 w-4"
                       />
-                      {FACTORY_MN[f]}
+                      {f.name}
                     </label>
                   ))}
                 </fieldset>

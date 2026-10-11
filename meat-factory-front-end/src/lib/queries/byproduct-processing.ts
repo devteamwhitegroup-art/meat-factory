@@ -4,7 +4,7 @@ import { graphql } from "@/lib/gql/gql";
 // disassembled and each organ weighed — expected (norm) vs actual kg.
 export const ByproductProcessingsDoc = graphql(/* GraphQL */ `
   query ByproductProcessings(
-    $factory: FACTORY
+    $factory: String
     $wrapperId: ID
     $dateRange: DateRangeInput
     $limit: Int
@@ -50,7 +50,7 @@ export const ByproductProcessingsDoc = graphql(/* GraphQL */ `
 
 export const ByproductProcessingSummaryDoc = graphql(/* GraphQL */ `
   query ByproductProcessingSummary(
-    $factory: FACTORY
+    $factory: String
     $dateRange: DateRangeInput
   ) {
     byproductProcessingSummary(factory: $factory, dateRange: $dateRange) {
@@ -72,7 +72,7 @@ export const ByproductProcessingSummaryDoc = graphql(/* GraphQL */ `
 
 export const CreateByproductProcessingDoc = graphql(/* GraphQL */ `
   mutation CreateByproductProcessing(
-    $factory: FACTORY
+    $factory: String
     $wrapperId: ID!
     $bundleCount: Int!
     $lines: [ByproductProcessingLineInput!]!
@@ -97,7 +97,7 @@ export const CreateByproductProcessingDoc = graphql(/* GraphQL */ `
 
 export const TransferByproductsDoc = graphql(/* GraphQL */ `
   mutation TransferByproducts(
-    $fromFactory: FACTORY
+    $fromFactory: String
     $lines: [ByproductTransferLineInput!]!
     $notes: String
   ) {

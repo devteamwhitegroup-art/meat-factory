@@ -59,7 +59,7 @@ export function DateRangeFilter() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          buttonVariants({ variant: "outline" }),
+          buttonVariants({ variant: "outline", size: "lg" }), // h-9, like SEGMENTED
           "h-9 gap-2 font-normal",
         )}
       >

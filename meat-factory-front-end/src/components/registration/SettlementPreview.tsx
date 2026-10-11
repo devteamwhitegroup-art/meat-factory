@@ -89,14 +89,8 @@ export function SettlementPreview({
           <div className="text-right">{formatNumber(totalMeat)}</div>
           <div className="text-muted-foreground">Бой зардал</div>
           <div className="text-right">−{formatNumber(totalSlaughter)}</div>
-          <div className="text-muted-foreground">
-            Дайвар (гэдэс) — бой зардлаас хасна
-          </div>
+          <div className="text-muted-foreground">Дайвар</div>
           <div className="text-right">+{formatNumber(totalByproduct)}</div>
-          <div className="text-muted-foreground">Цэвэр бой зардал</div>
-          <div className="text-right">
-            {formatNumber(totalSlaughter - totalByproduct)}
-          </div>
           <div className="text-base font-semibold">Малчинд өгөх дүн</div>
           <div className="text-right text-base font-semibold">
             {formatNumber(net)}

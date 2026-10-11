@@ -1,6 +1,5 @@
 import { TDateRange, TPagination } from '../global/global.type';
 import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
-import { FACTORY } from '../user/admin.type';
 
 export enum MOVEMENT_TYPE {
   IN = 'IN',
@@ -32,7 +31,7 @@ export enum MOVEMENT_SOURCE {
 // weighed byproducts are tracked in kg; incoming гэдэс in pieces (count).
 export type TInventoryItem = {
   id: string;
-  factory: FACTORY;
+  factory: string;
   sku: string;
   productType: PRODUCT_TYPE;
   // Animal catalogue FK for MEAT rows. Null for byproducts.
@@ -65,7 +64,7 @@ export type TInventoryMovement = {
 
 export type TManualAdjustInput = {
   // Owner/admin pick; factory staff adjust their own stock.
-  factory?: FACTORY | null;
+  factory?: string | null;
   productType: PRODUCT_TYPE;
   animalId?: string | null;
   byproductName?: string | null;
@@ -76,7 +75,9 @@ export type TManualAdjustInput = {
 };
 
 export type TGetMovements = {
-  factory?: FACTORY;
+  factory?: string;
+  // MEAT / BYPRODUCT — filters on the movement's item.
+  productType?: PRODUCT_TYPE;
   inventoryItemId?: string;
   movementType?: MOVEMENT_TYPE;
   source?: MOVEMENT_SOURCE;
@@ -84,7 +85,7 @@ export type TGetMovements = {
 } & TPagination;
 
 export type TGetStock = {
-  factory?: FACTORY;
+  factory?: string;
   productType?: PRODUCT_TYPE;
   animalId?: string;
   byproductName?: string;
@@ -93,7 +94,7 @@ export type TGetStock = {
 // Decoupling DTOs — callers (livestock settlement, shipment) hand these
 // to InventoryController so it never imports those modules' controllers.
 export type TStockLine = {
-  factory: FACTORY;
+  factory: string;
   productType: PRODUCT_TYPE;
   animalId?: string | null;
   // BYPRODUCT lines carry a free-form byproductName (SKU Дайвар:<name>).

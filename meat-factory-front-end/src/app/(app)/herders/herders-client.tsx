@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -201,7 +202,14 @@ export function HerdersClient() {
             <TableBody>
               {herders.map((h) => (
                 <TableRow key={h.id!}>
-                  <TableCell className="font-medium">{h.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/herders/${h.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {h.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{h.registrationNo}</TableCell>
                   <TableCell>{h.phone ?? "—"}</TableCell>
                   <TableCell>{h.address ?? "—"}</TableCell>

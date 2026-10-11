@@ -29,7 +29,14 @@ type Line = {
   lineAmount: number | null;
 };
 
-export function LineItemsTable({ lines }: { lines: Line[] }) {
+export function LineItemsTable({
+  lines,
+  fromReport = false,
+}: {
+  lines: Line[];
+  // Shipment sale: prices come from its sales report (below), not typed here.
+  fromReport?: boolean;
+}) {
   return (
     <Table>
       <TableHeader>
@@ -55,6 +62,8 @@ export function LineItemsTable({ lines }: { lines: Line[] }) {
               <TableCell>
                 {l.unitPrice != null ? (
                   formatMNT(l.unitPrice)
+                ) : fromReport ? (
+                  <span className="text-muted-foreground">тайлангаас</span>
                 ) : (
                   <PriceInput lineId={l.id} />
                 )}

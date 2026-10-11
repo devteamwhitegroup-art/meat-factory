@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 
 export type NavTab = { href: string; label: string };
 
@@ -13,20 +13,11 @@ export function NavTabs({ tabs }: { tabs: NavTab[] }) {
   const pathname = usePathname();
 
   return (
-    <div className="inline-flex w-full max-w-md rounded-md bg-muted p-1 text-sm">
+    <div className={SEGMENTED}>
       {tabs.map((t) => {
         const active = pathname === t.href;
         return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "flex-1 rounded-sm px-3 py-1.5 text-center font-medium transition-colors",
-              active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
+          <Link key={t.href} href={t.href} className={segmentCls(active)}>
             {t.label}
           </Link>
         );

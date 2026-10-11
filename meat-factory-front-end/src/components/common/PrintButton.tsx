@@ -16,8 +16,15 @@ import { EnqueuePrintDoc, PreviewReceiptDoc } from "@/lib/queries/print";
 import { SettingsDoc } from "@/lib/queries/settings";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 
-// Each device remembers the last printer it used (workers stand by one).
+// Staff's factory (client cookie set at login); absent for admin.
+function readFactory(): string | null {
+  const m = document.cookie.match(/(?:^|;\s*)mf_factory=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// Admin's device remembers the last printer it picked.
 const LAST_PRINTER_KEY = "mf_last_printer";
 function readLastPrinter(): string | null {
   try {
@@ -44,15 +51,20 @@ export function PrintButton({
   id: string;
   label?: string;
 }) {
+  const { nameOf } = useFactories();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
+  const [factory, setFactory] = useState<string | null>(null);
   const [enqueue] = useMutation(EnqueuePrintDoc);
   const { data: settingsData } = useQuery(SettingsDoc, {
     skip: !open,
     fetchPolicy: "cache-and-network",
   });
-  const printers = compact(settingsData?.settings?.settings?.printers);
+  // Staff: only their factory's printer. Admin: every factory's.
+  const printers = compact(settingsData?.settings?.settings?.printers).filter(
+    (p) => !factory || p.factory === factory,
+  );
   // Picked (or remembered) printer if it still exists, else the first one.
   const printerId =
     printers.find((p) => p.id === picked)?.id ?? printers[0]?.id ?? null;
@@ -93,6 +105,7 @@ export function PrintButton({
         size="sm"
         onClick={() => {
           setPicked(readLastPrinter());
+          setFactory(readFactory());
           setOpen(true);
         }}
         className="gap-2"
@@ -124,7 +137,9 @@ export function PrintButton({
 
           {settingsData && printers.length === 0 ? (
             <p className="text-sm text-destructive">
-              Принтер тохируулаагүй байна — Тохиргоо хэсэгт нэмнэ үү.
+              {factory
+                ? `${nameOf(factory)}-д принтер тохируулаагүй байна — админд хандана уу.`
+                : "Принтер тохируулаагүй байна — Тохиргоо хэсэгт нэмнэ үү."}
             </p>
           ) : printers.length > 1 ? (
             <div
@@ -142,7 +157,7 @@ export function PrintButton({
                   className="h-11 flex-1 gap-2"
                 >
                   <PrinterIcon className="size-4" />
-                  {p.name}
+                  {nameOf(p.factory)}
                 </Button>
               ))}
             </div>

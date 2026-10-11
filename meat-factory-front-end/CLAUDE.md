@@ -47,9 +47,19 @@ strings. `npm run gen` introspects the **running backend** (`:8086`, see
 - Other shared helpers: `useFileUpload(type)`, `compact`, `navIsActive`,
   `proxyUpstream`/`getSessionToken` (`src/lib/api/proxy.ts`), format helpers in
   `src/lib/format/`.
-- **Auth**: httpOnly cookie `mf_session`; client-readable `mf_role` cookie for
-  role-gated UI; `requireCap(...)` guards server pages. Browser GraphQL traffic
-  is proxied through Next route handlers (`src/app/api/*`).
+- **Auth**: httpOnly cookie `mf_session`; client-readable `mf_perms` (the
+  role's PERMISSION keys, comma-joined), `mf_role` (role display name) and
+  `mf_factory` (staff's site; absent = cross-factory). Server pages:
+  `const session = await requireCap("PERM"[, …anyOf])` → `session.can(...)`,
+  `session.crossFactory`, `session.factory`; `getSession()` without the gate.
+  Client components: `can(readPermsCookie(), "PERM")` post-mount. Nav/landing
+  derive from permissions (`src/lib/auth/roles.ts`). Roles themselves are
+  admin-managed on the BE (Систем тохиргоо › Эрх) — never hard-code one.
+- **Factories**: admin-managed catalogue (Систем тохиргоо › Үйлдвэр). Names and
+  kind rules come from `useFactories()` (client) / `getFactories()` +
+  `factoryName`/`factoryKind`/`isPreButchered` (server, `src/lib/factory/`).
+  No hard-coded factory codes or labels.
+  Browser GraphQL traffic is proxied through Next route handlers (`src/app/api/*`).
 
 ## 🔗 Contract with the back-end
 You **consume** the BE GraphQL schema; you don't need to know its internals. To

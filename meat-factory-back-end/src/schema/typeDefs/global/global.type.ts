@@ -4,7 +4,7 @@ export const PaginationSchema = `
 
 export default `#graphql
     directive @authLogin on FIELD_DEFINITION
-    directive @auth(permissions: [String!]) on FIELD_DEFINITION
+    directive @auth(permissions: [PERMISSION!]) on FIELD_DEFINITION
     
 
      interface IResponse {

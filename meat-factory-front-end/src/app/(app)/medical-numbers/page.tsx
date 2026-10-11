@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DownloadIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,13 +14,13 @@ import {
 import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { MedicalStatusActions } from "@/components/registration/MedicalStatusActions";
 import { requireCap } from "@/lib/auth/server";
-import { isCrossFactoryRole } from "@/lib/auth/roles";
 import { getClient } from "@/lib/apollo/server";
 import { MedicalNumbersDoc } from "@/lib/queries/medical-number";
 import { unwrapList } from "@/lib/unwrap";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
+import { getFactories } from "@/lib/factory/server";
+import { factoryName } from "@/lib/factory/factories";
 import {
-  FACTORY_MN,
   MEDICAL_NUMBER_STATUS_COLOR,
   MEDICAL_NUMBER_STATUS_MN,
 } from "@/lib/format/enum";
@@ -56,13 +57,15 @@ const STATUSES: { value: string; label: string; status: string | null }[] = [
 // Vet worklist: every medical number across registrations. The vet checks
 // each in the government service and records the result here.
 export default async function MedicalNumbersPage({ searchParams }: Props) {
-  const role = await requireCap("medicalCheck");
-  const crossFactory = isCrossFactoryRole(role);
+  const session = await requireCap("MEDICAL_NUMBER_CHECK");
+  const factories = await getFactories();
+  const crossFactory = session.crossFactory;
   const sp = await searchParams;
   const current =
     STATUSES.find((s) => s.value === (sp.status ?? "")) ?? STATUSES[0];
-  const factory =
-    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
+  const factory = factories.some((f) => f.code === sp.factory)
+    ? (sp.factory as string)
+    : null;
   const page = Math.max(1, Number(sp.page) || 1);
 
   // Chip / pager links keep the other filters.
@@ -79,6 +82,15 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
     const qs = params.toString();
     return qs ? `/medical-numbers?${qs}` : "/medical-numbers";
   };
+
+  // Excel export of every page under the current filters.
+  const exportParams = new URLSearchParams();
+  for (const [k, v] of Object.entries({
+    status: current.status,
+    q: sp.q,
+    factory,
+  }))
+    if (v) exportParams.set(k, v);
 
   const { data } = await getClient().query({
     query: MedicalNumbersDoc,
@@ -98,12 +110,22 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Мал эмнэлгийн дугаар</h1>
-        <p className="text-sm text-muted-foreground">
-          Дугаарыг улсын системээс шалгаад төлөвийг тэмдэглэнэ. Бүх дугаар нь
-          баталгаажсан бүртгэлийн суутгалыг олгох боломжтой болно.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Мал эмнэлгийн дугаар</h1>
+          <p className="text-sm text-muted-foreground">
+            Дугаарыг улсын системээс шалгаад төлөвийг тэмдэглэнэ. Бүх дугаар нь
+            баталгаажсан бүртгэлийн суутгалыг олгох боломжтой болно.
+          </p>
+        </div>
+        {/* Plain <a>, not <Link>: a file download, not a page navigation. */}
+        <a
+          href={`/medical-numbers/export?${exportParams}`}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <DownloadIcon />
+          Excel татах
+        </a>
       </div>
 
       {crossFactory ? <FactoryFilter /> : null}
@@ -206,7 +228,7 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
                     </TableCell>
                     {crossFactory ? (
                       <TableCell>
-                        {FACTORY_MN[reg?.factory ?? ""] ?? "—"}
+                        {factoryName(factories, reg?.factory)}
                       </TableCell>
                     ) : null}
                     <TableCell className="text-xs text-muted-foreground">

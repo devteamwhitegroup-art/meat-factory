@@ -35,8 +35,8 @@ export default `#graphql
             search: String
             isActive: Boolean
             ${PaginationSchema}
-        ): ByproductWrappersResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
-        byproductWrapper(id: ID!): ByproductWrapperResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): ByproductWrappersResponse @authLogin
+        byproductWrapper(id: ID!): ByproductWrapperResponse @authLogin
     }
 
     extend type Mutation {
@@ -44,7 +44,7 @@ export default `#graphql
             animalType: String!
             name: String!
             price: Float
-        ): ByproductWrapperResponse @auth(permissions: ["ADMIN"])
+        ): ByproductWrapperResponse @auth(permissions: [CATALOG_MANAGE])
 
         updateByproductWrapper(
             id: ID!
@@ -52,8 +52,8 @@ export default `#graphql
             name: String
             price: Float
             isActive: Boolean
-        ): ByproductWrapperResponse @auth(permissions: ["ADMIN"])
+        ): ByproductWrapperResponse @auth(permissions: [CATALOG_MANAGE])
 
-        deleteByproductWrapper(id: ID!): Response @auth(permissions: ["ADMIN"])
+        deleteByproductWrapper(id: ID!): Response @auth(permissions: [CATALOG_MANAGE])
     }
 `;

@@ -2,6 +2,7 @@ import { DataTypes, Model, Sequelize } from "sequelize";
 import { TShipmentSaleLine } from "../../types/shipment/shipment-sale-line.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { ShipmentModel } from "./shipment.model";
+import { ShipmentSaleEntryModel } from "./shipment-sale-entry.model";
 
 export class ShipmentSaleLineModel extends Model implements TShipmentSaleLine {
   public id!: string;
@@ -16,11 +17,16 @@ export class ShipmentSaleLineModel extends Model implements TShipmentSaleLine {
   public updatedAt!: Date;
 
   public shipment?: ShipmentModel;
+  public entries?: ShipmentSaleEntryModel[];
 
   static associate(): void {
     this.belongsTo(ShipmentModel, {
       as: "shipment",
       foreignKey: { name: "shipmentId", allowNull: false },
+    });
+    this.hasMany(ShipmentSaleEntryModel, {
+      as: "entries",
+      foreignKey: { name: "saleLineId", allowNull: false },
     });
   }
 }

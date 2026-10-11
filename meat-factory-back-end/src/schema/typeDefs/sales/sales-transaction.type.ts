@@ -104,8 +104,8 @@ export default `#graphql
             customerId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): SalesTransactionsResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
-        salesTransaction(id: ID!): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SalesTransactionsResponse @auth(permissions: [SALES_MANAGE])
+        salesTransaction(id: ID!): SalesTransactionResponse @auth(permissions: [SALES_MANAGE])
     }
 
     extend type Mutation {
@@ -115,29 +115,29 @@ export default `#graphql
             transactionDate: Date
             notes: String
             lineItems: [SalesLineItemInput!]
-        ): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SalesTransactionResponse @auth(permissions: [SALES_MANAGE])
 
         markSalesTransactionPaid(
             id: ID!
-        ): SalesTransactionResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SalesTransactionResponse @auth(permissions: [SALES_MANAGE])
 
-        # Fill in (or clear, pass null) the per-kg price on one line item —
-        # the post-delivery equivalent of setShipmentSalePrice, for lines
-        # that came in null from an auto-created invoice. The parent
+        # Fill in (or clear, pass null) the per-kg price on one line item. A
+        # shipment's invoice lines are rebuilt from its sales report whenever
+        # the report changes, overriding prices set here. The parent
         # transaction's amount recomputes automatically, staying null until
         # every line is priced.
         setSalesLineItemPrice(
             id: ID!
             unitPrice: Float
-        ): SalesLineItemResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SalesLineItemResponse @auth(permissions: [SALES_MANAGE])
 
         addSalesInstallment(
             salesTransactionId: ID!
             amountMnt: Float!
             paidAt: Date
             notes: String
-        ): SalesInstallmentResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SalesInstallmentResponse @auth(permissions: [SALES_MANAGE])
 
-        removeSalesInstallment(id: ID!): Response @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        removeSalesInstallment(id: ID!): Response @auth(permissions: [SALES_MANAGE])
     }
 `;

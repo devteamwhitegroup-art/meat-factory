@@ -19,7 +19,8 @@ import {
 import { unwrap } from "@/lib/unwrap";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { SHIPMENT_CATEGORY_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
-import { CustomerCombobox } from "./CustomerCombobox";
+import { CustomerCombobox, type CustomerLite } from "./CustomerCombobox";
+import { useDraft } from "@/lib/hooks/useDraft";
 import { FactoryPicker } from "@/components/common/FactoryFilter";
 
 // A shipment is the physical stock-out event. Its category (export/domestic)
@@ -57,6 +58,36 @@ export function NewShipmentForm({
   const [notes, setNotes] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [customer, setCustomer] = useState<CustomerLite | null>(null);
+  const [comboKey, setComboKey] = useState(0);
+  const clearDraft = useDraft(
+    `shipment:new:${category}`,
+    {
+      domesticMarket,
+      customerId,
+      customer,
+      factory,
+      vehiclePlate,
+      driverName,
+      driverPhone,
+      sealNumber,
+      notes,
+      photoFileId,
+    },
+    (d) => {
+      setDomesticMarket(d.domesticMarket);
+      setCustomerId(d.customerId);
+      setCustomer(d.customer);
+      setFactory(d.factory);
+      setVehiclePlate(d.vehiclePlate);
+      setDriverName(d.driverName);
+      setDriverPhone(d.driverPhone);
+      setSealNumber(d.sealNumber);
+      setNotes(d.notes);
+      setPhotoFileId(d.photoFileId);
+      setComboKey((k) => k + 1); // remount → shows the restored customer
+    },
+  );
 
   async function onSubmit() {
     setTriedSubmit(true);
@@ -66,6 +97,10 @@ export function NewShipmentForm({
     }
     if (crossFactory && !factory) {
       toast.error("Үйлдвэр сонгоно уу");
+      return;
+    }
+    if (sealNumber && sealNumber.length !== 6) {
+      toast.error("Лацны дугаар 6 оронтой тоо байна");
       return;
     }
     setBusy(true);
@@ -86,6 +121,7 @@ export function NewShipmentForm({
       });
       const sh = unwrap(r.data?.createShipment).shipment;
       if (!sh?.id) throw new Error("Хариу буцаасангүй");
+      clearDraft();
       toast.success(`Ачилт ${sh.shipmentCode} үүсгэгдлээ`);
       router.push(`/shipments/${sh.id}`);
     } catch (e) {
@@ -147,6 +183,9 @@ export function NewShipmentForm({
         <div className="space-y-1.5">
           <Label>Харилцагч *</Label>
           <CustomerCombobox
+            key={comboKey}
+            initialSelected={customer}
+            onSelect={setCustomer}
             value={customerId}
             onChange={setCustomerId}
             invalid={triedSubmit && !customerId}
@@ -204,9 +243,14 @@ export function NewShipmentForm({
             <Label>Лацны дугаар</Label>
             <Input
               value={sealNumber}
-              onChange={(e) => setSealNumber(e.target.value)}
-              placeholder="Үйлдвэрийн лацны дугаар"
-              className="h-11"
+              // 6 digits only.
+              onChange={(e) =>
+                setSealNumber(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="6 оронтой тоо"
+              className="h-11 tabular-nums"
             />
           </div>
         </div>

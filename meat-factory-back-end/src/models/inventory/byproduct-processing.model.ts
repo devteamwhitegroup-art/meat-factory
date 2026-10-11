@@ -1,6 +1,5 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { TByproductProcessing } from "../../types/inventory/byproduct-processing.type";
-import { FACTORY } from "../../types/user/admin.type";
 import { ByproductProcessingLineModel } from "./byproduct-processing-line.model";
 import { ByproductWrapperModel } from "../livestock/byproduct-wrapper.model";
 import { AdminModel } from "../user/admin.model";
@@ -11,7 +10,7 @@ export class ByproductProcessingModel
 {
   public id!: string;
   public code!: string;
-  public factory!: FACTORY;
+  public factory!: string;
   public wrapperId!: string;
   public bundleCount!: number;
   public createdById!: string;
@@ -52,8 +51,9 @@ export const createByproductProcessingModel = (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      // Factories.code — kind rules live in FactoryController.
       factory: {
-        type: DataTypes.ENUM(...Object.values(FACTORY)),
+        type: DataTypes.STRING(32),
         allowNull: false,
       },
       bundleCount: {

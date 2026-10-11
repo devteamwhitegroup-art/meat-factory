@@ -1,5 +1,4 @@
 import { TDateRange, TPagination } from '../global/global.type';
-import { FACTORY } from '../user/admin.type';
 
 // Бой зардал is not an input: it is fixed per head (Animal.pricePerAnimal ×
 // count, snapshotted on the animal line at intake).
@@ -62,7 +61,7 @@ export type TSettlement = {
 };
 
 export type TGetSettlements = {
-  factory?: FACTORY;
+  factory?: string;
   isPaid?: boolean;
   herderId?: string;
   dateRange?: TDateRange;

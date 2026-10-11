@@ -1,4 +1,6 @@
 import { Op, UniqueConstraintError, WhereOptions } from "sequelize";
+import { PERMISSION } from "../../types/user/permission.type";
+import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
@@ -17,14 +19,14 @@ import { AdminController } from "../user/admin.controller";
 import { MedicalNumberController } from "./medical-number.controller";
 import { MedicalNumberModel } from "../../models/livestock/medical-number.model";
 import {
-  isPreButchered,
   REGISTRATION_STATUS,
   TCreateRegistration,
   TGetRegistrations,
+  TRegistrationAnimalLineInput,
 } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { ADMIN_ROLE, BYPRODUCT_FACTORY } from "../../types/user/admin.type";
 import { HerderController } from "./herder.controller";
+import { WeighingController } from "./weighing.controller";
 import { FileController } from "../global/file.controller";
 import {
   dateRangeWhere,
@@ -35,6 +37,9 @@ import {
 } from "../../utils";
 
 const MAX_CODE_RETRIES = 5;
+
+// Mongolian plate: 4 digits + 2–3 Cyrillic letters, e.g. "8901 ДОУ".
+const PLATE_RE = /^(\d{4})\s*([А-ЯЁӨҮ]{2,3})$/;
 
 // All livestock workflow rows (animal lines, weighing entries, byproduct logs,
 // settlement lines) now FK into Animals. We eager-include `animal` everywhere
@@ -100,7 +105,7 @@ const REGISTRATION_FULL_INCLUDE = [
 // Core of the livestock aggregate (intake + lifecycle). The weighing,
 // byproduct, verification and settlement sub-domains live in their own
 // controllers and reuse the shared lookups/guards exposed here
-// (findIdCheck, getById, assertStatus, assertActorRole).
+// (findIdCheck, getById, assertStatus); permission guards are on AdminController.
 export class RegistrationController {
   // ─── Shared helpers (used by the sub-domain controllers) ──────────
 
@@ -146,11 +151,32 @@ export class RegistrationController {
     }
   }
 
-  static assertActorRole(context: TContext, allowed: ADMIN_ROLE[]): void {
-    if (!context || !allowed.includes(context.role)) {
+  // "8901 ДОУ" whatever spacing/case was typed. Shared with intake edits.
+  static normalizePlate(raw: string | null | undefined): string {
+    const plate = PLATE_RE.exec((raw ?? "").trim().toUpperCase());
+    if (!plate)
       throw new Error(
-        `Forbidden: role ${context?.role} cannot perform this action`,
+        "Машины дугаар буруу: 4 тоо + 2-3 үсэг байна (ж: 8901 ДОУ)",
       );
+    return `${plate[1]} ${plate[2]}`;
+  }
+
+  // Pre-butchered intake lists only which meats arrived — no head
+  // count (stored 0); weight + price come at weighing.
+  static assertAnimalLines(
+    lines: TRegistrationAnimalLineInput[],
+    preButchered = false,
+  ): void {
+    if (!lines || lines.length === 0)
+      throw new Error("At least one animal line is required");
+    const seen = new Set<string>();
+    for (const line of lines) {
+      if (!line.animalType?.trim()) throw new Error("Animal type is required");
+      if (!preButchered && (!line.count || line.count <= 0))
+        throw new Error("Animal count must be a positive number");
+      if (seen.has(line.animalType))
+        throw new Error(`Duplicate animal line: ${line.animalType}`);
+      seen.add(line.animalType);
     }
   }
 
@@ -160,7 +186,7 @@ export class RegistrationController {
     doc: TCreateRegistration,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN]);
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_CREATE);
 
     const {
       herderId,
@@ -172,28 +198,34 @@ export class RegistrationController {
       intakeDate,
     } = doc;
     const factory = AdminController.writeFactory(context, doc.factory);
-    if (factory === BYPRODUCT_FACTORY)
+    if (FactoryController.isByproduct(factory))
       throw new Error("Дайврын үйлдвэр мал хүлээн авахгүй");
-    // FACTORY_2 takes pre-butchered meat: no stamp, no slaughter cost.
-    const pre = isPreButchered({ factory });
+    // Pre-butchered sites take meat: no stamp, no slaughter cost.
+    const pre = FactoryController.isPreButchered(factory);
+    // Its intake carries weights + prices — a weighing permission, not just intake.
+    if (pre && !AdminController.hasPermission(context, PERMISSION.REGISTRATION_WEIGH))
+      throw new Error("Задалсан мах хүлээн авах бүртгэлийг жинлэх эрхтэй ажилтан хийнэ");
 
-    if (!vehicleNumber || !vehicleNumber.trim())
-      throw new Error("Vehicle number is required");
-    if (!doc.animalLines || doc.animalLines.length === 0)
-      throw new Error("At least one animal line is required");
+    const plate = this.normalizePlate(vehicleNumber);
+    this.assertAnimalLines(doc.animalLines, pre);
+    const weighings = doc.weighings?.length ? doc.weighings : [];
+    if (weighings.length > 0) {
+      if (!pre)
+        throw new Error("Жинг бүртгэлтэй хамт зөвхөн задалсан мах хүлээн авах үйлдвэрт оруулна");
+      const types = new Set(doc.animalLines.map((l) => l.animalType));
+      for (const w of weighings) {
+        if (!types.has(w.animalType))
+          throw new Error(`${w.animalType} бүртгэлийн малд алга`);
+        if (!(Number(w.weightKg) > 0))
+          throw new Error("Жин 0-ээс их байх ёстой");
+        if (!(Number(w.pricePerKg) >= 0))
+          throw new Error("Үнэ сөрөг байж болохгүй");
+      }
+    }
     const medicalNumbers = MedicalNumberController.parseList(
       doc.medicalNumbers,
     );
-
-    const seen = new Set<string>();
-    for (const line of doc.animalLines) {
-      if (!line.animalType?.trim()) throw new Error("Animal type is required");
-      if (!line.count || line.count <= 0)
-        throw new Error("Animal count must be a positive number");
-      if (seen.has(line.animalType))
-        throw new Error(`Duplicate animal line: ${line.animalType}`);
-      seen.add(line.animalType);
-    }
+    const types = doc.animalLines.map((l) => l.animalType);
 
     await HerderController.findIdCheck(herderId);
     if (photoFileId) await FileController.findIdCheck(photoFileId);
@@ -201,12 +233,12 @@ export class RegistrationController {
     if (stampFileId && !pre) await FileController.findIdCheck(stampFileId);
 
     // Resolve every requested animal name → animalId up front.
-    const typeToId = await AnimalController.mapNamesToIds(Array.from(seen));
+    const typeToId = await AnimalController.mapNamesToIds(types);
 
     // Бой зардал is auto-precalculated per type = pricePerAnimal (settings) ×
     // head count. The guard only enters counts; pre-butchered intake = 0.
     const counts: Record<string, number> = {};
-    for (const l of doc.animalLines) counts[l.animalType] = l.count;
+    for (const l of doc.animalLines) counts[l.animalType] = pre ? 0 : l.count;
     const slaughterByType = pre
       ? {}
       : await AnimalController.defaultsForCounts(counts);
@@ -227,7 +259,7 @@ export class RegistrationController {
             {
               registrationCode: `${codePrefix}${counter}`,
               herderId,
-              vehicleNumber: vehicleNumber.trim(),
+              vehicleNumber: plate,
               stamp: pre ? null : (stamp ?? null),
               photoFileId: photoFileId ?? null,
               signatureFileId: signatureFileId ?? null,
@@ -244,11 +276,25 @@ export class RegistrationController {
             doc.animalLines.map((l) => ({
               registrationId: reg.id,
               animalId: typeToId[l.animalType],
-              count: l.count,
+              count: pre ? 0 : l.count,
               slaughterCost: pre ? 0 : (slaughterByType[l.animalType] ?? 0),
             })),
             { transaction: t },
           );
+
+          // FACTORY_2: meat weighed on the intake form.
+          for (const w of weighings)
+            await WeighingController.insertEntry(
+              {
+                registrationId: reg.id,
+                animalId: typeToId[w.animalType],
+                weightKg: Number(w.weightKg),
+                pricePerKg: Number(w.pricePerKg),
+                photoFileId: null,
+              },
+              context.id,
+              t,
+            );
 
           await MedicalNumberModel.bulkCreate(
             medicalNumbers.map((number) => ({
@@ -308,7 +354,8 @@ export class RegistrationController {
           include: [{ model: AnimalModel, as: "animal" }],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      // Arrival order: the first registered is on top.
+      order: [["createdAt", "ASC"]],
       distinct: true,
     });
   }
@@ -317,7 +364,7 @@ export class RegistrationController {
     registrationId: string,
     context: TContext,
   ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [ADMIN_ROLE.ADMIN]);
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_CANCEL);
 
     const reg = await this.findIdCheck(registrationId, context);
     // Cancellation is only allowed before the scale operator signs off
@@ -325,35 +372,6 @@ export class RegistrationController {
     this.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
 
     await reg.update({ status: REGISTRATION_STATUS.CANCELLED });
-    return this.getById(registrationId);
-  }
-
-  // Shared guard for slip edits allowed only before VERIFIED, by intake-side
-  // staff.
-  private static async _guardSlipEditable(
-    registrationId: string,
-    context: TContext,
-  ): Promise<RegistrationModel> {
-    this.assertActorRole(context, [ADMIN_ROLE.STOREKEEPER, ADMIN_ROLE.ADMIN]);
-    const reg = await this.findIdCheck(registrationId, context);
-    this.assertStatus(reg, [
-      REGISTRATION_STATUS.REGISTERED,
-      REGISTRATION_STATUS.WEIGHED,
-    ]);
-    return reg;
-  }
-
-  // Attach the herder's drawn agreement signature (an already-uploaded File)
-  // to the weighed slip. Allowed before VERIFIED. Pass null to clear.
-  static async setAgreementSignature(
-    registrationId: string,
-    fileId: string | null,
-    context: TContext,
-  ): Promise<RegistrationModel> {
-    const reg = await this._guardSlipEditable(registrationId, context);
-
-    if (fileId) await FileController.findIdCheck(fileId);
-    await reg.update({ agreementSignatureFileId: fileId ?? null });
     return this.getById(registrationId);
   }
 }

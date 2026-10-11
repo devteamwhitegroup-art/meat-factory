@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getClient } from "@/lib/apollo/server";
 import { SalesDetailDoc } from "@/lib/queries/sales";
+import { ShipmentDetailDoc } from "@/lib/queries/shipment";
+import { SalesReportPanel } from "@/components/sales/SalesReportPanel";
+import { toSaleLineRows } from "@/components/sales/sale-line-rows";
 import { compact } from "@/lib/compact";
 import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
@@ -18,7 +21,7 @@ import { requireCap } from "@/lib/auth/server";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function SalesDetailPage({ params }: Props) {
-  await requireCap("sales");
+  await requireCap("SALES_MANAGE");
   const { id } = await params;
   const { data } = await getClient().query({
     query: SalesDetailDoc,
@@ -33,6 +36,15 @@ export default async function SalesDetailPage({ params }: Props) {
     );
   }
   const t = wrap.salesTransaction;
+  // Shipment sale: the salesman's report (sold kg × price, loss) drives it.
+  const shipment = t.shipmentId
+    ? (
+        await getClient().query({
+          query: ShipmentDetailDoc,
+          variables: { id: t.shipmentId },
+        })
+      ).data?.shipment?.shipment
+    : null;
   const lines = compact(t.lineItems);
   const installments = compact(t.installments).map((i) => ({
     id: i.id!,
@@ -136,6 +148,7 @@ export default async function SalesDetailPage({ params }: Props) {
         </CardHeader>
         <CardContent>
           <LineItemsTable
+            fromReport={!!shipment}
             lines={lines.map((l) => ({
               id: l.id!,
               productType: l.productType ?? null,
@@ -149,6 +162,16 @@ export default async function SalesDetailPage({ params }: Props) {
         </CardContent>
       </Card>
 
+      {shipment ? (
+        <SalesReportPanel
+          canReport={shipment.status !== "PENDING"}
+          totalPrice={
+            shipment.totalPrice != null ? Number(shipment.totalPrice) : null
+          }
+          saleLines={toSaleLineRows(shipment.saleLines)}
+        />
+      ) : null}
+
       {t.id && t.amount != null ? (
         <InstallmentsCard
           txId={t.id}
@@ -157,14 +180,20 @@ export default async function SalesDetailPage({ params }: Props) {
         />
       ) : (
         <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-          Бүх барааны үнийг дээрх хүснэгтэд тохируулснаар төлбөр бүртгэх
-          боломжтой болно.
+          {shipment
+            ? "Борлуулалтын тайланд бүх барааг бүртгэснээр төлбөр бүртгэх боломжтой болно."
+            : "Бүх барааны үнийг дээрх хүснэгтэд тохируулснаар төлбөр бүртгэх боломжтой болно."}
         </div>
       )}
 
       <Separator />
 
-      {t.paymentStatus !== "PAID" && t.amount != null && t.id ? (
+      {/* One-shot full payment; once installments exist they decide the
+          status (log the remainder as another installment). */}
+      {t.paymentStatus !== "PAID" &&
+      t.amount != null &&
+      t.id &&
+      installments.length === 0 ? (
         <MarkPaidButton id={t.id} />
       ) : null}
     </div>

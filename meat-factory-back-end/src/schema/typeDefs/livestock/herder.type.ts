@@ -35,9 +35,41 @@ export default `#graphql
         count: Int
     }
 
+    type HerderAnimalTotal {
+        animalType: String
+        # Head brought in (registration animal lines).
+        count: Int
+        weightKg: Float
+    }
+
+    # Admin herder page: lifetime figures (cancelled registrations excluded
+    # from the sums). Money comes from settlements.
+    type HerderStats {
+        registrationCount: Int
+        cancelledCount: Int
+        firstIntakeDate: Date
+        lastIntakeDate: Date
+        animals: [HerderAnimalTotal]
+        weighedKg: Float
+        meatAmount: Float
+        settlementCount: Int
+        slaughterCost: Float
+        byproductAmount: Float
+        netPayable: Float
+        paidAmount: Float
+        unpaidAmount: Float
+    }
+
+    type HerderStatsResponse {
+        success: Boolean
+        message: String
+        stats: HerderStats
+    }
+
     extend type Query {
         herders(search: String, ${PaginationSchema}): HerdersResponse @authLogin
         herder(id: ID!): HerderResponse @authLogin
+        herderStats(id: ID!): HerderStatsResponse @auth(permissions: [HERDER_MANAGE])
     }
 
     extend type Mutation {
@@ -51,7 +83,7 @@ export default `#graphql
             # Either addressId OR address must be set (server-side validated).
             addressId: ID
             address: String
-        ): HerderResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): HerderResponse @auth(permissions: [HERDER_EDIT, REGISTRATION_CREATE])
 
         updateHerder(
             id: ID!
@@ -63,10 +95,10 @@ export default `#graphql
             accountHolderName: String
             addressId: ID
             address: String
-        ): HerderResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): HerderResponse @auth(permissions: [HERDER_EDIT])
 
         deleteHerder(
             id: ID!
-        ): Response @auth(permissions: ["ADMIN"])
+        ): Response @auth(permissions: [HERDER_MANAGE])
     }
 `;

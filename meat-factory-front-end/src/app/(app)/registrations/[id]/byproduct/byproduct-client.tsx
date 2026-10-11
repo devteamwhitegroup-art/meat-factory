@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
 import { formatMNT } from "@/lib/format/money";
-import { isPreButchered } from "@/lib/format/enum";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 import {
   RegistrationDetailDoc,
   SetRegistrationByproductsDoc,
@@ -49,6 +49,7 @@ export function ByproductClient({ id }: { id: string }) {
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  const { isPreButchered } = useFactories();
 
   const reg = data?.registration?.registration;
 
@@ -80,7 +81,7 @@ export function ByproductClient({ id }: { id: string }) {
       <div className="space-y-4">
         <BackButton href={`/registrations/${id}`} />
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Үйлдвэр 2-т гэдэсийг жинлэх хуудсан дээр бүртгэнэ.{" "}
+          Задалсан мах хүлээн авах үйлдвэрт гэдэсийг жинлэх хуудсан дээр бүртгэнэ.{" "}
           <Link
             href={`/registrations/${id}/weigh`}
             className="font-medium text-primary underline"

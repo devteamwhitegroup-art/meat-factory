@@ -7,10 +7,12 @@ import { mapSchema, MapperKind, getDirectives } from "@graphql-tools/utils";
 import { isEmpty } from "lodash";
 import { AdminController } from "../../controller/user/admin.controller";
 import { TBaseContext, TContext } from "../../types/global/global.type";
+import { PERMISSION } from "../../types/user/permission.type";
 import { errorMessage } from "../../utils";
 
 // @authLogin — any authenticated staff member.
-// @auth(permissions: [ROLE]) — authenticated AND role ∈ permissions.
+// @auth(permissions: [PERMISSION]) — authenticated AND the actor's role holds
+// at least one of the listed permissions (read live from the DB per request).
 export const authDirectiveTransformer = async (schema: GraphQLSchema) => {
   return mapSchema(schema, {
     [MapperKind.OBJECT_FIELD]: (fieldConfig) => {
@@ -40,12 +42,11 @@ export const authDirectiveTransformer = async (schema: GraphQLSchema) => {
             }
 
             if (name === "auth") {
-              const permissions: string[] = Array.isArray(args?.permissions)
+              const permissions: PERMISSION[] = Array.isArray(args?.permissions)
                 ? args.permissions
                 : [];
-              if (permissions.length > 0 && !permissions.includes(admin.role)) {
-                throw new Error("Insufficient permission");
-              }
+              if (permissions.length > 0)
+                AdminController.assertPermission(admin, ...permissions);
             }
 
             return resolve(

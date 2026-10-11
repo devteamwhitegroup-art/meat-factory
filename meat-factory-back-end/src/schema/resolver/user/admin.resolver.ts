@@ -1,8 +1,8 @@
 import { AdminController } from "../../../controller/user/admin.controller";
 import {
-  TAdmin,
   TAdminLoginInput,
   TCreateAdmin,
+  TUpdateAdmin,
 } from "../../../types/user/admin.type";
 import { errorMessage, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
@@ -38,8 +38,7 @@ export default {
     ),
     updateAdmin: wrapOne(
       "admin",
-      (doc: Partial<TAdmin> & { id: string }, context) =>
-        AdminController.updateAdmin(doc, context),
+      (doc: TUpdateAdmin, context) => AdminController.updateAdmin(doc, context),
       "Admin updated successfully",
     ),
     deleteAdmin: wrapVoid("Admin deleted successfully", (doc: { id: string }, context) =>

@@ -10,8 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TransferByproductsDoc } from "@/lib/queries/byproduct-processing";
+import { useDraft } from "@/lib/hooks/useDraft";
 import { runMutation } from "@/lib/runMutation";
-import type { Factory } from "@/lib/gql/graphql";
 
 type Item = { id: string; label: string; available: number };
 
@@ -20,7 +20,7 @@ export function TransferForm({
   fromFactory,
   items,
 }: {
-  fromFactory: Factory | null;
+  fromFactory: string | null;
   items: Item[];
 }) {
   const router = useRouter();
@@ -28,6 +28,11 @@ export function TransferForm({
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  // Emptied after a transfer → back to the starting values, draft dropped.
+  useDraft("inventory:transfer", { counts, notes }, (d) => {
+    setCounts(d.counts);
+    setNotes(d.notes);
+  });
 
   async function onSubmit() {
     const lines = items

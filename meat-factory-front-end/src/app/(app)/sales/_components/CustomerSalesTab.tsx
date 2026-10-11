@@ -20,6 +20,7 @@ import { pageAndRange } from "@/lib/date/range";
 const TABS = [
   { value: "", label: "Бүгд" },
   { value: "PAID", label: "Төлбөр хийсэн" },
+  { value: "PARTIALLY_PAID", label: "Хэсэгчлэн төлсөн" },
   { value: "PENDING", label: "Хүлээгдэж буй" },
 ];
 

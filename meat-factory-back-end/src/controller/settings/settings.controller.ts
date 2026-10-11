@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FactoryController } from "../factory/factory.controller";
 import { isIP } from "node:net";
 import { SettingsModel } from "../../models/settings/settings.model";
 import { TUpdateSettings } from "../../types/settings/settings.type";
@@ -37,12 +38,16 @@ export class SettingsController {
       row.domesticAlertThresholdKg = n;
     }
     if (doc.printers !== undefined) {
+      const seen = new Set<string>();
       row.printers = doc.printers.map((p) => {
-        const name = p.name?.trim();
         const ip = p.ip?.trim();
-        if (!name) throw new Error("Printer name is required");
+        if (!p.factory) throw new Error("Принтерийн үйлдвэрийг сонгоно уу");
+        FactoryController.get(p.factory);
+        if (seen.has(p.factory))
+          throw new Error("Үйлдвэр бүрт нэг л принтер тохируулна");
+        seen.add(p.factory);
         if (!isIP(ip)) throw new Error(`Invalid printer IP: ${p.ip}`);
-        return { id: p.id || randomUUID(), name, ip };
+        return { id: p.id || randomUUID(), factory: p.factory, ip };
       });
     }
     await row.save();

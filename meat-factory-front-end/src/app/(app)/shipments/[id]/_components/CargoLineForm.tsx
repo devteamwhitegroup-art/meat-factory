@@ -28,7 +28,7 @@ import { formatNumber } from "@/lib/format/money";
 // One row of the loading manifest. A product-type toggle switches between:
 //   • Мах (MEAT)     → animalType dropdown (locked to HORSE on EXPORT)
 //   • Дайвар (BYPRODUCT, DOMESTIC only) → cascading animal → wrapper →
-//     constant picker, reusing the /byproduct-constants admin catalogue.
+//     constant picker, reusing the /settings/byproduct admin catalogue.
 // Weight is captured the same way as before (gross/tare or a direct net).
 // No price here — pricing happens once per sale-line at the end of loading.
 type ProductType = "MEAT" | "BYPRODUCT";
@@ -213,6 +213,8 @@ export function CargoLineForm({
               <Label className="text-xs">Багц</Label>
               <Select
                 value={bpWrapperId || null}
+                // id → name, so the trigger shows the name, not the UUID.
+                items={wrappers.map((w) => ({ value: w.id!, label: w.name }))}
                 onValueChange={(v) => {
                   setBpWrapperId(v ?? "");
                   setBpConstantId("");
@@ -241,6 +243,7 @@ export function CargoLineForm({
               <Label className="text-xs">Дайвар</Label>
               <Select
                 value={bpConstantId || null}
+                items={constants.map((c) => ({ value: c.id!, label: c.name }))}
                 onValueChange={(v) => setBpConstantId(v ?? "")}
                 disabled={!bpWrapperId || constants.length === 0}
               >

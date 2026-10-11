@@ -43,6 +43,6 @@ export default `#graphql
             pricePerAnimal: Float
             yieldPercent: Float
             isActive: Boolean
-        ): AnimalResponse @auth(permissions: ["ADMIN"])
+        ): AnimalResponse @auth(permissions: [CATALOG_MANAGE])
     }
 `;

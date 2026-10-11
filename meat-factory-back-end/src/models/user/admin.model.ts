@@ -2,7 +2,8 @@ import { DataTypes, Model, Sequelize } from 'sequelize';
 import config from '../../config';
 import bcrypt from 'bcrypt';
 import { createHmac } from 'node:crypto';
-import { ADMIN_ROLE, FACTORY, TAdmin } from '../../types/user/admin.type';
+import { TAdmin } from '../../types/user/admin.type';
+import { RoleModel } from './role.model';
 
 const { PASSWORD_HASH_SALT } = config;
 const salt = bcrypt.genSaltSync(PASSWORD_HASH_SALT);
@@ -18,10 +19,14 @@ export class AdminModel extends Model implements TAdmin {
   public id!: string;
   public param!: string;
   public password!: string;
-  public role!: ADMIN_ROLE;
-  public factory!: FACTORY | null;
+  public roleId!: string;
+  public factory!: string | null;
+  // Eager-loaded via ADMIN_INCLUDE (AdminController).
+  public role?: RoleModel;
 
-  static associate(): void {}
+  static associate(): void {
+    AdminModel.belongsTo(RoleModel, { foreignKey: 'roleId', as: 'role' });
+  }
 }
 
 export const createAdminModel = async (sequelize: Sequelize) => {
@@ -42,16 +47,14 @@ export const createAdminModel = async (sequelize: Sequelize) => {
         type: DataTypes.STRING,
         allowNull: false
       },
-      role: {
-        type: DataTypes.ENUM,
-        values: Object.values(ADMIN_ROLE),
-        allowNull: false,
-        defaultValue: ADMIN_ROLE.ADMIN
+      roleId: {
+        type: DataTypes.UUID,
+        allowNull: false
       },
-      // NULL for CROSS_FACTORY_ROLES; required for the rest (controller-enforced).
+      // Factories.code. NULL for cross-factory roles; required for the rest
+      // (controller-enforced).
       factory: {
-        type: DataTypes.ENUM,
-        values: Object.values(FACTORY),
+        type: DataTypes.STRING(32),
         allowNull: true
       }
     },

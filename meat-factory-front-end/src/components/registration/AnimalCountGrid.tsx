@@ -10,13 +10,41 @@ export type AnimalCounts = Record<string, number>;
 type Props = {
   value: AnimalCounts;
   onChange: (next: AnimalCounts) => void;
+  // Хойд үйлдвэр (pre-butchered): pick which meats arrived, no head count —
+  // a tap toggles the type (value 1 = selected).
+  countless?: boolean;
 };
 
-export function AnimalCountGrid({ value, onChange }: Props) {
+export function AnimalCountGrid({ value, onChange, countless }: Props) {
   const { animalTypes } = useAnimalCatalog();
   function set(type: string, n: number) {
     onChange({ ...value, [type]: Math.max(0, Math.floor(n)) });
   }
+  if (countless)
+    return (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {animalTypes.map((t) => {
+          const active = (value[t] ?? 0) > 0;
+          return (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={active}
+              onClick={() => set(t, active ? 0 : 1)}
+              className={
+                "rounded-xl border p-6 text-lg font-semibold transition-colors " +
+                (active
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "hover:bg-muted")
+              }
+            >
+              {active ? "✓ " : ""}
+              {t}
+            </button>
+          );
+        })}
+      </div>
+    );
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       {animalTypes.map((t) => {

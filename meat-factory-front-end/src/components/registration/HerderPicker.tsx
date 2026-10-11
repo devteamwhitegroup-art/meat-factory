@@ -20,6 +20,7 @@ import {
   HerderFormFields,
   herderFormDefaults,
   herderMutationVars,
+  herderQuickSchema,
   herderSchema,
   type HerderFormValues,
 } from "@/components/herder/HerderForm";
@@ -41,14 +42,24 @@ type Props = {
   value: string | null;
   onChange: (id: string | null) => void;
   onSelect?: (herder: PickedHerder | null) => void;
+  // эмч: add dialog asks only name / register / phone (+ optional address).
+  quick?: boolean;
+  // Search box text for a preselected `value` (editing an intake).
+  initialLabel?: string;
 };
 
 // Type-to-search (register number, name or phone — server-side iLike), no
 // dropdown: matches list inline under the field, Enter picks the top one.
 // Editing the text after a pick clears the selection.
-export function HerderPicker({ value, onChange, onSelect }: Props) {
+export function HerderPicker({
+  value,
+  onChange,
+  onSelect,
+  quick,
+  initialLabel,
+}: Props) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialLabel ?? "");
   const [debounced, setDebounced] = useState("");
 
   useEffect(() => {
@@ -66,7 +77,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
   });
   const [createHerder] = useMutation(CreateHerderDoc);
   const form = useForm<HerderFormValues>({
-    resolver: zodResolver(herderSchema),
+    resolver: zodResolver(quick ? herderQuickSchema : herderSchema),
     defaultValues: herderFormDefaults,
   });
 
@@ -81,7 +92,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
   function pick(h: PickedHerder) {
     onChange(h.id);
     onSelect?.(h);
-    setSearch(h.registrationNo || h.name || "");
+    setSearch(h.name || h.registrationNo || "");
   }
 
   function onType(text: string) {
@@ -168,7 +179,7 @@ export function HerderPicker({ value, onChange, onSelect }: Props) {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-              <HerderFormFields form={form} />
+              <HerderFormFields form={form} quick={quick} />
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"

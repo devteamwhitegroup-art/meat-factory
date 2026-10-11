@@ -28,21 +28,24 @@ export default {
   Mutation: {
     enqueuePrint: wrapOne(
       "printJob",
-      ({
-        type,
-        id,
-        printerKey,
-      }: {
-        type: PRINT_JOB_TYPE;
-        id: string;
-        printerKey: string;
-      }) => PrintController.enqueue(type, id, printerKey),
+      (
+        {
+          type,
+          id,
+          printerKey,
+        }: {
+          type: PRINT_JOB_TYPE;
+          id: string;
+          printerKey: string;
+        },
+        ctx,
+      ) => PrintController.enqueue(type, id, printerKey, ctx),
       "Хэвлэхээр дараалалд орууллаа",
     ),
     enqueuePrinterTest: wrapOne(
       "printJob",
-      ({ printerKey }: { printerKey: string }) =>
-        PrintController.enqueuePrinterTest(printerKey),
+      ({ printerKey }: { printerKey: string }, ctx) =>
+        PrintController.enqueuePrinterTest(printerKey, ctx),
       "Тест хэвлэлт дараалалд орлоо",
     ),
     claimNextPrintJob: async (

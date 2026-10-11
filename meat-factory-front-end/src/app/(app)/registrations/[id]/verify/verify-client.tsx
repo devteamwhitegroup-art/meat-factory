@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,21 +21,28 @@ import {
 import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
-import { SignatureField } from "@/components/common/SignatureField";
 import { WeighSlip } from "../_components/WeighSlip";
+import { PreButcheredVerify } from "./PreButcheredVerify";
 import { fmtDateTime } from "@/lib/format/date";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import {
   RegistrationDetailDoc,
-  SetRegistrationAgreementSignatureDoc,
+  SetRegistrationByproductsDoc,
   VerifyRegistrationDoc,
 } from "@/lib/queries/registration";
 import { AnimalListDoc } from "@/lib/queries/animal";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
-import { isPreButchered } from "@/lib/format/enum";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
+import { useDraft } from "@/lib/hooks/useDraft";
 
-export function VerifyClient({ id }: { id: string }) {
+export function VerifyClient({
+  id,
+  canFinishWeighing,
+}: {
+  id: string;
+  canFinishWeighing: boolean;
+}) {
   const router = useRouter();
   const {
     data,
@@ -45,7 +53,7 @@ export function VerifyClient({ id }: { id: string }) {
     fetchPolicy: "cache-and-network",
   });
   const [verify] = useMutation(VerifyRegistrationDoc);
-  const [setAgreement] = useMutation(SetRegistrationAgreementSignatureDoc);
+  const [saveBundles] = useMutation(SetRegistrationByproductsDoc);
   // Admin-configured per-head butcher cost — used to compute the slaughter
   // cost the verifier confirms.
   const { data: bcData } = useQuery(AnimalListDoc, {
@@ -54,33 +62,85 @@ export function VerifyClient({ id }: { id: string }) {
   const [notes, setNotes] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { isPreButchered } = useFactories();
+  // Herder's answer per priced wrapper: how many they take back (rest stay
+  // with the factory and cover бой зардал). Unset → the saved/default value.
+  const [take, setTake] = useState<Record<string, string>>({});
+  const clearDraft = useDraft(
+    `verify:${id}`,
+    { notes, photoFileId, take },
+    (d) => {
+      setNotes(d.notes);
+      setPhotoFileId(d.photoFileId);
+      setTake(d.take);
+    },
+  );
 
   if (fetching && !data) return <Skeleton className="h-72 w-full" />;
   const reg = data?.registration?.registration;
   if (!reg) return <div className="text-muted-foreground">Олдсонгүй</div>;
-  // FACTORY_2 has no verify step — stock lands at finishWeighing and finance
-  // settles straight from WEIGHED.
+  // Хойд үйлдвэр: weighed on the intake form — verify = check weighings,
+  // count гэдэс, finish weighing (stock in); settles from WEIGHED.
   if (isPreButchered(reg.factory))
     return (
-      <div className="space-y-3 rounded-md border p-4 text-sm">
-        <p>Үйлдвэр 2-т баталгаажуулалт хийгдэхгүй.</p>
-        <Link
-          href={`/registrations/${id}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Бүртгэл рүү буцах
-        </Link>
-      </div>
+      <PreButcheredVerify
+        reg={reg}
+        canConfirm={canFinishWeighing}
+        onDone={refetch}
+      />
     );
 
   const v = reg.verification;
+  const editable = reg.status === "WEIGHED";
+  // Every bundle row (saved, or defaults: count = head count, factory keeps
+  // all). Only priced wrappers are asked about — unpriced stay with the
+  // factory at no credit.
+  const bundles = compact(reg.byproductBundles);
+  const priced = bundles.filter((b) => Number(b.unitPrice ?? 0) > 0);
+  const takeOf = (b: (typeof bundles)[number]) =>
+    take[b.wrapperId!] ?? String(b.herderCount ?? 0);
+  const keptOf = (b: (typeof bundles)[number]) =>
+    Math.max(0, (b.count ?? 0) - (Number(takeOf(b)) || 0));
+  const totalByproduct = bundles.reduce(
+    (sum, b) => sum + keptOf(b) * Number(b.unitPrice ?? 0),
+    0,
+  );
   const signed =
     reg.status === "VERIFIED" ||
     reg.status === "PAYMENT_PENDING" ||
     reg.status === "SETTLED";
 
   async function sign() {
+    for (const b of priced) {
+      const n = Number(takeOf(b));
+      if (!Number.isInteger(n) || n < 0 || n > (b.count ?? 0)) {
+        toast.error(`${b.wrapperName}: малчин авах тоо 0–${b.count} байна`);
+        return;
+      }
+    }
     setBusy(true);
+    // The herder's take is saved first; verify then locks the step.
+    if (priced.length > 0) {
+      const ok = await runMutation(
+        async () =>
+          (
+            await saveBundles({
+              variables: {
+                registrationId: id,
+                bundles: bundles.map((b) => ({
+                  wrapperId: b.wrapperId!,
+                  count: b.count ?? 0,
+                  herderCount: Number(takeOf(b)) || 0,
+                })),
+              },
+            })
+          ).data?.setRegistrationByproducts,
+      );
+      if (!ok) {
+        setBusy(false);
+        return;
+      }
+    }
     await runMutation(
       async () =>
         (
@@ -95,28 +155,13 @@ export function VerifyClient({ id }: { id: string }) {
       {
         success: "Баталгаажилт амжилттай",
         onSuccess: () => {
+          clearDraft();
+          setTake({});
           setNotes("");
           setPhotoFileId(null);
           refetch();
         },
       },
-    );
-    setBusy(false);
-  }
-
-  // Persist the herder's agreement signature (uploaded via SignatureField).
-  // Only fires on a real fileId — SignaturePad also emits null while redrawing.
-  async function onSaveAgreement(fileId: string | null) {
-    if (!fileId) return;
-    setBusy(true);
-    await runMutation(
-      async () =>
-        (
-          await setAgreement({
-            variables: { registrationId: id, fileId },
-          })
-        ).data?.setRegistrationAgreementSignature,
-      { success: "Зөвшөөрлийн гарын үсэг хадгалагдлаа", onSuccess: refetch },
     );
     setBusy(false);
   }
@@ -137,13 +182,11 @@ export function VerifyClient({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {reg.status === "VERIFIED" ? (
-            <Button
-              onClick={() => router.push(`/registrations/${id}/byproduct`)}
-            >
-              Дараах: Дайвар →
-            </Button>
-          ) : reg.status === "PAYMENT_PENDING" || reg.status === "SETTLED" ? (
+          {/* Herder's byproduct take is decided here, so verify leads
+              straight to the settlement. */}
+          {reg.status === "VERIFIED" ||
+          reg.status === "PAYMENT_PENDING" ||
+          reg.status === "SETTLED" ? (
             <Button
               onClick={() => router.push(`/registrations/${id}/settlement`)}
             >
@@ -202,9 +245,8 @@ export function VerifyClient({ id }: { id: string }) {
               slaughter[t] = { count, price, subtotal };
               totalSlaughter += subtotal;
             }
-            // гэдэс credit is decided after verify (byproduct step) and lands
-            // on the settlement — not part of this pre-verify summary.
-            const net = totalMeat - totalSlaughter;
+            // Kept priced bundles cover бой зардал (same as the settlement).
+            const net = totalMeat - totalSlaughter + totalByproduct;
 
             return (
               <>
@@ -283,6 +325,94 @@ export function VerifyClient({ id }: { id: string }) {
                   ) : null}
                 </div>
 
+                {priced.length > 0 ? (
+                  <div className="rounded-md border">
+                    <div className="border-b bg-muted/30 px-4 py-2">
+                      <div className="text-sm font-semibold">
+                        Дайвар — бой зардлыг нөхнө
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Малчнаас асууна: дайвараа авах уу, үйлдвэрт өгөх үү.
+                        Үйлдвэрт өгсөн бүрийг үнээр нь тооцно.
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                      {priced.map((b) => {
+                        const count = b.count ?? 0;
+                        const set = (n: number) =>
+                          setTake({ ...take, [b.wrapperId!]: String(n) });
+                        return (
+                          <div
+                            key={b.wrapperId}
+                            className="flex flex-wrap items-center gap-3 px-4 py-3"
+                          >
+                            <div className="min-w-32 flex-1">
+                              <div className="font-medium">{b.wrapperName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {b.animalType} · {count} ш ·{" "}
+                                {formatMNT(Number(b.unitPrice ?? 0))}
+                              </div>
+                            </div>
+                            {editable ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => set(count)}
+                                >
+                                  Малчин авна
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => set(0)}
+                                >
+                                  Үйлдвэрт өгнө
+                                </Button>
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  Малчин авах
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    max={count}
+                                    value={takeOf(b)}
+                                    onChange={(e) =>
+                                      setTake({
+                                        ...take,
+                                        [b.wrapperId!]: e.target.value,
+                                      })
+                                    }
+                                    className="h-9 w-16 text-center tabular-nums"
+                                  />
+                                </label>
+                              </>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">
+                                Малчин авсан: {takeOf(b)}
+                              </div>
+                            )}
+                            <div className="w-28 text-right text-sm tabular-nums">
+                              <div>Үйлдвэрт {keptOf(b)} ш</div>
+                              <div className="font-medium">
+                                {formatMNT(
+                                  keptOf(b) * Number(b.unitPrice ?? 0),
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between border-t px-4 py-2 text-sm font-medium">
+                      <span>Нийт дайвар</span>
+                      <span>{formatMNT(totalByproduct)}</span>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="flex items-center justify-between rounded-md border bg-primary/5 px-4 py-3 text-base font-semibold">
                   <span>Төлбөр</span>
                   <span>{formatMNT(net)}</span>
@@ -303,19 +433,7 @@ export function VerifyClient({ id }: { id: string }) {
 
           {!signed && reg.status === "WEIGHED" && (
             <div className="space-y-3">
-              {/* Herder consent — required before verifying. Reuses the intake
-                  signature pad/upload pattern. */}
-              <SignatureField
-                value={reg.agreementSignatureFileId ?? null}
-                onChange={onSaveAgreement}
-                label="Малчны гарын үсэг (зөвшөөрсөн)"
-                type="verify"
-              />
-              {!reg.agreementSignatureFileId ? (
-                <p className="text-xs text-amber-700">
-                  Баталгаажуулахын өмнө малчны зөвшөөрлийн гарын үсгийг авна уу.
-                </p>
-              ) : null}
+              {/* Herder signs the printed weigh slip by hand — no on-screen pad. */}
               <Textarea
                 placeholder="Тэмдэглэл (заавал биш)"
                 value={notes}
@@ -330,7 +448,7 @@ export function VerifyClient({ id }: { id: string }) {
               />
               <Button
                 onClick={sign}
-                disabled={busy || !reg.agreementSignatureFileId}
+                disabled={busy}
                 className="h-12 w-full text-base"
               >
                 {busy ? "..." : "Баталгаажуулах"}

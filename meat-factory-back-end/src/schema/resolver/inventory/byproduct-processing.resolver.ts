@@ -5,7 +5,6 @@ import {
   TTransferByproducts,
 } from "../../../types/inventory/byproduct-processing.type";
 import { TDateRange } from "../../../types/global/global.type";
-import { FACTORY } from "../../../types/user/admin.type";
 import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
@@ -21,7 +20,7 @@ export default {
     byproductProcessingSummary: wrapItems(
       "items",
       (
-        { dateRange, factory }: { dateRange?: TDateRange; factory?: FACTORY },
+        { dateRange, factory }: { dateRange?: TDateRange; factory?: string },
         ctx,
       ) => ByproductProcessingController.summary(dateRange, ctx, factory),
     ),

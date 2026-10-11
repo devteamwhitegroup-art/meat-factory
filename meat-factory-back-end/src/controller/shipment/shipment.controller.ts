@@ -1,9 +1,10 @@
-import { UniqueConstraintError, WhereOptions } from "sequelize";
+import { Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
 import { ShipmentPhotoModel } from "../../models/shipment/shipment-photo.model";
 import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
+import { ShipmentSaleEntryModel } from "../../models/shipment/shipment-sale-entry.model";
 import { CustomerModel } from "../../models/customer/customer.model";
 import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
 import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
@@ -44,8 +45,15 @@ const FORWARD: Record<SHIPMENT_STATUS, SHIPMENT_STATUS | null> = {
   [SHIPMENT_STATUS.DELIVERED]: null,
 };
 
-
 export class ShipmentController {
+  // Factory seal (лац) number: exactly 6 digits, optional.
+  private static _seal(raw: string | null | undefined): string | null {
+    const seal = raw?.trim() || null;
+    if (seal && !/^\d{6}$/.test(seal))
+      throw new Error("Лацны дугаар 6 оронтой тоо байна");
+    return seal;
+  }
+
   static findIdCheck(id: string): Promise<ShipmentModel> {
     return findOrThrow(ShipmentModel, id, "Shipment not found");
   }
@@ -108,7 +116,7 @@ export class ShipmentController {
           vehiclePlate: doc.vehiclePlate?.trim() || null,
           driverName: doc.driverName?.trim() || null,
           driverPhone: doc.driverPhone?.trim() || null,
-          sealNumber: doc.sealNumber?.trim() || null,
+          sealNumber: this._seal(doc.sealNumber),
           notes: doc.notes ?? null,
           photoFileId: doc.photoFileId ?? null,
         });
@@ -244,8 +252,8 @@ export class ShipmentController {
           { transaction: t },
         );
         // Auto-invoice: admin no longer has to manually re-enter the weight/
-        // customer on a separate sales transaction. Price carries over from
-        // whatever the shipment was priced at (possibly still null).
+        // customer on a separate sales transaction. Prices come from the
+        // sales report — null lines until reported, synced as it fills in.
         await SalesTransactionController.createFromShipment(shipment, t);
       });
       return shipment;
@@ -255,55 +263,107 @@ export class ShipmentController {
     return shipment;
   }
 
-  // Cached grand total = Σ(group weight × group price) over priced sale lines.
-  // Null when nothing is priced yet. Recomputed whenever a price or a weight
-  // changes.
-  private static async _recomputeTotal(shipmentId: string): Promise<void> {
+  // Income comes from the salesman's sales report (ShipmentSaleEntry): each
+  // sale line's price = average of its report lines, the shipment total =
+  // Σ reported kg × price (null until anything is reported), and the
+  // auto-created sales transaction follows.
+  private static async _syncIncome(
+    shipmentId: string,
+    t?: Transaction,
+  ): Promise<void> {
     const lines = await ShipmentSaleLineModel.findAll({
       where: { shipmentId },
+      include: [{ model: ShipmentSaleEntryModel, as: "entries" }],
+      transaction: t,
     });
     let total = 0;
-    let anyPriced = false;
+    let reported = false;
     for (const l of lines) {
-      if (l.pricePerKg != null) {
-        anyPriced = true;
-        total += Number(l.totalWeightKg) * Number(l.pricePerKg);
-      }
+      const entries = l.entries ?? [];
+      const kg = entries.reduce((sum, e) => sum + Number(e.weightKg), 0);
+      const amount = entries.reduce(
+        (sum, e) => sum + Number(e.weightKg) * Number(e.pricePerKg),
+        0,
+      );
+      if (entries.length > 0) reported = true;
+      total += amount;
+      await l.update(
+        { pricePerKg: kg > 0 ? Number((amount / kg).toFixed(2)) : null },
+        { transaction: t },
+      );
     }
     await ShipmentModel.update(
-      { totalPrice: anyPriced ? Number(total.toFixed(2)) : null },
-      { where: { id: shipmentId } },
+      {
+        totalPrice: reported ? Number(total.toFixed(2)) : null,
+        pricedAt: reported ? new Date() : null,
+      },
+      { where: { id: shipmentId }, transaction: t },
     );
+    await SalesTransactionController.syncFromShipment(shipmentId, t);
   }
 
-  // End-of-load pricing: insert a selling price per kg on one product group.
-  // Editable only while PENDING (like the rest of the shipment). Pass null
-  // to clear.
-  static async setSalePrice(
-    id: string,
-    pricePerKg: number | null,
-  ): Promise<ShipmentSaleLineModel> {
+  // Salesman's report: kg of one product group sold at a price. Only once
+  // the shipment has left (LOADED / DELIVERED) — income is known after the
+  // sale. A group can't sell more than was loaded.
+  static async addSaleEntry(
+    saleLineId: string,
+    weightKg: number,
+    pricePerKg: number,
+    context: TContext,
+  ): Promise<ShipmentSaleEntryModel> {
     const line = await findOrThrow(
       ShipmentSaleLineModel,
+      saleLineId,
+      "Барааны мөр олдсонгүй",
+    );
+    this._assertSold(await this.findIdCheck(line.shipmentId));
+    const kg = Number(weightKg);
+    const price = Number(pricePerKg);
+    if (!(kg > 0)) throw new Error("Жин 0-ээс их байх ёстой");
+    if (!Number.isFinite(price) || price < 0)
+      throw new Error("Үнэ сөрөг байж болохгүй");
+    const sold =
+      ((await ShipmentSaleEntryModel.sum("weightKg", {
+        where: { saleLineId },
+      })) as number | null) ?? 0;
+    const loaded = Number(line.totalWeightKg);
+    if (Number(sold) + kg > loaded + 0.001)
+      throw new Error(
+        `${line.animalType ?? line.byproductName}: ачсан ${loaded} кг-аас их борлуулах боломжгүй (бүртгэсэн ${Number(sold)} кг)`,
+      );
+
+    return sequelize.transaction(async (t) => {
+      const entry = await ShipmentSaleEntryModel.create(
+        {
+          shipmentId: line.shipmentId,
+          saleLineId,
+          weightKg: Number(kg.toFixed(2)),
+          pricePerKg: Number(price.toFixed(2)),
+          createdById: context.id,
+        },
+        { transaction: t },
+      );
+      await this._syncIncome(line.shipmentId, t);
+      return entry;
+    });
+  }
+
+  static async deleteSaleEntry(id: string): Promise<void> {
+    const entry = await findOrThrow(
+      ShipmentSaleEntryModel,
       id,
-      "Үнийн мөр олдсонгүй",
+      "Борлуулалтын мөр олдсонгүй",
     );
-    this._assertEditable(await this.findIdCheck(line.shipmentId));
-    if (pricePerKg == null) {
-      line.pricePerKg = null;
-    } else {
-      const p = Number(pricePerKg);
-      if (!Number.isFinite(p) || p < 0)
-        throw new Error("Үнэ сөрөг байж болохгүй");
-      line.pricePerKg = Number(p.toFixed(2));
-    }
-    await line.save();
-    await this._recomputeTotal(line.shipmentId);
-    await ShipmentModel.update(
-      { pricedAt: new Date() },
-      { where: { id: line.shipmentId } },
-    );
-    return line;
+    this._assertSold(await this.findIdCheck(entry.shipmentId));
+    await sequelize.transaction(async (t) => {
+      await entry.destroy({ transaction: t });
+      await this._syncIncome(entry.shipmentId, t);
+    });
+  }
+
+  private static _assertSold(shipment: ShipmentModel): void {
+    if (shipment.status === SHIPMENT_STATUS.PENDING)
+      throw new Error("Борлуулалтыг ачилт гарсны дараа бүртгэнэ");
   }
 
   static async list(
@@ -343,7 +403,23 @@ export class ShipmentController {
           as: "photos",
           include: [{ model: FileModel, as: "file" }],
         },
-        { model: ShipmentSaleLineModel, as: "saleLines" },
+        {
+          model: ShipmentSaleLineModel,
+          as: "saleLines",
+          include: [
+            {
+              model: ShipmentSaleEntryModel,
+              as: "entries",
+              include: [
+                {
+                  model: AdminModel,
+                  as: "createdBy",
+                  attributes: ["id", "param"],
+                },
+              ],
+            },
+          ],
+        },
         { model: SalesTransactionModel, as: "salesTransaction" },
       ],
     });
@@ -370,7 +446,7 @@ export class ShipmentController {
     if (args.driverPhone !== undefined)
       s.driverPhone = args.driverPhone?.trim() || null;
     if (args.sealNumber !== undefined)
-      s.sealNumber = args.sealNumber?.trim() || null;
+      s.sealNumber = this._seal(args.sealNumber);
     await s.save();
     return s;
   }
@@ -405,12 +481,12 @@ export class ShipmentController {
   //
   // A cargo entry is one boxed/weighed load on the shipment. The storekeeper
   // appends one row per scale read while loading the truck. Entries are grouped
-  // by product (meat type / byproduct) into sale lines, which carry the
-  // per-kg selling price set at end of load (see _resyncManifest).
+  // by product (meat type / byproduct) into sale lines (see _resyncManifest);
+  // their selling price comes later from the sales report (addSaleEntry).
   //
-  // Locking rule: a shipment is editable ONLY while PENDING — cargo, pricing
-  // and loading info all freeze the moment it's marked LOADED. The only thing
-  // allowed past PENDING is the forward status transition.
+  // Locking rule: a shipment is editable ONLY while PENDING — cargo and
+  // loading info freeze the moment it's marked LOADED. Past PENDING only the
+  // forward status transition and the sales report are allowed.
 
   private static _assertEditable(shipment: ShipmentModel): void {
     if (shipment.status !== SHIPMENT_STATUS.PENDING)
@@ -420,10 +496,9 @@ export class ShipmentController {
   }
 
   // Recompute everything derived from the cargo manifest after an add/delete:
-  //   1. Upsert one sale line per product group (preserving entered prices),
-  //      dropping groups that no longer have any cargo.
+  //   1. Upsert one sale line per product group, dropping groups that no
+  //      longer have any cargo.
   //   2. Resync the shipment's aggregate weightKg.
-  //   3. Recompute the cached grand total.
   private static async _resyncManifest(shipmentId: string): Promise<void> {
     const groups = await this._groupEntries(shipmentId);
     const existing = await ShipmentSaleLineModel.findAll({
@@ -459,7 +534,6 @@ export class ShipmentController {
       { weightKg: weight },
       { where: { id: shipmentId } },
     );
-    await this._recomputeTotal(shipmentId);
   }
 
   static async addCargoEntry(

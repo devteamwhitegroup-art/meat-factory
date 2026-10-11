@@ -16,7 +16,6 @@ import {
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { FACTORY } from "../../types/user/admin.type";
 import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
 
 type ApplyArgs = {
@@ -217,7 +216,7 @@ export class InventoryController {
   // tile + the alert hook.
   static async totalKg(
     productType: PRODUCT_TYPE,
-    factory: FACTORY | null,
+    factory: string | null,
   ): Promise<number> {
     const row = (await InventoryItemModel.findOne({
       attributes: [[fn("SUM", col("quantity_kg")), "total"]],
@@ -235,7 +234,7 @@ export class InventoryController {
   // shipments accept ANY meat, so there is no separate "domestic-only"
   // split — the domestic-available figure is just the full meat total.
   private static async _exportEligibleMeatKg(
-    factory: FACTORY | null,
+    factory: string | null,
   ): Promise<number> {
     const rows = await InventoryItemModel.findAll({
       attributes: ["quantityKg"],
@@ -257,7 +256,7 @@ export class InventoryController {
   // the scoped stock — split them per factory if the two sites differ.
   static async stats(
     context: TContext,
-    requested?: FACTORY | null,
+    requested?: string | null,
   ): Promise<{
     meatStockKg: number;
     byproductStockKg: number;
@@ -403,12 +402,16 @@ export class InventoryController {
         {
           model: InventoryItemModel,
           as: "item",
-          where: factory ? { factory } : undefined,
-          required: !!factory,
+          where: {
+            ...(factory ? { factory } : {}),
+            ...(doc.productType ? { productType: doc.productType } : {}),
+          },
+          required: !!factory || !!doc.productType,
           include: [{ model: AnimalModel, as: "animal" }],
         },
       ],
       order: [["createdAt", "DESC"]],
+      distinct: true,
     });
   }
 }

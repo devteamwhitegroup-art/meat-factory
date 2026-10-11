@@ -29,10 +29,13 @@ export function ShipmentPhotoGallery({
   shipmentId,
   photos,
   onChanged,
+  canEdit,
 }: {
   shipmentId: string;
   photos: ShipmentPhotoRow[];
   onChanged: () => void;
+  // нягтлан only views.
+  canEdit: boolean;
 }) {
   const [uploadValue, setUploadValue] = useState<string | null>(null);
   const [attach] = useMutation(AddShipmentPhotoDoc);
@@ -76,16 +79,18 @@ export function ShipmentPhotoGallery({
         </Badge>
       </CardHeader>
       <CardContent className="space-y-4">
-        <PhotoUpload
-          value={uploadValue}
-          onChange={(fid) => {
-            setUploadValue(fid);
-            if (fid) onUploaded(fid);
-          }}
-          type="shipment"
-          label="Шинэ зураг нэмэх"
-          capture="environment"
-        />
+        {canEdit ? (
+          <PhotoUpload
+            value={uploadValue}
+            onChange={(fid) => {
+              setUploadValue(fid);
+              if (fid) onUploaded(fid);
+            }}
+            type="shipment"
+            label="Шинэ зураг нэмэх"
+            capture="environment"
+          />
+        ) : null}
 
         {ordered.length === 0 ? (
           <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -113,13 +118,15 @@ export function ShipmentPhotoGallery({
                 )}
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-2 py-1 text-xs text-white">
                   <span className="tabular-nums">#{p.sequenceNo}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(p.id)}
-                    className="rounded px-1.5 py-0.5 hover:bg-white/15"
-                  >
-                    Устгах
-                  </button>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(p.id)}
+                      className="rounded px-1.5 py-0.5 hover:bg-white/15"
+                    >
+                      Устгах
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}

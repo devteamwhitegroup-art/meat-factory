@@ -6,6 +6,10 @@ import fileType from "./global/file.type";
 
 //User
 import adminType from "./user/admin.type";
+import roleType from "./user/role.type";
+
+//Factory
+import factoryType from "./factory/factory.type";
 
 //Livestock
 import herderType from "./livestock/herder.type";
@@ -44,7 +48,11 @@ export const mergedGQLSchema = mergeTypeDefs([
   fileType,
 
   //User
+  roleType,
   adminType,
+
+  //Factory
+  factoryType,
 
   //Livestock
   herderType,

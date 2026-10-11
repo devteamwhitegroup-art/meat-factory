@@ -5,18 +5,35 @@ import {
   TGetShipments,
 } from "../../../types/shipment/shipment.type";
 import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
-import { TShipmentSaleLine } from "../../../types/shipment/shipment-sale-line.type";
+import { CostingController } from "../../../controller/inventory/costing.controller";
+import { ShipmentSaleLineModel } from "../../../models/shipment/shipment-sale-line.model";
+import { TShipmentSaleEntry } from "../../../types/shipment/shipment-sale-line.type";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
-  // Derived amount on a sale line — kept off the table, computed on read.
+  // Report-derived totals — computed on read from the included entries.
   ShipmentSaleLine: {
-    amount: (line: TShipmentSaleLine): number | null =>
-      line.pricePerKg == null
-        ? null
-        : Number(
-            (Number(line.totalWeightKg) * Number(line.pricePerKg)).toFixed(2),
-          ),
+    soldKg: (line: ShipmentSaleLineModel): number =>
+      Number(
+        (line.entries ?? [])
+          .reduce((s, e) => s + Number(e.weightKg), 0)
+          .toFixed(2),
+      ),
+    amount: (line: ShipmentSaleLineModel): number | null =>
+      line.entries?.length
+        ? Number(
+            line.entries
+              .reduce(
+                (s, e) => s + Number(e.weightKg) * Number(e.pricePerKg),
+                0,
+              )
+              .toFixed(2),
+          )
+        : null,
+  },
+  ShipmentSaleEntry: {
+    amount: (e: TShipmentSaleEntry): number =>
+      Number((Number(e.weightKg) * Number(e.pricePerKg)).toFixed(2)),
   },
   Query: {
     shipments: wrapList("shipments", (doc: TGetShipments, ctx) =>
@@ -27,6 +44,9 @@ export default {
     ),
     nextShipmentSerial: wrapOne("serialNumber", () =>
       ShipmentController.previewNextSerial(),
+    ),
+    shipmentAnalytics: wrapOne("analytics", ({ id }: { id: string }) =>
+      CostingController.shipmentAnalytics(id),
     ),
   },
   Mutation: {
@@ -41,11 +61,22 @@ export default {
         ShipmentController.updateStatus(id, status),
       "Shipment status updated",
     ),
-    setShipmentSalePrice: wrapOne(
-      "saleLine",
-      ({ id, pricePerKg }: { id: string; pricePerKg?: number | null }) =>
-        ShipmentController.setSalePrice(id, pricePerKg ?? null),
-      "Үнэ хадгалагдлаа",
+    addShipmentSaleEntry: wrapOne(
+      "saleEntry",
+      (
+        {
+          saleLineId,
+          weightKg,
+          pricePerKg,
+        }: { saleLineId: string; weightKg: number; pricePerKg: number },
+        ctx,
+      ) =>
+        ShipmentController.addSaleEntry(saleLineId, weightKg, pricePerKg, ctx),
+      "Борлуулалт бүртгэгдлээ",
+    ),
+    deleteShipmentSaleEntry: wrapVoid(
+      "Борлуулалтын мөр устгагдлаа",
+      ({ id }: { id: string }) => ShipmentController.deleteSaleEntry(id),
     ),
     addCargoEntry: wrapOne(
       "cargoEntry",

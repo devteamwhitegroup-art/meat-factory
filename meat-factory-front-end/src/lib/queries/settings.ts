@@ -12,7 +12,7 @@ export const SettingsDoc = graphql(/* GraphQL */ `
         domesticAlertThresholdKg
         printers {
           id
-          name
+          factory
           ip
         }
       }
@@ -42,7 +42,7 @@ export const UpdateSettingsDoc = graphql(/* GraphQL */ `
         domesticAlertThresholdKg
         printers {
           id
-          name
+          factory
           ip
         }
       }

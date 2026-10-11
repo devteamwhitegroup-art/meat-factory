@@ -1,5 +1,4 @@
 import { TDateRange, TPagination } from '../global/global.type';
-import { FACTORY } from '../user/admin.type';
 
 export enum SHIPMENT_STATUS {
   PENDING = 'PENDING',
@@ -24,7 +23,7 @@ export enum DOMESTIC_MARKET {
 export type TShipment = {
   id: string;
   // Stock is deducted from this factory on delivery.
-  factory: FACTORY;
+  factory: string;
   shipmentCode: string;
   category: SHIPMENT_CATEGORY;
   domesticMarket: DOMESTIC_MARKET | null;
@@ -57,7 +56,7 @@ export type TShipment = {
 
 export type TCreateShipment = {
   // Owner/admin pick; factory staff ship from their own.
-  factory?: FACTORY | null;
+  factory?: string | null;
   category: SHIPMENT_CATEGORY;
   // Required when category = DOMESTIC; ignored (forced null) for EXPORT.
   domesticMarket?: DOMESTIC_MARKET | null;
@@ -75,7 +74,7 @@ export type TCreateShipment = {
 };
 
 export type TGetShipments = {
-  factory?: FACTORY;
+  factory?: string;
   status?: SHIPMENT_STATUS;
   category?: SHIPMENT_CATEGORY;
   domesticMarket?: DOMESTIC_MARKET;

@@ -51,9 +51,14 @@ export const connectDatabase = async (): Promise<void> => {
       return;
     } catch (error) {
       retries++;
+      // Sequelize wraps pg errors (e.g. a unique index failing during sync
+      // alter) as a bare "Validation error" — the real cause is on .parent.
+      const pg = (error as { parent?: { message?: string; detail?: string } })
+        ?.parent;
       console.error(
         `❌ Database connection attempt ${retries}/${MAX_RETRIES} failed:`,
         error instanceof Error ? error.message : "Unknown error",
+        pg ? `— ${pg.message} ${pg.detail ?? ""}` : "",
       );
 
       if (retries === MAX_RETRIES) {

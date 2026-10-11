@@ -1,4 +1,6 @@
 import { WhereOptions } from "sequelize";
+import { PERMISSION } from "../../types/user/permission.type";
+import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
@@ -18,7 +20,6 @@ import { ByproductBundleController } from "./byproduct-bundle.controller";
 import { AdminController } from "../user/admin.controller";
 import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
 import {
-  isPreButchered,
   REGISTRATION_STATUS,
 } from "../../types/livestock/registration.type";
 import {
@@ -27,7 +28,6 @@ import {
 } from "../../types/livestock/settlement.type";
 import { MOVEMENT_SOURCE } from "../../types/inventory/inventory.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Settlement (Няравын тооцоо / Санхүү) — sub-domain of the registration
 // aggregate. Shared status/role guards and registration lookups live on
@@ -99,17 +99,13 @@ export class SettlementController {
     doc: TCreateSettlement,
     context: TContext,
   ): Promise<SettlementModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.ACCOUNTANT,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_CREATE);
 
     const reg = await RegistrationController.findIdCheck(
       doc.registrationId,
       context,
     );
-    const pre = isPreButchered(reg);
+    const pre = FactoryController.isPreButchered(reg.factory);
     // FACTORY_1 settles after verify; FACTORY_2 (no verify step) once weighed.
     RegistrationController.assertStatus(reg, [
       pre ? REGISTRATION_STATUS.WEIGHED : REGISTRATION_STATUS.VERIFIED,
@@ -283,10 +279,7 @@ export class SettlementController {
     heldAmount: number | null | undefined,
     context: TContext,
   ): Promise<SettlementModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.ACCOUNTANT,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
 
     const reg = await RegistrationController.findIdCheck(
       registrationId,
@@ -343,10 +336,7 @@ export class SettlementController {
     registrationId: string,
     context: TContext,
   ): Promise<SettlementModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.ACCOUNTANT,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
 
     const reg = await RegistrationController.findIdCheck(
       registrationId,
@@ -385,10 +375,7 @@ export class SettlementController {
     note: string | null,
     context: TContext,
   ): Promise<SettlementPaymentProofModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.ACCOUNTANT,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
 
     const settlement = await SettlementModel.findOne({
       where: { registrationId },
@@ -434,10 +421,8 @@ export class SettlementController {
     fileId: string | null,
     context: TContext,
   ): Promise<SettlementModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    // Drawn by нягтлан on the receipt — not нярав.
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
 
     const settlement = await SettlementModel.findOne({
       where: { registrationId },
@@ -453,10 +438,7 @@ export class SettlementController {
     id: string,
     context: TContext,
   ): Promise<void> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.ACCOUNTANT,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
     const row = await findOrThrow(
       SettlementPaymentProofModel,
       id,

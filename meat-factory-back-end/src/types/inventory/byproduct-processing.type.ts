@@ -1,5 +1,4 @@
 import { TDateRange, TPagination } from '../global/global.type';
-import { FACTORY } from '../user/admin.type';
 
 // One disassembly batch at the byproduct factory (FACTORY_3): N гэдэс of one
 // wrapper are taken apart and each organ's total is weighed. Expected kg is
@@ -9,7 +8,7 @@ export type TByproductProcessing = {
   id: string;
   // BP-YYYYMMDD-N
   code: string;
-  factory: FACTORY;
+  factory: string;
   wrapperId: string;
   bundleCount: number;
   createdById: string;
@@ -32,7 +31,7 @@ export type TByproductProcessingLine = {
 };
 
 export type TCreateByproductProcessing = {
-  factory?: FACTORY | null;
+  factory?: string | null;
   wrapperId: string;
   bundleCount: number;
   // One per active item of the wrapper.
@@ -41,14 +40,16 @@ export type TCreateByproductProcessing = {
 };
 
 export type TGetByproductProcessings = {
-  factory?: FACTORY;
+  factory?: string;
   wrapperId?: string;
   dateRange?: TDateRange;
 } & TPagination;
 
 // Counted byproducts sent from FACTORY_1/2 stock to the byproduct factory.
 export type TTransferByproducts = {
-  fromFactory?: FACTORY | null;
+  fromFactory?: string | null;
+  // Receiving byproduct-kind site; defaults to the only active one.
+  toFactory?: string | null;
   lines: { inventoryItemId: string; count: number }[];
   notes?: string | null;
 };

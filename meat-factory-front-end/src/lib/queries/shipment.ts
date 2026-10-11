@@ -2,7 +2,7 @@ import { graphql } from "@/lib/gql/gql";
 
 export const ShipmentListDoc = graphql(/* GraphQL */ `
   query Shipments(
-    $factory: FACTORY
+    $factory: String
     $category: SHIPMENT_CATEGORY
     $domesticMarket: DOMESTIC_MARKET
     $status: SHIPMENT_STATUS
@@ -109,7 +109,19 @@ export const ShipmentDetailDoc = graphql(/* GraphQL */ `
           byproductName
           totalWeightKg
           pricePerKg
+          soldKg
           amount
+          entries {
+            id
+            weightKg
+            pricePerKg
+            amount
+            createdAt
+            createdBy {
+              id
+              param
+            }
+          }
         }
         salesTransaction {
           id
@@ -170,15 +182,58 @@ export const AddCargoEntryDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const SetShipmentSalePriceDoc = graphql(/* GraphQL */ `
-  mutation SetShipmentSalePrice($id: ID!, $pricePerKg: Float) {
-    setShipmentSalePrice(id: $id, pricePerKg: $pricePerKg) {
+// Salesman's report (after the shipment leaves) — kg of a group sold at a
+// price; income + the invoice follow on the server.
+export const AddShipmentSaleEntryDoc = graphql(/* GraphQL */ `
+  mutation AddShipmentSaleEntry(
+    $saleLineId: ID!
+    $weightKg: Float!
+    $pricePerKg: Float!
+  ) {
+    addShipmentSaleEntry(
+      saleLineId: $saleLineId
+      weightKg: $weightKg
+      pricePerKg: $pricePerKg
+    ) {
       success
       message
-      saleLine {
-        id
-        pricePerKg
-        amount
+    }
+  }
+`);
+
+export const DeleteShipmentSaleEntryDoc = graphql(/* GraphQL */ `
+  mutation DeleteShipmentSaleEntry($id: ID!) {
+    deleteShipmentSaleEntry(id: $id) {
+      success
+      message
+    }
+  }
+`);
+
+// Admin: FIFO cost vs reported income per meat type.
+export const ShipmentAnalyticsDoc = graphql(/* GraphQL */ `
+  query ShipmentAnalytics($id: ID!) {
+    shipmentAnalytics(id: $id) {
+      success
+      message
+      analytics {
+        costKnown
+        shippedKg
+        cost
+        avgCostPerKg
+        soldKg
+        income
+        avgIncomePerKg
+        profit
+        lines {
+          animalType
+          shippedKg
+          cost
+          avgCostPerKg
+          soldKg
+          income
+          avgIncomePerKg
+        }
       }
     }
   }
@@ -250,7 +305,7 @@ export const RemoveShipmentPhotoDoc = graphql(/* GraphQL */ `
 
 export const CreateShipmentDoc = graphql(/* GraphQL */ `
   mutation CreateShipment(
-    $factory: FACTORY
+    $factory: String
     $category: SHIPMENT_CATEGORY!
     $domesticMarket: DOMESTIC_MARKET
     $customerId: ID!

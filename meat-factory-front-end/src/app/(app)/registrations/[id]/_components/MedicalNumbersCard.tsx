@@ -23,18 +23,16 @@ type Num = { id: string; number: string; status: string };
 
 // The registration's medical certificate numbers. Intake staff add / remove
 // unchecked ones (canEdit); the vet rules on each (canCheck). The settlement's
-// held portion is released only when every number is APPROVED (`approved`).
+// held portion is released only when every number is APPROVED.
 export function MedicalNumbersCard({
   registrationId,
   numbers,
-  approved,
   closed,
   canEdit,
   canCheck,
 }: {
   registrationId: string;
   numbers: Num[];
-  approved: boolean;
   // CANCELLED / SETTLED — no new numbers.
   closed: boolean;
   canEdit: boolean;
@@ -43,12 +41,17 @@ export function MedicalNumbersCard({
   const router = useRouter();
   const [add, { loading: adding }] = useMutation(AddMedicalNumberDoc);
   const [remove, { loading: removing }] = useMutation(RemoveMedicalNumberDoc);
-  // Overall: any rejected → Татгалзсан; all approved → Баталгаажсан.
-  const overall = numbers.some((n) => n.status === "REJECTED")
-    ? "REJECTED"
-    : approved
-      ? "APPROVED"
-      : "PENDING";
+  // Overall from the numbers themselves (not the denormalized flag, which
+  // pre-refactor rows left `true` with no numbers): none → no badge; any
+  // rejected → Татгалзсан; all approved → Баталгаажсан.
+  const overall =
+    numbers.length === 0
+      ? null
+      : numbers.some((n) => n.status === "REJECTED")
+        ? "REJECTED"
+        : numbers.every((n) => n.status === "APPROVED")
+          ? "APPROVED"
+          : "PENDING";
 
   async function onAdd(list: string[]) {
     for (const number of list) {
@@ -74,9 +77,11 @@ export function MedicalNumbersCard({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Мал эмнэлгийн дугаар</CardTitle>
-        <Badge className={MEDICAL_NUMBER_STATUS_COLOR[overall]}>
-          {MEDICAL_NUMBER_STATUS_MN[overall]}
-        </Badge>
+        {overall ? (
+          <Badge className={MEDICAL_NUMBER_STATUS_COLOR[overall]}>
+            {MEDICAL_NUMBER_STATUS_MN[overall]}
+          </Badge>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
         {numbers.length === 0 ? (

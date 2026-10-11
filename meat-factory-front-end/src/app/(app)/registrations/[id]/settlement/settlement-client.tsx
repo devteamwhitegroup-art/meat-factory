@@ -26,17 +26,11 @@ import {
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { formatMoney } from "@/lib/format/money";
-import { isPreButchered } from "@/lib/format/enum";
+import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
-import { can } from "@/lib/auth/roles";
-
-function readRoleCookie(): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(/(?:^|;\s*)mf_role=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
+import { can, readPermsCookie } from "@/lib/auth/roles";
 
 export function SettlementClient({ id }: { id: string }) {
   const {
@@ -54,13 +48,14 @@ export function SettlementClient({ id }: { id: string }) {
     SetSettlementStorekeeperSignatureDoc,
   );
 
-  // Client-readable role cookie gates the actions. Read post-mount to avoid
-  // hydration skew.
-  const [role, setRole] = useState<string | null>(null);
+  // Client-readable permission cookie gates the actions. Read post-mount to
+  // avoid hydration skew.
+  const [perms, setPerms] = useState<string[] | null>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setRole(readRoleCookie()), []);
-  const canPay = can(role, "pay");
-  const canSign = can(role, "storekeeperSign");
+  useEffect(() => setPerms(readPermsCookie()), []);
+  const canPay = can(perms, "SETTLEMENT_PAY");
+  const canSign = can(perms, "SETTLEMENT_PAY");
+  const { isPreButchered } = useFactories();
 
   const reg = data?.registration?.registration;
   // FACTORY_2 (pre-butchered): no verify step, no slaughter cost.
@@ -264,10 +259,18 @@ export function SettlementClient({ id }: { id: string }) {
             {existing.id ? (
               <PrintButton type="SETTLEMENT_RECEIPT" id={existing.id} />
             ) : null}
+            {/* After payout: back to the herder payout list (Гүйлгээ →
+                Малчид) for those who can open it; нярав → Бүртгэл. */}
             {existing.isPaid ? (
-              <Link href="/registrations" className={buttonVariants()}>
-                Бүртгэлийн хэсэг рүү буцах →
-              </Link>
+              can(perms, "SALES_MANAGE") ? (
+                <Link href="/sales?tab=herders" className={buttonVariants()}>
+                  Малчдын төлбөр рүү буцах →
+                </Link>
+              ) : (
+                <Link href="/registrations" className={buttonVariants()}>
+                  Бүртгэлийн хэсэг рүү буцах →
+                </Link>
+              )
             ) : null}
           </div>
         ) : null}
@@ -364,18 +367,30 @@ export function SettlementClient({ id }: { id: string }) {
                 info; toggle on when the herder asks money to a different
                 account THIS TIME (e.g. cousin's account). Doesn't write back
                 to the herder profile. */}
-            <div className="rounded-md border bg-muted/20 p-3">
-              <label className="flex items-center gap-2 text-sm font-medium">
+            <div
+              className={
+                "rounded-md border transition-colors " +
+                (overrideBank ? "border-primary bg-primary/5" : "bg-muted/20")
+              }
+            >
+              {/* Whole header row toggles, not just the checkbox. */}
+              <label className="flex cursor-pointer select-none items-center gap-3 rounded-md p-3 text-sm font-medium hover:bg-muted/40">
                 <input
                   type="checkbox"
                   checked={overrideBank}
                   onChange={(e) => setOverrideBank(e.target.checked)}
-                  className="h-4 w-4"
+                  className="h-5 w-5 cursor-pointer"
                 />
-                <span>Бусдын данс руу шилжүүлэх</span>
+                <span className="flex-1">
+                  Бусдын данс руу шилжүүлэх
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Зөвхөн энэ тооцоонд хамаарна — малчны үндсэн данс
+                    өөрчлөгдөхгүй.
+                  </span>
+                </span>
               </label>
               {overrideBank ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 px-3 pb-3 sm:grid-cols-3">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">
                       Эзэмшигчийн нэр
@@ -409,9 +424,7 @@ export function SettlementClient({ id }: { id: string }) {
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Анхдагч: малчны бүртгэлд хадгалсан данс руу шилжих.
-                </p>
+                <p className="px-3 text-xs text-muted-foreground"></p>
               )}
             </div>
 

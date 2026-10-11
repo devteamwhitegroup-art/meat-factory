@@ -60,7 +60,7 @@ export function GedesCountEditor({
         {editable ? (
           <div className="flex justify-end">
             <Button onClick={onSave} disabled={busy || !dirty}>
-              Гэдэс хадгалах
+              Дайвар хадгалах
             </Button>
           </div>
         ) : (

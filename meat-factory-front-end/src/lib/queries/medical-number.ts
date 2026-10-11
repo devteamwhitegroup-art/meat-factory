@@ -5,7 +5,7 @@ export const MedicalNumbersDoc = graphql(/* GraphQL */ `
   query MedicalNumbers(
     $status: MEDICAL_NUMBER_STATUS
     $number: String
-    $factory: FACTORY
+    $factory: String
     $limit: Int
     $page: Int
   ) {

@@ -6,7 +6,7 @@ export const RegistrationListDoc = graphql(/* GraphQL */ `
     $statuses: [REGISTRATION_STATUS!]
     $herderId: ID
     $registrationCode: String
-    $factory: FACTORY
+    $factory: String
     $dateRange: DateRangeInput
     $limit: Int
     $page: Int
@@ -96,6 +96,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           addressId
           address
         }
+        editableByMe
         guard {
           id
           param
@@ -227,8 +228,9 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
     $signatureFileId: ID
     $stampFileId: ID
     $intakeDate: Date
-    $factory: FACTORY
+    $factory: String
     $animalLines: [RegistrationAnimalLineInput!]!
+    $weighings: [IntakeWeighingInput!]
   ) {
     createRegistration(
       herderId: $herderId
@@ -241,6 +243,7 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
       intakeDate: $intakeDate
       factory: $factory
       animalLines: $animalLines
+      weighings: $weighings
     ) {
       success
       message
@@ -511,23 +514,140 @@ export const SetSettlementStorekeeperSignatureDoc = graphql(/* GraphQL */ `
   }
 `);
 
-export const SetRegistrationAgreementSignatureDoc = graphql(/* GraphQL */ `
-  mutation SetRegistrationAgreementSignature(
-    $registrationId: ID!
-    $fileId: ID
+// Intake fix: directly (same day / admin) or as a request to admin.
+export const UpdateRegistrationDoc = graphql(/* GraphQL */ `
+  mutation UpdateRegistration(
+    $id: ID!
+    $herderId: ID!
+    $vehicleNumber: String!
+    $stamp: String
+    $animalLines: [RegistrationAnimalLineInput!]!
   ) {
-    setRegistrationAgreementSignature(
-      registrationId: $registrationId
-      fileId: $fileId
+    updateRegistration(
+      id: $id
+      herderId: $herderId
+      vehicleNumber: $vehicleNumber
+      stamp: $stamp
+      animalLines: $animalLines
     ) {
       success
       message
-      registration {
+    }
+  }
+`);
+
+export const RequestRegistrationChangeDoc = graphql(/* GraphQL */ `
+  mutation RequestRegistrationChange(
+    $registrationId: ID!
+    $intake: RegistrationIntakeInput
+    $weights: [WeightChangeInput!]
+    $added: [WeighingAddInput!]
+    $reason: String!
+  ) {
+    requestRegistrationChange(
+      registrationId: $registrationId
+      intake: $intake
+      weights: $weights
+      added: $added
+      reason: $reason
+    ) {
+      success
+      message
+    }
+  }
+`);
+
+export const ReviewRegistrationChangeDoc = graphql(/* GraphQL */ `
+  mutation ReviewRegistrationChange(
+    $id: ID!
+    $approve: Boolean!
+    $note: String
+  ) {
+    reviewRegistrationChange(id: $id, approve: $approve, note: $note) {
+      success
+      message
+    }
+  }
+`);
+
+export const RegistrationChangeRequestsDoc = graphql(/* GraphQL */ `
+  query RegistrationChangeRequests(
+    $status: CHANGE_REQUEST_STATUS
+    $registrationId: ID
+    $limit: Int
+    $page: Int
+  ) {
+    registrationChangeRequests(
+      status: $status
+      registrationId: $registrationId
+      limit: $limit
+      page: $page
+    ) {
+      success
+      message
+      count
+      changeRequests {
         id
-        agreementSignatureFileId
-        agreementSignature {
+        reason
+        status
+        reviewNote
+        reviewedAt
+        createdAt
+        requestedBy {
           id
-          url
+          param
+        }
+        reviewedBy {
+          id
+          param
+        }
+        changes {
+          intake {
+            vehicleNumber
+            stamp
+            herder {
+              id
+              name
+              registrationNo
+            }
+            animalLines {
+              animalType
+              count
+            }
+          }
+          weights {
+            weightKg
+            pricePerKg
+            entry {
+              id
+              sequenceNo
+              animalType
+              weightKg
+              pricePerKg
+            }
+          }
+          added {
+            animalType
+            weightKg
+            pricePerKg
+          }
+        }
+        registration {
+          id
+          registrationCode
+          factory
+          vehicleNumber
+          stamp
+          herder {
+            id
+            name
+            registrationNo
+          }
+          animalLines {
+            id
+            animalType
+            count
+          }
         }
       }
     }

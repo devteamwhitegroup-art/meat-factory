@@ -7,12 +7,13 @@ import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
-import { FACTORY_MN, REGISTRATION_STATUS_MN } from "@/lib/format/enum";
+import { REGISTRATION_STATUS_MN } from "@/lib/format/enum";
+import { getFactories } from "@/lib/factory/server";
+import { factoryKind, factoryName } from "@/lib/factory/factories";
 import { Badge } from "@/components/ui/badge";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
-import { isCrossFactoryRole } from "@/lib/auth/roles";
-import { cookies } from "next/headers";
-import { env } from "@/lib/env";
+import { canCreateRegistration } from "@/lib/auth/roles";
+import { getSession } from "@/lib/auth/server";
 
 type Props = {
   searchParams: Promise<{
@@ -41,15 +42,29 @@ const STAGES: Array<{
   })),
 ];
 
+// нярав / эмч work the floor only — payment statuses belong to the accountant,
+// so their "Бүгд" and chips cover just these.
+const FLOOR_STATUSES = ["REGISTERED", "WEIGHED", "VERIFIED"];
+const FLOOR_STAGES = [
+  { value: "", label: "Бүгд", statuses: FLOOR_STATUSES },
+  ...STAGES.filter((s) => s.statuses.some((x) => FLOOR_STATUSES.includes(x))),
+];
+
 export default async function RegistrationsPage({ searchParams }: Props) {
-  // Owner/admin get a factory filter + per-card badge; staff are BE-scoped.
-  const crossFactory = isCrossFactoryRole(
-    (await cookies()).get(env.ROLE_COOKIE_NAME)?.value,
-  );
+  const [session, factories] = await Promise.all([
+    getSession(),
+    getFactories(),
+  ]);
+  // Cross-factory roles get a factory filter + per-card badge; staff are
+  // BE-scoped.
+  const crossFactory = session.crossFactory;
+  // Floor staff (no payout rights) see only the floor stages.
+  const stages = session.can("SETTLEMENT_PAY") ? STAGES : FLOOR_STAGES;
   const sp = await searchParams;
-  const factory =
-    sp.factory && sp.factory in FACTORY_MN ? (sp.factory as never) : null;
-  const stage = STAGES.find((s) => s.value === (sp.stage ?? "")) ?? STAGES[0];
+  const factory = factories.some((f) => f.code === sp.factory)
+    ? (sp.factory as string)
+    : null;
+  const stage = stages.find((s) => s.value === (sp.stage ?? "")) ?? stages[0];
   const { page, dateRange } = pageAndRange(sp);
 
   // Stage chip hrefs preserve the active date range so switching stage doesn't
@@ -87,16 +102,21 @@ export default async function RegistrationsPage({ searchParams }: Props) {
         <h1 className="text-2xl font-semibold">Бүртгэлийн дугаарын хэсэг</h1>
         <div className="flex items-center gap-2">
           <DateRangeFilter />
-          <Link href="/registrations/new" className={buttonVariants()}>
-            Шинэ бүртгэл
-          </Link>
+          {canCreateRegistration(
+            session.perms,
+            factoryKind(factories, session.factory),
+          ) ? (
+            <Link href="/registrations/new" className={buttonVariants()}>
+              Шинэ бүртгэл
+            </Link>
+          ) : null}
         </div>
       </div>
 
       {crossFactory ? <FactoryFilter /> : null}
 
       <div className="flex flex-wrap gap-2">
-        {STAGES.map((s) => {
+        {stages.map((s) => {
           const active = stage.value === s.value;
           const href = stageHref(s.value);
           return (
@@ -145,7 +165,7 @@ export default async function RegistrationsPage({ searchParams }: Props) {
                   variant="outline"
                   className="pointer-events-none absolute top-3 right-3 bg-background"
                 >
-                  {FACTORY_MN[r.factory ?? ""] ?? "—"}
+                  {factoryName(factories, r.factory)}
                 </Badge>
               ) : null}
             </div>

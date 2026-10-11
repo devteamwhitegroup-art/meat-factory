@@ -1,17 +1,18 @@
 import sequelize from "../../config/db-connection";
+import { AdminController } from "../user/admin.controller";
+import { PERMISSION } from "../../types/user/permission.type";
+import { FactoryController } from "../factory/factory.controller";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
 import { WeighingController } from "./weighing.controller";
 import {
-  isPreButchered,
   REGISTRATION_STATUS,
 } from "../../types/livestock/registration.type";
 import { MOVEMENT_SOURCE } from "../../types/inventory/inventory.type";
 import { TVerifyInput } from "../../types/livestock/verification.type";
 import { TContext } from "../../types/global/global.type";
-import { ADMIN_ROLE } from "../../types/user/admin.type";
 
 // Verification (Баталгаажуулалт — single signer). One authorised staff member
 // (нярав / нягтлан / админ) confirms and signs. Shared status/role guards and
@@ -21,25 +22,18 @@ export class VerificationController {
     doc: TVerifyInput,
     context: TContext,
   ): Promise<VerificationModel> {
-    RegistrationController.assertActorRole(context, [
-      ADMIN_ROLE.STOREKEEPER,
-      ADMIN_ROLE.ADMIN,
-    ]);
+    AdminController.assertPermission(context, PERMISSION.REGISTRATION_VERIFY);
 
     const reg = await RegistrationController.findIdCheck(
       doc.registrationId,
       context,
     );
-    if (isPreButchered(reg))
-      throw new Error("Үйлдвэр 2-т баталгаажуулалт хийгдэхгүй");
+    if (FactoryController.isPreButchered(reg.factory))
+      throw new Error("Задалсан мах хүлээн авах үйлдвэрт баталгаажуулалт хийгдэхгүй");
     RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.WEIGHED]);
 
-    // The herder must have signed the weighed slip (agreeing to price/cost)
-    // before we can verify.
-    if (!reg.agreementSignatureFileId)
-      throw new Error(
-        "Малчны гарын үсэг (зөвшөөрсөн) шаардлагатай. Эхлээд гарын үсэг зурна уу.",
-      );
+    // Herder consent is signed by hand on the printed weigh slip — no
+    // on-screen signature required.
 
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 

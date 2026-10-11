@@ -1,10 +1,17 @@
-import { REGISTRATION_STATUS } from "../../../types/livestock/registration.type";
+import {
+  CHANGE_REQUEST_STATUS,
+  REGISTRATION_STATUS,
+} from "../../../types/livestock/registration.type";
 import { WEIGHING_AUDIT_ACTION } from "../../../types/livestock/weighing-entry.type";
 import { PaginationSchema } from "../global/global.type";
 
 export default `#graphql
     enum REGISTRATION_STATUS {
         ${Object.values(REGISTRATION_STATUS).join("\n ")}
+    }
+
+    enum CHANGE_REQUEST_STATUS {
+        ${Object.values(CHANGE_REQUEST_STATUS).join("\n ")}
     }
 
     enum WEIGHING_AUDIT_ACTION {
@@ -195,15 +202,100 @@ export default `#graphql
         status: REGISTRATION_STATUS
         # FACTORY_1 = live animals. FACTORY_2 = pre-butchered meat: no stamp,
         # no slaughter cost, no verify — stocked at finishWeighing.
-        factory: FACTORY
+        factory: String
         animalLines: [RegistrationAnimalLine]
         weighingEntries: [WeighingEntry]
         weighingAuditLog: [WeighingEntryAudit]
         byproductBundles: [ByproductBundle]
         verification: Verification
         settlement: Settlement
+        # true → the caller may edit intake fields directly (admin, or the
+        # person who registered it on the same day); else a change request.
+        editableByMe: Boolean @authLogin
         createdAt: Date
         updatedAt: Date
+    }
+
+    # What a change request proposes; each part null when untouched.
+    type RegistrationChanges {
+        intake: RegistrationIntakeChange
+        # Weight / price fixes of finished weighing entries.
+        weights: [WeightChange]
+        # Weighing entries to add.
+        added: [WeighingAdd]
+    }
+
+    type RegistrationIntakeChange {
+        herderId: ID
+        herder: Herder
+        vehicleNumber: String
+        stamp: String
+        animalLines: [RegistrationChangeLine]
+    }
+
+    type WeightChange {
+        entryId: ID
+        weightKg: Float
+        pricePerKg: Float
+        # Live entry — its weightKg / pricePerKg are the current values.
+        entry: WeighingEntry
+    }
+
+    type WeighingAdd {
+        animalType: String
+        weightKg: Float
+        pricePerKg: Float
+    }
+
+    input RegistrationIntakeInput {
+        herderId: ID!
+        vehicleNumber: String!
+        stamp: String
+        animalLines: [RegistrationAnimalLineInput!]!
+    }
+
+    input WeightChangeInput {
+        entryId: ID!
+        weightKg: Float!
+        pricePerKg: Float
+    }
+
+    input WeighingAddInput {
+        animalType: String!
+        weightKg: Float!
+        pricePerKg: Float
+    }
+
+    type RegistrationChangeLine {
+        animalType: String
+        count: Int
+    }
+
+    type RegistrationChangeRequest {
+        id: ID
+        registrationId: ID
+        registration: Registration
+        requestedBy: Admin
+        changes: RegistrationChanges
+        reason: String
+        status: CHANGE_REQUEST_STATUS
+        reviewedBy: Admin
+        reviewedAt: Date
+        reviewNote: String
+        createdAt: Date
+    }
+
+    type RegistrationChangeRequestResponse {
+        success: Boolean
+        message: String
+        changeRequest: RegistrationChangeRequest
+    }
+
+    type RegistrationChangeRequestsResponse {
+        success: Boolean
+        message: String
+        changeRequests: [RegistrationChangeRequest]
+        count: Int
     }
 
     type RegistrationResponse {
@@ -249,6 +341,13 @@ export default `#graphql
         count: Int!
     }
 
+    # FACTORY_2 intake: meat weighed on the form.
+    input IntakeWeighingInput {
+        animalType: String!
+        weightKg: Float!
+        pricePerKg: Float!
+    }
+
     # Бой зардал is fixed per head (set at intake) — not an input.
     input SettlementLineInput {
         animalType: String!
@@ -263,19 +362,25 @@ export default `#graphql
             herderId: ID
             registrationCode: String
             # Owner/admin only — factory staff always see their own.
-            factory: FACTORY
+            factory: String
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): RegistrationsResponse @authLogin
         registration(id: ID!): RegistrationResponse @authLogin
         # Herder-side payout list — the "Малчид" tab on /sales.
         settlements(
-            factory: FACTORY
+            factory: String
             isPaid: Boolean
             herderId: ID
             dateRange: DateRangeInput
             ${PaginationSchema}
-        ): SettlementsResponse @auth(permissions: ["ADMIN", "STOREKEEPER", "ACCOUNTANT"])
+        ): SettlementsResponse @auth(permissions: [SETTLEMENT_CREATE, SETTLEMENT_PAY])
+        # Admin: review queue. Staff: pass registrationId (their factory).
+        registrationChangeRequests(
+            status: CHANGE_REQUEST_STATUS
+            registrationId: ID
+            ${PaginationSchema}
+        ): RegistrationChangeRequestsResponse @auth(permissions: [REGISTRATION_CREATE, CHANGE_REQUEST_REVIEW])
     }
 
     extend type Mutation {
@@ -290,9 +395,37 @@ export default `#graphql
             stampFileId: ID
             intakeDate: Date
             # Owner/admin must pick; factory staff are stamped with their own.
-            factory: FACTORY
+            factory: String
             animalLines: [RegistrationAnimalLineInput!]!
-        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+            # Хойд үйлдвэр only — weighing entries created with the intake.
+            weighings: [IntakeWeighingInput!]
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_CREATE])
+
+        # Direct intake fix — admin, or the registering person on the same day.
+        updateRegistration(
+            id: ID!
+            herderId: ID!
+            vehicleNumber: String!
+            stamp: String
+            animalLines: [RegistrationAnimalLineInput!]!
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_CREATE])
+
+        # Proposed values go to admin: intake after the registration day,
+        # weighing fixes once weighing is finished. Send only changed parts.
+        requestRegistrationChange(
+            registrationId: ID!
+            intake: RegistrationIntakeInput
+            weights: [WeightChangeInput!]
+            added: [WeighingAddInput!]
+            reason: String!
+        ): RegistrationChangeRequestResponse @auth(permissions: [REGISTRATION_CREATE])
+
+        # Approve applies the changes; reject leaves the registration as is.
+        reviewRegistrationChange(
+            id: ID!
+            approve: Boolean!
+            note: String
+        ): RegistrationChangeRequestResponse @auth(permissions: [CHANGE_REQUEST_REVIEW])
 
         # Weighing + price negotiation: storekeeper (нярав).
         addWeighingEntry(
@@ -301,11 +434,11 @@ export default `#graphql
             weightKg: Float!
             pricePerKg: Float
             photoFileId: ID
-        ): WeighingEntryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): WeighingEntryResponse @auth(permissions: [REGISTRATION_WEIGH, REGISTRATION_WEIGH_FIX])
 
         finishWeighing(
             registrationId: ID!
-        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_WEIGH])
 
         updateWeighingEntry(
             id: ID!
@@ -313,24 +446,25 @@ export default `#graphql
             pricePerKg: Float
             animalType: String
             photoFileId: ID
-        ): WeighingEntryResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): WeighingEntryResponse @auth(permissions: [REGISTRATION_WEIGH, REGISTRATION_WEIGH_FIX])
 
         deleteWeighingEntry(
             id: ID!
-        ): Response @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): Response @auth(permissions: [REGISTRATION_WEIGH, REGISTRATION_WEIGH_FIX])
 
-        # Replaces the гэдэс counts. FACTORY_1: after VERIFIED (herder take).
-        # FACTORY_2: while REGISTERED (counted on receipt).
+        # Replaces the гэдэс counts. FACTORY_1: at verify (WEIGHED) or after
+        # VERIFIED (herder take, count ≤ head count). FACTORY_2: while
+        # REGISTERED (counted on receipt).
         setRegistrationByproducts(
             registrationId: ID!
             bundles: [ByproductBundleInput!]!
-        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_WEIGH])
 
         verifyRegistration(
             registrationId: ID!
             notes: String
             photoFileId: ID
-        ): VerificationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): VerificationResponse @auth(permissions: [REGISTRATION_VERIFY])
 
         createSettlement(
             registrationId: ID!
@@ -341,7 +475,7 @@ export default `#graphql
             payoutBankAccount: String
             payoutBankName: String
             payoutAccountHolderName: String
-        ): SettlementResponse @auth(permissions: ["ADMIN", "STOREKEEPER", "ACCOUNTANT"])
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_CREATE])
 
         # First payout. Pass heldAmount to withhold a portion when the medical
         # number isn't approved yet (required while unapproved; ignored/forced
@@ -349,12 +483,12 @@ export default `#graphql
         markSettlementPaid(
             registrationId: ID!
             heldAmount: Float
-        ): SettlementResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
 
         # Release the withheld portion after the medical number is approved.
         releaseSettlementHold(
             registrationId: ID!
-        ): SettlementResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
 
         # Attach a money-flow statement image (uploaded File id) to the
         # settlement after a payout has been made.
@@ -362,28 +496,21 @@ export default `#graphql
             registrationId: ID!
             fileId: ID!
             note: String
-        ): SettlementPaymentProofResponse @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): SettlementPaymentProofResponse @auth(permissions: [SETTLEMENT_PAY])
 
         removeSettlementPaymentProof(
             id: ID!
-        ): Response @auth(permissions: ["ADMIN", "ACCOUNTANT"])
+        ): Response @auth(permissions: [SETTLEMENT_PAY])
 
         # Attach the storekeeper's drawn signature (uploaded File id) to the
         # settlement receipt. Pass null to clear.
         setSettlementStorekeeperSignature(
             registrationId: ID!
             fileId: ID
-        ): SettlementResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
-
-        # Attach the herder's drawn agreement signature (uploaded File id) to
-        # the weighed slip. Pass null to clear. Allowed before VERIFIED.
-        setRegistrationAgreementSignature(
-            registrationId: ID!
-            fileId: ID
-        ): RegistrationResponse @auth(permissions: ["ADMIN", "STOREKEEPER"])
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
 
         cancelRegistration(
             registrationId: ID!
-        ): RegistrationResponse @auth(permissions: ["ADMIN"])
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_CANCEL])
     }
 `;
