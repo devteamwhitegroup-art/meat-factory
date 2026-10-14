@@ -196,11 +196,6 @@ export function IntakeForm({
       toast.error("Гарын үсэг зурна уу");
       return;
     }
-    if (!values.photoFileId) {
-      toast.error("Малыг хүлээж авсан зургийг авна уу");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const r = await createRegistration({
