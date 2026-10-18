@@ -121,8 +121,18 @@ export const CreateRoleDoc = graphql(/* GraphQL */ `
 `);
 
 export const UpdateRoleDoc = graphql(/* GraphQL */ `
-  mutation UpdateRole($id: ID!, $name: String, $permissions: [PERMISSION!]) {
-    updateRole(id: $id, name: $name, permissions: $permissions) {
+  mutation UpdateRole(
+    $id: ID!
+    $name: String
+    $permissions: [PERMISSION!]
+    $crossFactory: Boolean
+  ) {
+    updateRole(
+      id: $id
+      name: $name
+      permissions: $permissions
+      crossFactory: $crossFactory
+    ) {
       success
       message
     }

@@ -21,10 +21,15 @@ export type TMedicalNumber = {
   checkedAt: Date | null;
 };
 
-export type TGetMedicalNumbers = {
+// Registration scope shared by the worklist and the head-count summary.
+// `dateRange` filters on the registration's intakeDate.
+export type TMedicalScope = {
+  factory?: string;
+  dateRange?: TDateRange;
+};
+
+export type TGetMedicalNumbers = TMedicalScope & {
   status?: MEDICAL_NUMBER_STATUS;
   // Partial match on the digits.
   number?: string;
-  factory?: string;
-  dateRange?: TDateRange;
 } & TPagination;

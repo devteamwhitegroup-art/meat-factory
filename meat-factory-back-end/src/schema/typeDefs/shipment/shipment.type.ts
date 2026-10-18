@@ -203,7 +203,27 @@ export default `#graphql
         serialNumber: Int
     }
 
+    # Loadable stock of one product group at the shipment's factory.
+    type ShipmentStockRow {
+        groupKey: String
+        productType: PRODUCT_TYPE
+        animalType: String
+        byproductName: String
+        onHandKg: Float
+        # Cargo on every undelivered (PENDING/LOADED) shipment.
+        reservedKg: Float
+        # onHandKg − reservedKg: what more can still be loaded.
+        availableKg: Float
+    }
+
+    type ShipmentStockResponse {
+        success: Boolean
+        message: String
+        items: [ShipmentStockRow]
+    }
+
     extend type Query {
+        shipmentStock(shipmentId: ID!): ShipmentStockResponse @auth(permissions: [SHIPMENT_VIEW, SHIPMENT_MANAGE])
         shipments(
             # Owner/admin only — factory staff always see their own.
             factory: String
@@ -240,6 +260,8 @@ export default `#graphql
             photoFileId: ID
         ): ShipmentResponse @auth(permissions: [SHIPMENT_MANAGE])
 
+        # Forward one step, or LOADED → PENDING (undo, refused once a sales
+        # report exists). LOADED needs every cargo group covered by stock.
         updateShipmentStatus(
             id: ID!
             status: SHIPMENT_STATUS!

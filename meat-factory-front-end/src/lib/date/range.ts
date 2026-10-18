@@ -19,6 +19,16 @@ function monthRange(year: number, m0: number): { from: string; to: string } {
   };
 }
 
+// Monday-first week; offset 0 = this week, -1 = last week.
+function weekRange(offset: number): { from: string; to: string } {
+  const n = new Date();
+  const mon = n.getDate() - ((n.getDay() + 6) % 7) + offset * 7;
+  return {
+    from: ymd(new Date(n.getFullYear(), n.getMonth(), mon)),
+    to: ymd(new Date(n.getFullYear(), n.getMonth(), mon + 6)),
+  };
+}
+
 // Default filter range = the current calendar month.
 export function thisMonth(): { from: string; to: string } {
   const n = new Date();
@@ -48,6 +58,16 @@ export const SHORTCUTS: Shortcut[] = [
       n.setDate(n.getDate() - 1);
       return { from: ymd(n), to: ymd(n) };
     },
+  },
+  {
+    key: "this_week",
+    label: "Энэ долоо хоног",
+    range: () => weekRange(0),
+  },
+  {
+    key: "prev_week",
+    label: "Өнгөрсөн долоо хоног",
+    range: () => weekRange(-1),
   },
   {
     key: "this_month",

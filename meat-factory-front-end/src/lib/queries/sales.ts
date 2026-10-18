@@ -79,6 +79,17 @@ export const SalesDetailDoc = graphql(/* GraphQL */ `
             param
           }
         }
+        expenses {
+          id
+          name
+          amountMnt
+          notes
+          createdAt
+          createdBy {
+            id
+            param
+          }
+        }
       }
     }
   }
@@ -152,6 +163,34 @@ export const AddSalesInstallmentDoc = graphql(/* GraphQL */ `
 export const RemoveSalesInstallmentDoc = graphql(/* GraphQL */ `
   mutation RemoveSalesInstallment($id: ID!) {
     removeSalesInstallment(id: $id) {
+      success
+      message
+    }
+  }
+`);
+
+export const AddSalesExpenseDoc = graphql(/* GraphQL */ `
+  mutation AddSalesExpense(
+    $salesTransactionId: ID!
+    $name: String!
+    $amountMnt: Float!
+    $notes: String
+  ) {
+    addSalesExpense(
+      salesTransactionId: $salesTransactionId
+      name: $name
+      amountMnt: $amountMnt
+      notes: $notes
+    ) {
+      success
+      message
+    }
+  }
+`);
+
+export const RemoveSalesExpenseDoc = graphql(/* GraphQL */ `
+  mutation RemoveSalesExpense($id: ID!) {
+    removeSalesExpense(id: $id) {
       success
       message
     }

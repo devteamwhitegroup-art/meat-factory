@@ -12,10 +12,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
+import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { MedicalStatusActions } from "@/components/registration/MedicalStatusActions";
 import { requireCap } from "@/lib/auth/server";
 import { getClient } from "@/lib/apollo/server";
-import { MedicalNumbersDoc } from "@/lib/queries/medical-number";
+import {
+  MedicalAnimalCountsDoc,
+  MedicalNumbersDoc,
+} from "@/lib/queries/medical-number";
+import { pageAndRange } from "@/lib/date/range";
+import { formatNumber } from "@/lib/format/money";
+import { compact } from "@/lib/compact";
 import { unwrapList } from "@/lib/unwrap";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { getFactories } from "@/lib/factory/server";
@@ -33,6 +40,8 @@ type Props = {
     q?: string;
     factory?: string;
     page?: string;
+    from?: string;
+    to?: string;
   }>;
 };
 
@@ -67,6 +76,8 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
     ? (sp.factory as string)
     : null;
   const page = Math.max(1, Number(sp.page) || 1);
+  // Registration intake date; defaults to this month like DateRangeFilter.
+  const { dateRange } = pageAndRange(sp);
 
   // Chip / pager links keep the other filters.
   const href = (patch: Record<string, string | null>) => {
@@ -75,6 +86,8 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
       status: sp.status ?? null,
       q: sp.q ?? null,
       factory: sp.factory ?? null,
+      from: sp.from ?? null,
+      to: sp.to ?? null,
       page: null,
       ...patch,
     };
@@ -89,19 +102,31 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
     status: current.status,
     q: sp.q,
     factory,
+    from: sp.from,
+    to: sp.to,
   }))
     if (v) exportParams.set(k, v);
 
-  const { data } = await getClient().query({
-    query: MedicalNumbersDoc,
-    variables: {
-      status: current.status as Medical_Number_Status | null,
-      number: sp.q || null,
-      factory,
-      limit: PAGE_SIZE,
-      page,
-    },
-  });
+  const client = getClient();
+  const [{ data }, { data: countData }] = await Promise.all([
+    client.query({
+      query: MedicalNumbersDoc,
+      variables: {
+        status: current.status as Medical_Number_Status | null,
+        number: sp.q || null,
+        factory,
+        dateRange,
+        limit: PAGE_SIZE,
+        page,
+      },
+    }),
+    client.query({
+      query: MedicalAnimalCountsDoc,
+      variables: { factory, dateRange },
+    }),
+  ]);
+  const animalCounts = compact(countData?.medicalAnimalCounts?.items);
+  const totalHead = animalCounts.reduce((s, c) => s + (c.count ?? 0), 0);
   const {
     rows,
     count,
@@ -118,17 +143,38 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
             баталгаажсан бүртгэлийн суутгалыг олгох боломжтой болно.
           </p>
         </div>
-        {/* Plain <a>, not <Link>: a file download, not a page navigation. */}
-        <a
-          href={`/medical-numbers/export?${exportParams}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          <DownloadIcon />
-          Excel татах
-        </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeFilter />
+          {/* Plain <a>, not <Link>: a file download, not a page navigation. */}
+          <a
+            href={`/medical-numbers/export?${exportParams}`}
+            className={buttonVariants({ variant: "outline", size: "lg" })}
+          >
+            <DownloadIcon />
+            Excel татах
+          </a>
+        </div>
       </div>
 
       {crossFactory ? <FactoryFilter /> : null}
+
+      {/* Head brought in over the period, per animal. */}
+      <div className="flex flex-wrap gap-3">
+        <div className="rounded-md border bg-muted/40 px-4 py-2">
+          <div className="text-xs text-muted-foreground">Ирсэн мал (нийт)</div>
+          <div className="text-xl font-semibold tabular-nums">
+            {formatNumber(totalHead)}
+          </div>
+        </div>
+        {animalCounts.map((c) => (
+          <div key={c.animalType} className="rounded-md border px-4 py-2">
+            <div className="text-xs text-muted-foreground">{c.animalType}</div>
+            <div className="text-xl font-semibold tabular-nums">
+              {formatNumber(c.count)}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
@@ -154,6 +200,8 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
           {sp.factory ? (
             <input type="hidden" name="factory" value={sp.factory} />
           ) : null}
+          {sp.from ? <input type="hidden" name="from" value={sp.from} /> : null}
+          {sp.to ? <input type="hidden" name="to" value={sp.to} /> : null}
           <Input
             name="q"
             defaultValue={sp.q ?? ""}

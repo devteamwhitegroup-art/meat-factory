@@ -8,7 +8,7 @@ import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
 import { CostingController } from "../../../controller/inventory/costing.controller";
 import { ShipmentSaleLineModel } from "../../../models/shipment/shipment-sale-line.model";
 import { TShipmentSaleEntry } from "../../../types/shipment/shipment-sale-line.type";
-import { wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   // Report-derived totals — computed on read from the included entries.
@@ -41,6 +41,11 @@ export default {
     ),
     shipment: wrapOne("shipment", ({ id }: { id: string }) =>
       ShipmentController.getById(id),
+    ),
+    shipmentStock: wrapItems(
+      "items",
+      ({ shipmentId }: { shipmentId: string }, ctx) =>
+        ShipmentController.availableStock(shipmentId, ctx),
     ),
     nextShipmentSerial: wrapOne("serialNumber", () =>
       ShipmentController.previewNextSerial(),

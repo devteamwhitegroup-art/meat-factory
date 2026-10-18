@@ -13,6 +13,7 @@ import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { MarkPaidButton } from "./mark-paid-button";
 import { InstallmentsCard } from "./installments-card";
+import { ExpensesCard } from "./expenses-card";
 import { LineItemsTable } from "./line-items-table";
 import { BackButton } from "@/components/common/BackButton";
 import { PrintButton } from "@/components/common/PrintButton";
@@ -53,6 +54,15 @@ export default async function SalesDetailPage({ params }: Props) {
     notes: i.notes ?? null,
     createdBy: i.createdBy?.param ?? null,
   }));
+  const expenses = compact(t.expenses).map((e) => ({
+    id: e.id!,
+    name: e.name ?? "",
+    amountMnt: Number(e.amountMnt ?? 0),
+    notes: e.notes ?? null,
+    createdAt: String(e.createdAt ?? ""),
+    createdBy: e.createdBy?.param ?? null,
+  }));
+  const expenseTotal = expenses.reduce((s, e) => s + e.amountMnt, 0);
 
   return (
     <div className="space-y-4">
@@ -113,6 +123,20 @@ export default async function SalesDetailPage({ params }: Props) {
                 </span>
               )}
             </div>
+            {expenseTotal > 0 ? (
+              <>
+                <div className="text-muted-foreground">Бусад зардал</div>
+                <div className="tabular-nums">{formatMNT(expenseTotal)}</div>
+                {t.amount != null ? (
+                  <>
+                    <div className="text-muted-foreground">Цэвэр дүн</div>
+                    <div className="font-medium tabular-nums">
+                      {formatMNT(Number(t.amount) - expenseTotal)}
+                    </div>
+                  </>
+                ) : null}
+              </>
+            ) : null}
             {t.shipmentId && t.shipment?.shipmentCode ? (
               <>
                 <div className="text-muted-foreground">Ачилт</div>
@@ -171,6 +195,8 @@ export default async function SalesDetailPage({ params }: Props) {
           saleLines={toSaleLineRows(shipment.saleLines)}
         />
       ) : null}
+
+      {t.id ? <ExpensesCard txId={t.id} expenses={expenses} /> : null}
 
       {t.id && t.amount != null ? (
         <InstallmentsCard

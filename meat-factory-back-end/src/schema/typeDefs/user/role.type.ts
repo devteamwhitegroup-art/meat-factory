@@ -59,11 +59,13 @@ export default `#graphql
             crossFactory: Boolean
         ): RoleResponse @auth(permissions: [STAFF_MANAGE])
 
-        # crossFactory is fixed at creation; the system role's permissions too.
+        # System role: permissions + crossFactory fixed. crossFactory → true
+        # clears the staff's factory; → false is refused while staff use it.
         updateRole(
             id: ID!
             name: String
             permissions: [PERMISSION!]
+            crossFactory: Boolean
         ): RoleResponse @auth(permissions: [STAFF_MANAGE])
 
         # Refused for the system role or while any staff account uses it.

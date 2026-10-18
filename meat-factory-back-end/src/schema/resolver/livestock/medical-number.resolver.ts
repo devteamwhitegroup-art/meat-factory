@@ -2,13 +2,17 @@ import { MedicalNumberController } from "../../../controller/livestock/medical-n
 import {
   MEDICAL_NUMBER_STATUS,
   TGetMedicalNumbers,
+  TMedicalScope,
 } from "../../../types/livestock/medical-number.type";
-import { wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
   Query: {
     medicalNumbers: wrapList("medicalNumbers", (doc: TGetMedicalNumbers, ctx) =>
       MedicalNumberController.list(doc, ctx),
+    ),
+    medicalAnimalCounts: wrapItems("items", (doc: TMedicalScope, ctx) =>
+      MedicalNumberController.animalCounts(doc, ctx),
     ),
   },
   Mutation: {

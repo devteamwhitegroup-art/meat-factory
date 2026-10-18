@@ -263,6 +263,13 @@ export class RegistrationChangeController {
     context: TContext,
   ): Promise<RegistrationChangeRequestModel> {
     AdminController.assertPermission(context, PERMISSION.REGISTRATION_CREATE);
+    // Weight log fixes are for weighers only (e.g. Эмч registers but never weighs).
+    if (doc.weights?.length || doc.added?.length)
+      AdminController.assertPermission(
+        context,
+        PERMISSION.REGISTRATION_WEIGH,
+        PERMISSION.REGISTRATION_WEIGH_FIX,
+      );
     const reg = await RegistrationController.findIdCheck(
       doc.registrationId,
       context,

@@ -89,6 +89,10 @@ import {
   createSalesInstallmentModel,
   SalesInstallmentModel,
 } from "./sales/sales-installment.model";
+import {
+  createSalesExpenseModel,
+  SalesExpenseModel,
+} from "./sales/sales-expense.model";
 
 //Shipment
 import { createShipmentModel, ShipmentModel } from "./shipment/shipment.model";
@@ -179,6 +183,7 @@ export const setupModel = (sequelize: Sequelize) => {
   createSalesTransactionModel(sequelize);
   createSalesLineItemModel(sequelize);
   createSalesInstallmentModel(sequelize);
+  createSalesExpenseModel(sequelize);
 
   //Shipment
   createShipmentModel(sequelize);
@@ -238,6 +243,7 @@ export const setupModel = (sequelize: Sequelize) => {
   SalesTransactionModel.associate();
   SalesLineItemModel.associate();
   SalesInstallmentModel.associate();
+  SalesExpenseModel.associate();
 
   //Shipment
   ShipmentModel.associate();

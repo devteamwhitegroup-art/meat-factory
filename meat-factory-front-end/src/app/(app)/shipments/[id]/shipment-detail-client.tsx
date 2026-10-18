@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   ShipmentAnalyticsDoc,
   ShipmentDetailDoc,
+  ShipmentStockDoc,
   UpdateShipmentStatusDoc,
 } from "@/lib/queries/shipment";
 import { runMutation } from "@/lib/runMutation";
@@ -76,10 +77,15 @@ export function ShipmentDetailClient({
     { variables: { id }, skip: !isAdmin, fetchPolicy: "cache-and-network" },
   );
   const analytics = analyticsData?.shipmentAnalytics?.analytics;
-  // Report / status changes move both the shipment and its analytics.
+  const { data: stockData, refetch: refetchStock } = useQuery(
+    ShipmentStockDoc,
+    { variables: { shipmentId: id }, skip: !canEdit, fetchPolicy: "cache-and-network" },
+  );
+  // Report / status / cargo changes move the shipment, analytics and stock.
   const refetch = () => {
     refetchShipment();
     if (isAdmin) refetchAnalytics();
+    if (canEdit) refetchStock();
   };
   const [updateStatus] = useMutation(UpdateShipmentStatusDoc);
 
@@ -116,6 +122,17 @@ export function ShipmentDetailClient({
           })
         ).data?.updateShipmentStatus,
       { success: "Төлөв шинэчлэгдлээ", onSuccess: refetch },
+    );
+  }
+
+  // LOADED → PENDING: nothing has left stock yet, so cargo can be fixed.
+  async function revert() {
+    if (!window.confirm("Ачилтыг «Хүлээгдэж буй» төлөвт буцаах уу?")) return;
+    await runMutation(
+      async () =>
+        (await updateStatus({ variables: { id, status: "PENDING" } })).data
+          ?.updateShipmentStatus,
+      { success: "Хүлээгдэж буй төлөвт буцаалаа", onSuccess: refetch },
     );
   }
 
@@ -195,7 +212,12 @@ export function ShipmentDetailClient({
             ))}
           </div>
           {!canEdit ? null : nextStatus ? (
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+              {s.status === "LOADED" ? (
+                <Button variant="outline" onClick={revert}>
+                  Буцаах
+                </Button>
+              ) : null}
               <Button onClick={advance}>
                 {SHIPMENT_STATUS_MN[nextStatus] ?? nextStatus} болгох
               </Button>
@@ -279,6 +301,7 @@ export function ShipmentDetailClient({
         <CargoLineForm
           shipmentId={id}
           category={category}
+          stock={compact(stockData?.shipmentStock?.items)}
           onChanged={refetch}
         />
       ) : null}

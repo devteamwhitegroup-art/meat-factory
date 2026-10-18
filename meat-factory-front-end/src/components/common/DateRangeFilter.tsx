@@ -91,6 +91,8 @@ export function DateRangeFilter() {
           onSelect={onCalendar}
           defaultMonth={fromD}
           className="p-0"
+          // Stretch to the shortcut grid's width (no empty strip on the right).
+          classNames={{ root: "w-full" }}
         />
       </PopoverContent>
     </Popover>

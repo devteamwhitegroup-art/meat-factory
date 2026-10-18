@@ -32,8 +32,20 @@ export default `#graphql
         count: Int
     }
 
+    type AnimalHeadCount {
+        animalType: String
+        count: Int
+    }
+
+    type AnimalHeadCountsResponse {
+        success: Boolean
+        message: String
+        items: [AnimalHeadCount]
+    }
+
     extend type Query {
         # Vet worklist. Staff see their own factory; owner/admin may filter.
+        # dateRange = registration intake date.
         medicalNumbers(
             status: MEDICAL_NUMBER_STATUS
             number: String
@@ -41,6 +53,12 @@ export default `#graphql
             dateRange: DateRangeInput
             ${PaginationSchema}
         ): MedicalNumbersResponse @auth(permissions: [MEDICAL_NUMBER_CHECK, MEDICAL_NUMBER_ENTER])
+
+        # Head brought in per animal, same factory/dateRange scope as above.
+        medicalAnimalCounts(
+            factory: String
+            dateRange: DateRangeInput
+        ): AnimalHeadCountsResponse @auth(permissions: [MEDICAL_NUMBER_CHECK, MEDICAL_NUMBER_ENTER])
     }
 
     extend type Mutation {

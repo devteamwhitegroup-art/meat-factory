@@ -15,7 +15,7 @@ import { StatusBadge } from "@/components/registration/StatusBadge";
 import { ImagePreviewLink } from "@/components/common/ImagePreviewLink";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { fmtDate, fmtDateTime } from "@/lib/format/date";
+import { fmtDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/money";
 import { getFactories } from "@/lib/factory/server";
 import {
@@ -202,11 +202,35 @@ export default async function RegistrationDetailPage({ params }: Props) {
             {!pre && (
               <>
                 <div className="text-muted-foreground">Тамга</div>
-                <div>{r.stamp ?? "—"}</div>
+                <div className="space-y-1">
+                  <div>{r.stamp ?? "—"}</div>
+                  {r.stampImage?.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.stampImage.url}
+                      alt="Тамга"
+                      className="h-20 w-auto rounded border bg-white object-contain"
+                    />
+                  ) : null}
+                </div>
               </>
             )}
+            <div className="text-muted-foreground">Гарын үсэг</div>
+            <div>
+              {r.signature?.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={r.signature.url}
+                  alt="Гарын үсэг"
+                  className="h-20 w-auto rounded border bg-white object-contain"
+                />
+              ) : (
+                "—"
+              )}
+            </div>
             <div className="text-muted-foreground">Он сар</div>
-            <div>{fmtDate(r.intakeDate)}</div>
+            {/* Intake is always "now" — createdAt carries the real time. */}
+            <div>{fmtDateTime(r.createdAt ?? r.intakeDate)}</div>
             <div className="text-muted-foreground">Харуул</div>
             <div>{r.guard?.param ?? "—"}</div>
             <div className="text-muted-foreground">Зураг</div>

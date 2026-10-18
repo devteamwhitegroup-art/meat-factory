@@ -32,6 +32,7 @@ import {
   IntakeWeighRows,
   type IntakeWeighRow,
 } from "@/components/registration/IntakeWeighRows";
+import { ymd } from "@/lib/date/range";
 import { SignatureField } from "@/components/common/SignatureField";
 import { MedicalNumberAdder } from "@/components/registration/MedicalNumberAdder";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
@@ -116,7 +117,7 @@ export function IntakeForm({
       vehicleNumber: "",
       stamp: "",
       medicalNumbers: [],
-      intakeDate: new Date().toISOString().slice(0, 10),
+      intakeDate: ymd(new Date()),
       signatureFileId: null,
       stampFileId: null,
       photoFileId: null,
@@ -133,7 +134,7 @@ export function IntakeForm({
   const clearDraft = useDraft("intake", { values: draft, herder }, (d) => {
     form.reset({
       ...d.values,
-      intakeDate: new Date().toISOString().slice(0, 10),
+      intakeDate: ymd(new Date()),
     } as Values);
     setHerder(d.herder);
     setPickerKey((k) => k + 1);
@@ -207,7 +208,7 @@ export function IntakeForm({
           signatureFileId: values.signatureFileId || null,
           stampFileId: pre ? null : values.stampFileId || null,
           photoFileId: values.photoFileId || null,
-          intakeDate: values.intakeDate ?? null,
+          // No intakeDate: the BE stamps the real intake moment.
           factory: values.factory,
           animalLines,
           weighings: pre

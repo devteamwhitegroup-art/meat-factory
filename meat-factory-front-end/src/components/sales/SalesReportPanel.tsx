@@ -202,12 +202,11 @@ function AddEntryRow({
         className="h-9 w-32 tabular-nums"
       />
       <span className="text-sm text-muted-foreground">×</span>
+      {/* Grouped digits like the installment amount; state keeps raw digits. */}
       <Input
-        type="number"
-        inputMode="decimal"
-        min="0"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
+        inputMode="numeric"
+        value={price ? formatNumber(price) : ""}
+        onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))}
         placeholder="₮/кг"
         aria-label="Үнэ ₮/кг"
         className="h-9 w-32 tabular-nums"

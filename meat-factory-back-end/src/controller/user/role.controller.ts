@@ -7,6 +7,8 @@ import {
   TPermissionGroup,
 } from "../../types/user/permission.type";
 import { TCreateRole, TUpdateRole } from "../../types/user/role.type";
+import { TContext } from "../../types/global/global.type";
+import sequelize from "../../config/db-connection";
 import { findOrThrow } from "../../utils";
 
 const P = PERMISSION;
@@ -29,8 +31,9 @@ const DEFAULT_ROLES: Array<Omit<TCreateRole, "crossFactory"> & {
     ],
   },
   {
+    // Finance spans every factory.
     name: "Нягтлан",
-    crossFactory: false,
+    crossFactory: true,
     permissions: [
       P.SETTLEMENT_CREATE, P.SETTLEMENT_PAY, P.CUSTOMER_MANAGE, P.SALES_MANAGE,
       P.SHIPMENT_VIEW, P.SHIPMENT_SALES, P.DASHBOARD_VIEW,
@@ -94,9 +97,7 @@ export class RoleController {
     });
   }
 
-  // ponytail: crossFactory is fixed at creation — flipping it would strand the
-  // role's admins with/without a factory. Recreate the role to change it.
-  static async update(doc: TUpdateRole): Promise<RoleModel> {
+  static async update(doc: TUpdateRole, context: TContext): Promise<RoleModel> {
     const role = await this.findIdCheck(doc.id);
     if (doc.name != null) {
       const name = doc.name.trim();
@@ -110,7 +111,30 @@ export class RoleController {
         throw new Error("Системийн админ эрхийн зөвшөөрлийг өөрчлөх боломжгүй");
       role.permissions = this._permissions(doc.permissions);
     }
-    return role.save();
+    const flip =
+      doc.crossFactory != null && doc.crossFactory !== role.crossFactory;
+    if (flip) {
+      if (role.isSystem)
+        throw new Error("Системийн админ эрх бүх үйлдвэрт хамаарна");
+      // A factory-bound actor must not widen anyone's reach.
+      if (!context.crossFactory)
+        throw new Error("Хамрах хүрээг зөвхөн бүх үйлдвэрийн админ өөрчилнө");
+      // Narrowing would leave the role's staff with no factory.
+      if (!doc.crossFactory && (await AdminModel.count({ where: { roleId: role.id } })) > 0)
+        throw new Error(
+          "Энэ эрхтэй ажилтан байгаа тул нэг үйлдвэрт шилжүүлэх боломжгүй",
+        );
+      role.crossFactory = !!doc.crossFactory;
+    }
+    return sequelize.transaction(async (transaction) => {
+      // Cross-factory staff carry no factory.
+      if (flip && role.crossFactory)
+        await AdminModel.update(
+          { factory: null },
+          { where: { roleId: role.id }, transaction },
+        );
+      return role.save({ transaction });
+    });
   }
 
   static async delete(id: string): Promise<void> {

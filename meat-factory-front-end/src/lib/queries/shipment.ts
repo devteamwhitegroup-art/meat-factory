@@ -349,6 +349,25 @@ export const NextShipmentSerialDoc = graphql(/* GraphQL */ `
   }
 `);
 
+// Loadable stock at the shipment's factory (on hand − open shipments' cargo).
+export const ShipmentStockDoc = graphql(/* GraphQL */ `
+  query ShipmentStock($shipmentId: ID!) {
+    shipmentStock(shipmentId: $shipmentId) {
+      success
+      message
+      items {
+        groupKey
+        productType
+        animalType
+        byproductName
+        onHandKg
+        reservedKg
+        availableKg
+      }
+    }
+  }
+`);
+
 export const UpdateShipmentStatusDoc = graphql(/* GraphQL */ `
   mutation UpdateShipmentStatus($id: ID!, $status: SHIPMENT_STATUS!) {
     updateShipmentStatus(id: $id, status: $status) {

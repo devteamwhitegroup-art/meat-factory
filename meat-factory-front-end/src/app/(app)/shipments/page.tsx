@@ -9,7 +9,7 @@ import {
 
 type Props = { searchParams: Promise<ShipmentListSearchParams> };
 
-// One shipments page; ?tab=export|domestic switches category (export by
+// One shipments page; ?tab=export|domestic switches category (domestic by
 // default). The byproduct site ships domestically only.
 export default async function ShipmentsPage({ searchParams }: Props) {
   const session = await requireCap("SHIPMENT_VIEW");
@@ -18,11 +18,9 @@ export default async function ShipmentsPage({ searchParams }: Props) {
   const categories: ShipmentCategory[] =
     !session.crossFactory && isByproductSite(factories, session.factory)
       ? ["DOMESTIC"]
-      : ["EXPORT", "DOMESTIC"];
+      : ["DOMESTIC", "EXPORT"];
   const category: ShipmentCategory =
-    sp.tab === "domestic" || !categories.includes("EXPORT")
-      ? "DOMESTIC"
-      : "EXPORT";
+    sp.tab === "export" && categories.includes("EXPORT") ? "EXPORT" : "DOMESTIC";
   return (
     <ShipmentListView
       category={category}

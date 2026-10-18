@@ -37,7 +37,7 @@ import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 import { cn } from "@/lib/utils";
 
-// id null = new role. crossFactory is fixed once created (BE rule).
+// id null = new role. The system role's crossFactory is fixed (BE rule).
 type Draft = {
   id: string | null;
   name: string;
@@ -110,6 +110,7 @@ export function RolesSection() {
                   name,
                   // The system role's permissions are fixed — send name only.
                   permissions: d.isSystem ? null : d.permissions,
+                  crossFactory: d.isSystem ? null : d.crossFactory,
                 },
               })
             ).data?.updateRole
@@ -260,13 +261,13 @@ export function RolesSection() {
               <label
                 className={cn(
                   "flex items-start gap-3 rounded-md border p-3",
-                  draft.id ? "opacity-70" : "cursor-pointer",
+                  draft.isSystem ? "opacity-70" : "cursor-pointer",
                 )}
               >
                 <input
                   type="checkbox"
                   checked={draft.crossFactory}
-                  disabled={!!draft.id}
+                  disabled={draft.isSystem}
                   onChange={(e) => patch({ crossFactory: e.target.checked })}
                   className="mt-1 h-4 w-4"
                 />
@@ -274,7 +275,9 @@ export function RolesSection() {
                   <div className="font-medium">Бүх үйлдвэр</div>
                   <div className="text-xs text-muted-foreground">
                     Үйлдвэрт хамаарахгүй, бүх үйлдвэрийн мэдээллийг харна.
-                    {draft.id ? " Үүсгэсний дараа өөрчлөх боломжгүй." : ""}
+                    {draft.id && !draft.isSystem
+                      ? " Ажилтантай эрхийг нэг үйлдвэрт шилжүүлэх боломжгүй."
+                      : ""}
                   </div>
                 </div>
               </label>

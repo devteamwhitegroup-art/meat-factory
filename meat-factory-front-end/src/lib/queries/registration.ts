@@ -56,6 +56,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
         status
         factory
         intakeDate
+        createdAt
         vehicleNumber
         stamp
         medicalNumbers {

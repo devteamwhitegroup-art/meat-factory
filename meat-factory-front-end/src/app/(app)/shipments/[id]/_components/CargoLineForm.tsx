@@ -16,7 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { KeypadField } from "@/components/forms/KeypadField";
-import { AddCargoEntryDoc } from "@/lib/queries/shipment";
+import type { ResultOf } from "@graphql-typed-document-node/core";
+import { AddCargoEntryDoc, ShipmentStockDoc } from "@/lib/queries/shipment";
 import { ByproductWrapperListDoc } from "@/lib/queries/byproduct-wrapper";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { runMutation } from "@/lib/runMutation";
@@ -32,14 +33,22 @@ import { formatNumber } from "@/lib/format/money";
 // Weight is captured the same way as before (gross/tare or a direct net).
 // No price here — pricing happens once per sale-line at the end of loading.
 type ProductType = "MEAT" | "BYPRODUCT";
+type StockRow = NonNullable<
+  NonNullable<
+    NonNullable<ResultOf<typeof ShipmentStockDoc>["shipmentStock"]>["items"]
+  >[number]
+>;
 
 export function CargoLineForm({
   shipmentId,
   category,
+  stock,
   onChanged,
 }: {
   shipmentId: string;
   category: string;
+  // Loadable kg per product group at this factory (shipmentStock).
+  stock: StockRow[];
   onChanged: () => void;
 }) {
   const isExport = category === "EXPORT";
@@ -73,6 +82,25 @@ export function CargoLineForm({
   const wrappers = compact(catData?.byproductWrappers?.byproductWrappers);
   const selectedWrapper = wrappers.find((w) => w.id === bpWrapperId) ?? null;
   const constants = compact(selectedWrapper?.items).filter((i) => i.isActive);
+
+  // Remaining meat per animal (the strip) + the picked product's remaining.
+  const meatStock = stock.filter(
+    (r) => r.productType === "MEAT" && meatOptions.includes(r.animalType ?? ""),
+  );
+  const bpName = constants.find((c) => c.id === bpConstantId)?.name;
+  const picked =
+    productType === "MEAT"
+      ? animalType
+        ? (meatStock.find((r) => r.animalType === animalType)?.availableKg ?? 0)
+        : null
+      : bpName
+        ? (stock.find(
+            (r) =>
+              r.productType === "BYPRODUCT" &&
+              r.animalType === bpAnimal &&
+              r.byproductName === bpName,
+          )?.availableKg ?? 0)
+        : null;
 
   // Live net preview from gross − tare.
   const previewNet = useMemo(() => {
@@ -148,6 +176,29 @@ export function CargoLineForm({
         <CardTitle>Ачаа нэмэх</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <div className="text-xs text-muted-foreground">
+            Үлдэгдэл мах (нээлттэй ачилтуудын ачааг хассан)
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {meatStock.length === 0 ? (
+              <span className="text-sm text-muted-foreground">Нөөц алга</span>
+            ) : (
+              meatStock.map((r) => (
+                <div
+                  key={r.groupKey}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                >
+                  {r.animalType}:{" "}
+                  <b className="tabular-nums">
+                    {formatNumber(Math.max(0, r.availableKg ?? 0))} кг
+                  </b>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Product-type toggle. Byproduct is domestic-only. */}
         <Tabs
           value={productType}
@@ -303,6 +354,14 @@ export function CargoLineForm({
             </Button>
           </div>
         </div>
+        {picked != null ? (
+          <div className="text-sm">
+            Үлдэгдэл:{" "}
+            <b className="tabular-nums">
+              {formatNumber(Math.max(0, picked))} кг
+            </b>
+          </div>
+        ) : null}
         <div className="text-xs text-muted-foreground">
           Цэвэр жин:{" "}
           <span className="font-medium text-foreground tabular-nums">

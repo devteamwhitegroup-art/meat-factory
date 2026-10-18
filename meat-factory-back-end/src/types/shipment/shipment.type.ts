@@ -1,4 +1,5 @@
 import { TDateRange, TPagination } from '../global/global.type';
+import { PRODUCT_TYPE } from '../sales/sales-transaction.type';
 
 export enum SHIPMENT_STATUS {
   PENDING = 'PENDING',
@@ -81,3 +82,15 @@ export type TGetShipments = {
   customerId?: string;
   dateRange?: TDateRange;
 } & TPagination;
+
+// Loadable stock of one product group at a factory: on-hand minus cargo
+// already on undelivered (PENDING/LOADED) shipments.
+export type TShipmentStockRow = {
+  groupKey: string;
+  productType: PRODUCT_TYPE;
+  animalType: string | null;
+  byproductName: string | null;
+  onHandKg: number;
+  reservedKg: number;
+  availableKg: number;
+};

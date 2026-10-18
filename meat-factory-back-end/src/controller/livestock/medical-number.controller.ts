@@ -4,6 +4,8 @@ import sequelize from "../../config/db-connection";
 import { MedicalNumberModel } from "../../models/livestock/medical-number.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { HerderModel } from "../../models/livestock/herder.model";
+import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
 import { AdminModel } from "../../models/user/admin.model";
 import { RegistrationController } from "./registration.controller";
 import { AdminController } from "../user/admin.controller";
@@ -11,6 +13,7 @@ import {
   MEDICAL_NUMBER_RE,
   MEDICAL_NUMBER_STATUS,
   TGetMedicalNumbers,
+  TMedicalScope,
 } from "../../types/livestock/medical-number.type";
 import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
@@ -126,16 +129,58 @@ export class MedicalNumberController {
   }
 
   // The vet's worklist. Cancelled intakes are left out.
+  // Non-cancelled registrations of the actor's factory taken in during the
+  // range — the same rows back the worklist and the head-count summary.
+  private static _registrationWhere(
+    doc: TMedicalScope,
+    context: TContext,
+  ): WhereOptions {
+    const factory = AdminController.readFactory(context, doc.factory);
+    return {
+      status: { [Op.ne]: REGISTRATION_STATUS.CANCELLED },
+      ...(factory ? { factory } : {}),
+      ...dateRangeWhere(doc.dateRange, "intakeDate"),
+    };
+  }
+
+  // Head brought in per animal over the scope (vet summary above the list).
+  static async animalCounts(
+    doc: TMedicalScope,
+    context: TContext,
+  ): Promise<{ animalType: string; count: number }[]> {
+    const lines = await RegistrationAnimalLineModel.findAll({
+      attributes: ["count"],
+      include: [
+        {
+          model: RegistrationModel,
+          as: "registration",
+          attributes: [],
+          required: true,
+          where: this._registrationWhere(doc, context),
+        },
+        { model: AnimalModel, as: "animal", attributes: ["name"] },
+      ],
+    });
+    const totals = new Map<string, number>();
+    for (const l of lines) {
+      const name = l.animal?.name ?? "—";
+      totals.set(name, (totals.get(name) ?? 0) + l.count);
+    }
+    // Pre-butchered lines carry no head count → dropped.
+    return [...totals]
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([animalType, count]) => ({ animalType, count }));
+  }
+
   static async list(
     doc: TGetMedicalNumbers,
     context: TContext,
   ): Promise<TPaginationGeneric<MedicalNumberModel>> {
-    const factory = AdminController.readFactory(context, doc.factory);
     const where: WhereOptions = {};
     if (doc.status) Object.assign(where, { status: doc.status });
     const digits = (doc.number ?? "").replace(/\D/g, "");
     if (digits) Object.assign(where, { number: { [Op.like]: `%${digits}%` } });
-    Object.assign(where, dateRangeWhere(doc.dateRange, "createdAt"));
 
     return listPaginated(MedicalNumberModel, doc, {
       where,
@@ -144,10 +189,7 @@ export class MedicalNumberController {
           model: RegistrationModel,
           as: "registration",
           required: true,
-          where: {
-            status: { [Op.ne]: REGISTRATION_STATUS.CANCELLED },
-            ...(factory ? { factory } : {}),
-          },
+          where: this._registrationWhere(doc, context),
           include: [{ model: HerderModel, as: "herder" }],
         },
         {

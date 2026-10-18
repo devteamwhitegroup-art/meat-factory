@@ -54,6 +54,25 @@ export default `#graphql
         installment: SalesInstallment
     }
 
+    # A cost paid to complete the sale (fuel, parking…). The customer's bill
+    # is untouched; net = amount − Σ(expenses.amountMnt).
+    type SalesExpense {
+        id: ID
+        salesTransactionId: ID
+        name: String
+        amountMnt: Float
+        notes: String
+        createdById: ID
+        createdBy: Admin
+        createdAt: Date
+    }
+
+    type SalesExpenseResponse {
+        success: Boolean
+        message: String
+        expense: SalesExpense
+    }
+
     type SalesTransaction {
         id: ID
         transactionCode: String
@@ -73,6 +92,7 @@ export default `#graphql
         notes: String
         lineItems: [SalesLineItem]
         installments: [SalesInstallment]
+        expenses: [SalesExpense]
         createdAt: Date
         updatedAt: Date
     }
@@ -139,5 +159,14 @@ export default `#graphql
         ): SalesInstallmentResponse @auth(permissions: [SALES_MANAGE])
 
         removeSalesInstallment(id: ID!): Response @auth(permissions: [SALES_MANAGE])
+
+        addSalesExpense(
+            salesTransactionId: ID!
+            name: String!
+            amountMnt: Float!
+            notes: String
+        ): SalesExpenseResponse @auth(permissions: [SALES_MANAGE])
+
+        removeSalesExpense(id: ID!): Response @auth(permissions: [SALES_MANAGE])
     }
 `;

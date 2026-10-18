@@ -87,7 +87,8 @@ export class AdminController {
     return {
       id,
       permissions: role.permissions,
-      crossFactory: role.crossFactory,
+      // No factory = every factory (the FE reads it the same way, `!factory`).
+      crossFactory: role.crossFactory || !admin.factory,
       factory: admin.factory,
     };
   }
@@ -224,7 +225,7 @@ export class AdminController {
           param: param.toLowerCase(),
           password: SEED_ADMIN_PASSWORD,
           roleId: r.id,
-          factory: factory.code,
+          factory: r.crossFactory ? null : factory.code,
         },
       });
     }

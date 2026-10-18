@@ -15,7 +15,7 @@ export default {
     ),
     updateRole: wrapOne(
       "role",
-      (doc: TUpdateRole) => RoleController.update(doc),
+      (doc: TUpdateRole, ctx) => RoleController.update(doc, ctx),
       "Эрх хадгалагдлаа",
     ),
     deleteRole: wrapVoid("Эрх устгалаа", (doc: { id: string }) =>

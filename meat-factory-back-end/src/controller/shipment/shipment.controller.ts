@@ -1,10 +1,11 @@
-import { Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
+import { Op, Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
 import { ShipmentPhotoModel } from "../../models/shipment/shipment-photo.model";
 import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
 import { ShipmentSaleEntryModel } from "../../models/shipment/shipment-sale-entry.model";
+import { InventoryItemModel } from "../../models/inventory/inventory-item.model";
 import { CustomerModel } from "../../models/customer/customer.model";
 import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
 import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
@@ -18,6 +19,7 @@ import {
   TCreateShipment,
   TGetShipments,
   TShipment,
+  TShipmentStockRow,
 } from "../../types/shipment/shipment.type";
 import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
@@ -229,11 +231,121 @@ export class ShipmentController {
     return lines;
   }
 
+  // Loadable stock per product group at a factory. Stock only leaves the
+  // ledger at DELIVERED, so cargo on every undelivered shipment reserves it.
+  // ponytail: no lock — two loaders racing can both pass; the ledger check at
+  // DELIVERED stays the final guard (and LOADED → PENDING the way back).
+  private static async _stockByGroup(
+    factory: string,
+  ): Promise<Map<string, TShipmentStockRow>> {
+    const [items, cargo] = await Promise.all([
+      InventoryItemModel.findAll({
+        where: { factory },
+        include: [{ model: AnimalModel, as: "animal", attributes: ["name"] }],
+      }),
+      ShipmentCargoEntryModel.findAll({
+        attributes: ["productType", "animalType", "byproductName", "weightKg"],
+        include: [
+          {
+            model: ShipmentModel,
+            as: "shipment",
+            attributes: [],
+            required: true,
+            where: { factory, status: { [Op.ne]: SHIPMENT_STATUS.DELIVERED } },
+          },
+        ],
+      }),
+    ]);
+    const rows = new Map<string, TShipmentStockRow>();
+    const row = (
+      productType: PRODUCT_TYPE,
+      animalType: string | null,
+      rawName: string | null,
+    ) => {
+      const byproductName =
+        productType === PRODUCT_TYPE.BYPRODUCT ? rawName : null;
+      const groupKey = this._groupKey(productType, animalType, byproductName);
+      const r = rows.get(groupKey) ?? {
+        groupKey,
+        productType,
+        animalType,
+        byproductName,
+        onHandKg: 0,
+        reservedKg: 0,
+        availableKg: 0,
+      };
+      rows.set(groupKey, r);
+      return r;
+    };
+    for (const i of items)
+      row(i.productType, i.animal?.name ?? null, i.byproductName).onHandKg +=
+        Number(i.quantityKg);
+    for (const c of cargo)
+      row(c.productType, c.animalType, c.byproductName).reservedKg += Number(
+        c.weightKg,
+      );
+    for (const r of rows.values()) {
+      r.onHandKg = Number(r.onHandKg.toFixed(2));
+      r.reservedKg = Number(r.reservedKg.toFixed(2));
+      r.availableKg = Number((r.onHandKg - r.reservedKg).toFixed(2));
+    }
+    return rows;
+  }
+
+  // What's still loadable at the shipment's factory (cargo form helper).
+  static async availableStock(
+    shipmentId: string,
+    context: TContext,
+  ): Promise<TShipmentStockRow[]> {
+    const shipment = await this.findIdCheck(shipmentId);
+    AdminController.assertFactory(context, shipment.factory);
+    return [...(await this._stockByGroup(shipment.factory)).values()]
+      .filter((r) => r.onHandKg > 0 || r.reservedKg > 0)
+      .sort((a, b) => a.groupKey.localeCompare(b.groupKey));
+  }
+
+  private static _stockLabel(r: {
+    productType: PRODUCT_TYPE;
+    animalType: string | null;
+    byproductName: string | null;
+  }): string {
+    return r.productType === PRODUCT_TYPE.MEAT
+      ? `${r.animalType} мах`
+      : [r.animalType, r.byproductName].filter(Boolean).join(" ");
+  }
+
+  // Before the cargo freezes at LOADED: every group must still be covered,
+  // otherwise DELIVERED could never deduct it.
+  private static async _assertStockCovers(
+    shipment: ShipmentModel,
+  ): Promise<void> {
+    const stock = await this._stockByGroup(shipment.factory);
+    for (const g of await this._groupEntries(shipment.id)) {
+      const s = stock.get(g.groupKey);
+      if (s && s.availableKg < 0)
+        throw new Error(
+          `Нөөц хүрэлцэхгүй: ${this._stockLabel(g)} — нөөцөд ${s.onHandKg} кг, нээлттэй ачилтуудад ${s.reservedKg} кг`,
+        );
+    }
+  }
+
   static async updateStatus(
     id: string,
     status: SHIPMENT_STATUS,
   ): Promise<ShipmentModel> {
     const shipment = await this.findIdCheck(id);
+    // Undo "loaded" (nothing has left the ledger yet) so cargo can be fixed.
+    if (
+      shipment.status === SHIPMENT_STATUS.LOADED &&
+      status === SHIPMENT_STATUS.PENDING
+    ) {
+      if (await ShipmentSaleEntryModel.count({ where: { shipmentId: id } }))
+        throw new Error(
+          "Борлуулалтын тайлан бичигдсэн тул буцаах боломжгүй — эхлээд тайлангийн мөрүүдийг устгана уу",
+        );
+      await shipment.update({ status });
+      return shipment;
+    }
     if (FORWARD[shipment.status] !== status) {
       throw new Error(
         `Invalid status transition from ${shipment.status} to ${status}`,
@@ -259,6 +371,8 @@ export class ShipmentController {
       return shipment;
     }
 
+    if (status === SHIPMENT_STATUS.LOADED)
+      await this._assertStockCovers(shipment);
     await shipment.update({ status });
     return shipment;
   }
@@ -630,6 +744,15 @@ export class ShipmentController {
     } else {
       throw new Error("Жин оруулаагүй байна (нийт махны/сав эсвэл цэвэр)");
     }
+
+    const free =
+      (await this._stockByGroup(shipment.factory)).get(
+        this._groupKey(productType, animalType, byproductName),
+      )?.availableKg ?? 0;
+    if (net > free)
+      throw new Error(
+        `Нөөц хүрэлцэхгүй: ${defaultLabel} — ${Math.max(0, free)} кг үлдсэн`,
+      );
 
     const pieces =
       args.pieceCount != null && Number.isFinite(Number(args.pieceCount))

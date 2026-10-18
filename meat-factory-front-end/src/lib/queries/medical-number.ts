@@ -6,6 +6,7 @@ export const MedicalNumbersDoc = graphql(/* GraphQL */ `
     $status: MEDICAL_NUMBER_STATUS
     $number: String
     $factory: String
+    $dateRange: DateRangeInput
     $limit: Int
     $page: Int
   ) {
@@ -13,6 +14,7 @@ export const MedicalNumbersDoc = graphql(/* GraphQL */ `
       status: $status
       number: $number
       factory: $factory
+      dateRange: $dateRange
       limit: $limit
       page: $page
     ) {
@@ -40,6 +42,20 @@ export const MedicalNumbersDoc = graphql(/* GraphQL */ `
             phone
           }
         }
+      }
+    }
+  }
+`);
+
+// Head brought in per animal — same factory/date scope as the list.
+export const MedicalAnimalCountsDoc = graphql(/* GraphQL */ `
+  query MedicalAnimalCounts($factory: String, $dateRange: DateRangeInput) {
+    medicalAnimalCounts(factory: $factory, dateRange: $dateRange) {
+      success
+      message
+      items {
+        animalType
+        count
       }
     }
   }

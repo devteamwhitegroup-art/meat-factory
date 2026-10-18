@@ -46,8 +46,13 @@ export default async function EditRegistrationPage({
   const session = await requireCap("REGISTRATION_CREATE");
   const factories = await getFactories();
   const { id } = await params;
+  // Weight log is weighers-only (BE enforces the same on the request).
+  const canWeigh = session.can("REGISTRATION_WEIGH", "REGISTRATION_WEIGH_FIX");
+  const sections = canWeigh ? SECTIONS : SECTIONS.slice(0, 1);
   const section =
-    (await searchParams).section === "weighing" ? "weighing" : "intake";
+    canWeigh && (await searchParams).section === "weighing"
+      ? "weighing"
+      : "intake";
   const client = getClient();
   const [{ data }, { data: reqData }] = await Promise.all([
     client.query({ query: RegistrationDetailDoc, variables: { id } }),
@@ -105,7 +110,7 @@ export default async function EditRegistrationPage({
 
       <div className="grid gap-6 md:grid-cols-[14rem_1fr]">
         <nav className="flex gap-2 md:flex-col">
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <Link
               key={s.value}
               href={`/registrations/${id}/edit?section=${s.value}`}

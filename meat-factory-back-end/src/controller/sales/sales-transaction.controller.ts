@@ -3,6 +3,7 @@ import sequelize from "../../config/db-connection";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { SalesLineItemModel } from "../../models/sales/sales-line-item.model";
 import { SalesInstallmentModel } from "../../models/sales/sales-installment.model";
+import { SalesExpenseModel } from "../../models/sales/sales-expense.model";
 import { CustomerModel } from "../../models/customer/customer.model";
 import { ShipmentModel } from "../../models/shipment/shipment.model";
 import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
@@ -357,6 +358,7 @@ export class SalesTransactionController {
             as: "installments",
             order: [["paidAt", "ASC"]],
           },
+          { model: SalesExpenseModel, as: "expenses" },
         ],
       },
     );
@@ -438,6 +440,37 @@ export class SalesTransactionController {
       await this._resyncPaymentStatus(tx.id, t);
       return row;
     });
+  }
+
+  // ─── Other expenses (fuel, parking…) — cost only, the bill is untouched.
+
+  static async addExpense(
+    args: {
+      salesTransactionId: string;
+      name: string;
+      amountMnt: number;
+      notes?: string | null;
+    },
+    context: TContext,
+  ): Promise<SalesExpenseModel> {
+    const tx = await this.findIdCheck(args.salesTransactionId);
+    const name = args.name?.trim();
+    if (!name) throw new Error("Зардлын нэр оруулна уу");
+    const amt = Number(args.amountMnt);
+    if (!Number.isFinite(amt) || amt <= 0)
+      throw new Error("Дүн эерэг тоо байх ёстой");
+    return SalesExpenseModel.create({
+      salesTransactionId: tx.id,
+      name,
+      amountMnt: Number(amt.toFixed(2)),
+      notes: args.notes?.trim() || null,
+      createdById: context.id,
+    });
+  }
+
+  static async removeExpense(id: string): Promise<void> {
+    const row = await findOrThrow(SalesExpenseModel, id, "Зардал олдсонгүй");
+    await row.destroy();
   }
 
   static async removeInstallment(id: string): Promise<void> {

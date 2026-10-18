@@ -7,6 +7,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { MEDICAL_NUMBER_STATUS_MN } from "@/lib/format/enum";
 import { getFactories } from "@/lib/factory/server";
+import { pageAndRange } from "@/lib/date/range";
 import { factoryName } from "@/lib/factory/factories";
 import type { Medical_Number_Status } from "@/lib/gql/graphql";
 
@@ -26,6 +27,10 @@ export async function GET(req: NextRequest) {
       status: (p.get("status") || null) as Medical_Number_Status | null,
       number: p.get("q") || null,
       factory: (p.get("factory") || null) as never,
+      dateRange: pageAndRange({
+        from: p.get("from") ?? undefined,
+        to: p.get("to") ?? undefined,
+      }).dateRange,
       limit: MAX_ROWS,
       page: 1,
     },

@@ -24,4 +24,5 @@ export type TUpdateRole = {
   id: string;
   name?: string | null;
   permissions?: PERMISSION[] | null;
+  crossFactory?: boolean | null;
 };

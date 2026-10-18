@@ -49,5 +49,21 @@ export default {
     removeSalesInstallment: wrapVoid("Устгагдлаа", ({ id }: { id: string }) =>
       SalesTransactionController.removeInstallment(id),
     ),
+    addSalesExpense: wrapOne(
+      "expense",
+      (
+        doc: {
+          salesTransactionId: string;
+          name: string;
+          amountMnt: number;
+          notes?: string | null;
+        },
+        ctx,
+      ) => SalesTransactionController.addExpense(doc, ctx),
+      "Зардал бүртгэгдлээ",
+    ),
+    removeSalesExpense: wrapVoid("Устгагдлаа", ({ id }: { id: string }) =>
+      SalesTransactionController.removeExpense(id),
+    ),
   },
 };
