@@ -67,8 +67,8 @@ export default `#graphql
         createdAt: Date
     }
 
-    # Herder-facing byproduct row: one per wrapper (гэдэс, LIVE_SLAUGHTER)
-    # or item (constantId, PRE_BUTCHERED) from the site's price list. The
+    # Herder-facing byproduct row: one per wrapper (гэдэс) or item
+    # (constantId, PRE_BUTCHERED only) from the site's price list. The
     # factory keeps count − herderCount and credits them × unitPrice to the
     # settlement. id is null until first saved (defaults: factory keeps all).
     type ByproductBundle {
@@ -83,7 +83,7 @@ export default `#graphql
     }
 
     input ByproductBundleInput {
-        # LIVE_SLAUGHTER: wrapperId; PRE_BUTCHERED: constantId.
+        # Whole гэдэс: wrapperId; single item (PRE_BUTCHERED): constantId.
         wrapperId: ID
         constantId: ID
         count: Int!

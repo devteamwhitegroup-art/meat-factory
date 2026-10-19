@@ -37,9 +37,9 @@ export type TUpdateFactory = {
 
 export const FACTORY_CODE_RE = /^[A-Z][A-Z0-9_]{1,31}$/;
 
-// A site's priced byproduct list (FactoryByproducts). The kind decides what
-// is priced: LIVE_SLAUGHTER → whole гэдэс (wrapperId), PRE_BUTCHERED →
-// individual items (constantId). BYPRODUCT sites have none.
+// A site's priced byproduct list (FactoryByproducts). LIVE_SLAUGHTER prices
+// whole гэдэс (wrapperId); PRE_BUTCHERED whole гэдэс and/or single items
+// (constantId). BYPRODUCT sites have none.
 export type TFactoryByproduct = {
   id: string;
   factory: string;

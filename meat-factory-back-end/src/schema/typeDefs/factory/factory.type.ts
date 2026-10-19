@@ -28,8 +28,8 @@ export default `#graphql
         factories: [Factory!]
     }
 
-    # A site's priced byproduct. LIVE_SLAUGHTER: whole гэдэс (wrapperId);
-    # PRE_BUTCHERED: single items (constantId), price editable per intake.
+    # A site's priced byproduct: whole гэдэс (wrapperId) or, PRE_BUTCHERED
+    # only, a single item (constantId). PRE_BUTCHERED price is editable per intake.
     type FactoryByproduct {
         id: ID
         factory: String
@@ -65,8 +65,8 @@ export default `#graphql
             isActive: Boolean
         ): FactoryResponse @auth(permissions: [SETTINGS_MANAGE])
 
-        # Adds or re-prices. Pass wrapperId (LIVE_SLAUGHTER) or constantId
-        # (PRE_BUTCHERED) — the factory's kind decides which.
+        # Adds or re-prices. wrapperId = whole гэдэс; constantId = single
+        # item (PRE_BUTCHERED only).
         setFactoryByproduct(
             factory: String!
             wrapperId: ID

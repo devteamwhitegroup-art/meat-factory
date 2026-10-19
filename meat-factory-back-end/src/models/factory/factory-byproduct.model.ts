@@ -4,7 +4,7 @@ import { ByproductWrapperModel } from "../livestock/byproduct-wrapper.model";
 import { ByproductConstantModel } from "../livestock/byproduct-constant.model";
 
 // One priced byproduct a site receives. Exactly one of wrapperId (whole
-// гэдэс, LIVE_SLAUGHTER) / constantId (single item, PRE_BUTCHERED) is set.
+// гэдэс) / constantId (single item, PRE_BUTCHERED only) is set.
 export class FactoryByproductModel extends Model implements TFactoryByproduct {
   public id!: string;
   public factory!: string;

@@ -1,6 +1,6 @@
 // Herder-facing byproduct row per registration — see ByproductBundleModel.
-// wrapperId (LIVE_SLAUGHTER) or constantId (PRE_BUTCHERED). Intake is count
-// only.
+// wrapperId (whole гэдэс) or constantId (single item, PRE_BUTCHERED only).
+// Intake is count only.
 export type TByproductBundle = {
   id: string;
   registrationId: string;

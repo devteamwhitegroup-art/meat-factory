@@ -194,15 +194,12 @@ export class ByproductBundleController {
     });
     // One bundle per slaughtered head at most (LIVE_SLAUGHTER).
     const heads = new Map(lines.map((l) => [l.animalId, l.count]));
-    // Only what the site's price list holds: wrappers (LIVE_SLAUGHTER) or
-    // items (PRE_BUTCHERED).
+    // Only what the site's price list holds (wrapper or item rows).
     const list = await this._priceList(factory);
-    const byKey = new Map(
-      list.map((p) => [(pre ? p.constantId : p.wrapperId) ?? "", p]),
-    );
+    const byKey = new Map(list.map((p) => [p.constantId ?? p.wrapperId, p]));
     const seen = new Set<string>();
     return bundles.map((b) => {
-      const key = (pre ? b.constantId : b.wrapperId) ?? "";
+      const key = b.constantId ?? b.wrapperId ?? "";
       const p = byKey.get(key);
       const { name, wrapper } = p ? describe(p) : { name: "", wrapper: null };
       if (!p || !wrapper || !heads.has(wrapper.animalId))

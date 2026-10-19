@@ -47,12 +47,15 @@ const HINT: Record<string, string> = {
   LIVE_SLAUGHTER:
     "Бүртгэл бүрт эдгээр гэдэсийг малын тоогоор санал болгоно. Малчин авахгүй гэдэс бүрийн үнийг бой зардлаас хасна. Үнэ 0 бол малчнаас асуухгүй — үйлдвэрт үлдэнэ.",
   PRE_BUTCHERED:
-    "Хүлээн авахдаа эдгээр дайварыг тоолно. Энд тохируулсан үнийг ажилтан тухайн өдрийн зах зээлээр өөрчилж болно.",
+    "Бүтэн багц (гэдэс) эсвэл дан дайвар сонгоно. Хүлээн авахдаа тоолох бөгөөд энд тохируулсан үнийг ажилтан тухайн өдрийн зах зээлээр өөрчилж болно.",
 };
 
+// Item-step option meaning "the whole wrapper, not one item inside it".
+const WHOLE = "__whole";
+
 // A site's byproduct price list. LIVE_SLAUGHTER prices whole гэдэс
-// (wrappers); PRE_BUTCHERED picks the single items it receives (constants).
-// Adding an entry that's already listed just re-prices it (BE upserts).
+// (wrappers); PRE_BUTCHERED picks whole гэдэс and/or single items
+// (constants). Adding an entry that's already listed re-prices it (upsert).
 export function FactoryByproducts({
   factory,
   kind,
@@ -82,21 +85,30 @@ export function FactoryByproducts({
   const [busy, setBusy] = useState(false);
 
   const rows = compact(data?.factoryByproducts?.factoryByproducts);
-  const listed = new Set(
-    rows.map((r) => (byItem ? r.constantId : r.wrapperId)),
-  );
-  // Only what can still be added: unlisted wrappers, or wrappers that still
-  // hold an unlisted active item.
+  const listed = new Set(rows.map((r) => r.constantId ?? r.wrapperId));
+  // Only what can still be added: unlisted wrappers, or (PRE_BUTCHERED)
+  // wrappers that still hold an unlisted active item.
   const addableItems = (w: Wrapper) =>
     compact(w.items).filter((i) => i.isActive && !listed.has(i.id));
   const wrappers = compact(catalog?.byproductWrappers?.byproductWrappers)
-    .filter((w) => (byItem ? addableItems(w).length > 0 : !listed.has(w.id)))
+    .filter((w) => !listed.has(w.id) || (byItem && addableItems(w).length > 0))
     .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
   const animals = [...new Set(wrappers.map((w) => w.animalType ?? ""))].sort();
   const animalWrappers = wrappers.filter((w) => w.animalType === animal);
   const wrapper = animalWrappers.find((w) => w.id === wrapperId);
-  const items = wrapper ? addableItems(wrapper) : [];
-  const pick = byItem ? constantId : wrapper ? wrapperId : "";
+  const itemOptions = wrapper
+    ? [
+        ...(listed.has(wrapper.id) ? [] : [{ id: WHOLE, label: "Бүтэн багц" }]),
+        ...addableItems(wrapper).map((i) => ({ id: i.id!, label: i.name! })),
+      ]
+    : [];
+  const target = !wrapper
+    ? null
+    : !byItem || constantId === WHOLE
+      ? { wrapperId: wrapper.id! }
+      : constantId
+        ? { constantId }
+        : null;
 
   async function save(
     target: { wrapperId?: string | null; constantId?: string | null },
@@ -127,14 +139,11 @@ export function FactoryByproducts({
   }
 
   async function add() {
-    if (!pick)
+    if (!target)
       return void toast.error(
         byItem ? "Дайвар сонгоно уу" : "Гэдэс сонгоно уу",
       );
-    const ok = await save(
-      byItem ? { constantId: pick } : { wrapperId: pick },
-      price,
-    );
+    const ok = await save(target, price);
     if (ok) {
       // Keep animal (+ wrapper for items) to add its siblings next.
       if (byItem) setConstantId("");
@@ -193,7 +202,7 @@ export function FactoryByproducts({
               placeholder="Дайвар"
               value={constantId}
               disabled={!wrapper}
-              options={items.map((i) => ({ id: i.id!, label: i.name! }))}
+              options={itemOptions}
               onChange={setConstantId}
             />
           ) : null}
@@ -234,7 +243,14 @@ export function FactoryByproducts({
                   return (
                     <TableRow key={id}>
                       <TableCell>{r.animalType}</TableCell>
-                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {r.name}
+                        {byItem && r.wrapperId ? (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            бүтэн багц
+                          </span>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <Input
                           aria-label={`${r.name} үнэ`}

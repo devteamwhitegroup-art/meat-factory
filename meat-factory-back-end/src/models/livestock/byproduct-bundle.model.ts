@@ -4,9 +4,8 @@ import { RegistrationModel } from "./registration.model";
 import { ByproductWrapperModel } from "./byproduct-wrapper.model";
 import { ByproductConstantModel } from "./byproduct-constant.model";
 
-// Herder-facing byproduct row per registration: one per wrapper (гэдэс,
-// LIVE_SLAUGHTER) or per item (constantId, PRE_BUTCHERED) — exactly one is
-// set. `count` received, `herderCount` of them taken back by the herder; the
+// Herder-facing byproduct row per registration: one per wrapper (гэдэс) or
+// per item (constantId, PRE_BUTCHERED only) — exactly one is set. `count` received, `herderCount` of them taken back by the herder; the
 // rest stay with the factory and credit (count − herderCount) × unitPrice to
 // the settlement. unitPrice = the site's price list, snapshotted at save
 // (PRE_BUTCHERED: as typed by the receiver).

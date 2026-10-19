@@ -133,8 +133,8 @@ export class FactoryController {
 
   // ── Byproduct price list ──
   // LIVE_SLAUGHTER prices whole гэдэс (herder may take some back at verify);
-  // PRE_BUTCHERED picks the individual items it receives, and the price is
-  // only a default the receiver may change per registration.
+  // PRE_BUTCHERED picks what it receives — whole гэдэс and/or single items —
+  // and the price is only a default the receiver may change per registration.
   static async byproducts(code: string): Promise<TFactoryByproductView[]> {
     this.get(code);
     const rows = await FactoryByproductModel.findAll({
@@ -168,17 +168,19 @@ export class FactoryController {
     const price = Number(doc.price);
     if (!Number.isFinite(price) || price < 0)
       throw new Error("Үнэ сөрөг байж болохгүй");
+    if (kind === FACTORY_KIND.BYPRODUCT)
+      throw new Error("Дайврын үйлдвэрт үнэ тохируулахгүй");
+    // Items only at PRE_BUTCHERED; exactly one of the two.
+    const constantId =
+      kind === FACTORY_KIND.PRE_BUTCHERED ? doc.constantId : null;
     let key: { wrapperId: string } | { constantId: string };
-    if (kind === FACTORY_KIND.LIVE_SLAUGHTER) {
+    if (constantId) {
+      await findOrThrow(ByproductConstantModel, constantId, "Дайвар олдсонгүй");
+      key = { constantId };
+    } else {
       if (!doc.wrapperId) throw new Error("Гэдэс сонгоно уу");
       await findOrThrow(ByproductWrapperModel, doc.wrapperId, "Багц олдсонгүй");
       key = { wrapperId: doc.wrapperId };
-    } else if (kind === FACTORY_KIND.PRE_BUTCHERED) {
-      if (!doc.constantId) throw new Error("Дайвар сонгоно уу");
-      await findOrThrow(ByproductConstantModel, doc.constantId, "Дайвар олдсонгүй");
-      key = { constantId: doc.constantId };
-    } else {
-      throw new Error("Дайврын үйлдвэрт үнэ тохируулахгүй");
     }
     const where = { factory: doc.factory, ...key };
     const row =
