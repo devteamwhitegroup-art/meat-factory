@@ -1,0 +1,25 @@
+{
+  // This file is JSONC: fallow reads these comments; generic JSON tools may not.
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.ts",
+    // Print relay runs on the shop PC, not inside the server.
+    "relay/relay.mjs",
+    // Standalone assert self-checks: npx ts-node <file>
+    "src/**/*.check.ts"
+  ],
+  // Sequelize loads the postgres driver by name.
+  "ignoreDependencies": ["pg"],
+  // Sequelize models: attributes/associations are `declare`d for typing and
+  // read through includes (`as: "..."`), which fallow can't see.
+  "usedClassMembers": [
+    { "extends": "Model", "members": ["*"] },
+    // Public cross-controller FK guard by convention (see CLAUDE.md).
+    "findIdCheck"
+  ],
+  "duplicates": {
+    // Hide pair-only clones; focus on widespread copy-paste.
+    "minOccurrences": 3
+  },
+  "rules": {}
+}

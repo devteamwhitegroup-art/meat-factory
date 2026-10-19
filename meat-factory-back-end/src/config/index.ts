@@ -20,11 +20,6 @@ export default {
   SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || "",
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || "",
 
-  // Telegram bot used for storage-threshold alerts. Both must be set for the
-  // alert to fire; otherwise the helper logs and skips.
-  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
-  TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
-
   DB_SYNC_ON_START:
     (process.env.POSTGRES_SYNC_ON_START || "false").toLowerCase() === "true",
   DB_SYNC_ALTER:

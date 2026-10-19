@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { EmptyState } from "@/components/common/ListState";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
 
@@ -168,9 +169,7 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
           </ul>
         </div>
       ) : (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Махны нөөц алга
-        </div>
+        <EmptyState>Махны нөөц алга</EmptyState>
       )}
 
       {/* ── Detailed table ── */}
@@ -247,11 +246,7 @@ function ByproductPanel({
     );
 
   if (sorted.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-        Дайвар нөөц алга
-      </div>
-    );
+    return <EmptyState>Дайвар нөөц алга</EmptyState>;
   }
 
   return (

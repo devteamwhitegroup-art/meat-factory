@@ -6,14 +6,13 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RegistrationTitle } from "../_components/RegistrationTitle";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NumericKeypad } from "@/components/forms/NumericKeypad";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
-import { StatusBadge } from "@/components/registration/StatusBadge";
-import { BackButton } from "@/components/common/BackButton";
 import {
   formatDecimalInput,
   formatNumber,
@@ -286,18 +285,11 @@ export function WeighClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href={`/registrations/${id}`} />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-2xl font-semibold">
-                {reg.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={reg.status} />
-            </div>
-          </div>
-        </div>
+        <RegistrationTitle
+          id={id}
+          code={reg.registrationCode}
+          status={reg.status}
+        />
         {/* Finish (the REGISTERED → WEIGHED transition) only makes sense
             while still REGISTERED. Afterwards the registration is already
             WEIGHED or beyond — this page is also reachable then, via "Жин

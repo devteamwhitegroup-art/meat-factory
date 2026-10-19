@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -84,16 +85,10 @@ export async function CustomerSalesTab({
         </Link>
       </div>
 
-      {errorMsg ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {errorMsg}
-        </div>
-      ) : null}
+      <ErrorNotice message={errorMsg} />
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Гүйлгээ олдсонгүй
-        </div>
+        <EmptyState>Гүйлгээ олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>

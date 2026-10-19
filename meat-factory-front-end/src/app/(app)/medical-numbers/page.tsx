@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { DownloadIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
+import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -215,16 +217,10 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {errorMsg ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {errorMsg}
-        </div>
-      ) : null}
+      <ErrorNotice message={errorMsg} />
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Дугаар олдсонгүй
-        </div>
+        <EmptyState>Дугаар олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -300,28 +296,14 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Нийт: {count}</span>
-        <div className="flex items-center gap-2">
-          {page > 1 ? (
-            <Link
-              href={href({ page: String(page - 1) })}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              ←
-            </Link>
-          ) : null}
-          <span>Хуудас {page}</span>
-          {page * PAGE_SIZE < count ? (
-            <Link
-              href={href({ page: String(page + 1) })}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              →
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <LinkPaginationFooter
+        page={page}
+        total={count}
+        prevHref={page > 1 ? href({ page: String(page - 1) }) : null}
+        nextHref={
+          page * PAGE_SIZE < count ? href({ page: String(page + 1) }) : null
+        }
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
+import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -68,17 +70,11 @@ export default async function ByproductPage({
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorNotice message={error} />
 
       <div className="space-y-3">
         {rows.length === 0 ? (
-          <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-            Задлалт алга
-          </div>
+          <EmptyState>Задлалт алга</EmptyState>
         ) : (
           rows.map((p) => (
             <Card key={p.id!}>
@@ -140,28 +136,12 @@ export default async function ByproductPage({
             </Card>
           ))
         )}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Нийт: {count}</span>
-          <div className="space-x-2">
-            {page > 1 ? (
-              <Link
-                href={pageHref(page - 1)}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                ←
-              </Link>
-            ) : null}
-            <span>Хуудас {page}</span>
-            {rows.length >= PAGE_SIZE ? (
-              <Link
-                href={pageHref(page + 1)}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                →
-              </Link>
-            ) : null}
-          </div>
-        </div>
+        <LinkPaginationFooter
+          page={page}
+          total={count}
+          prevHref={page > 1 ? pageHref(page - 1) : null}
+          nextHref={rows.length >= PAGE_SIZE ? pageHref(page + 1) : null}
+        />
       </div>
     </div>
   );

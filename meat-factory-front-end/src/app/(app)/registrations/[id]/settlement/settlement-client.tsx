@@ -5,12 +5,11 @@ import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { RegistrationTitle } from "../_components/RegistrationTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { StatusBadge } from "@/components/registration/StatusBadge";
-import { BackButton } from "@/components/common/BackButton";
 import { PrintButton } from "@/components/common/PrintButton";
 import {
   SettlementPreview,
@@ -242,18 +241,11 @@ export function SettlementClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href={`/registrations/${id}`} />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-2xl font-semibold">
-                {reg.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={reg.status} />
-            </div>
-          </div>
-        </div>
+        <RegistrationTitle
+          id={id}
+          code={reg.registrationCode}
+          status={reg.status}
+        />
         {existing ? (
           <div className="flex items-center gap-2">
             {existing.id ? (

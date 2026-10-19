@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common/ListState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -150,9 +151,7 @@ export function AdminsSection() {
       {loading && admins.length === 0 ? (
         <Skeleton className="h-48 w-full" />
       ) : admins.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Ажилтан алга
-        </div>
+        <EmptyState>Ажилтан алга</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -179,9 +178,7 @@ export function AdminsSection() {
                   </TableCell>
                   <TableCell>
                     {a.role?.crossFactory ? (
-                      <span className="text-muted-foreground">
-                        Бүх үйлдвэр
-                      </span>
+                      <span className="text-muted-foreground">Бүх үйлдвэр</span>
                     ) : a.factory ? (
                       nameOf(a.factory)
                     ) : (

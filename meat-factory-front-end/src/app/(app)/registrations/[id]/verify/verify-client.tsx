@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RegistrationTitle } from "../_components/RegistrationTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,8 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { StatusBadge } from "@/components/registration/StatusBadge";
-import { BackButton } from "@/components/common/BackButton";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { WeighSlip } from "../_components/WeighSlip";
 import { PreButcheredVerify } from "./PreButcheredVerify";
@@ -169,18 +168,11 @@ export function VerifyClient({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href={`/registrations/${id}`} />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-2xl font-semibold">
-                {reg.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={reg.status} />
-            </div>
-          </div>
-        </div>
+        <RegistrationTitle
+          id={id}
+          code={reg.registrationCode}
+          status={reg.status}
+        />
         <div className="flex items-center gap-2">
           {/* Herder's byproduct take is decided here, so verify leads
               straight to the settlement. */}

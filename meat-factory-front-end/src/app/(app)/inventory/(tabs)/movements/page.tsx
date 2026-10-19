@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
+import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import {
   Table,
   TableBody,
@@ -111,15 +112,9 @@ export default async function InventoryMovementsPage({ searchParams }: Props) {
       <div className="text-sm text-muted-foreground">
         Нөөц рүү орсон / гарсан хөдөлгөөн бүр, үлдэгдэл хэрхэн өөрчлөгдсөн.
       </div>
-      {error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorNotice message={error} />
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Хөдөлгөөн алга
-        </div>
+        <EmptyState>Хөдөлгөөн алга</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -220,28 +215,14 @@ export default async function InventoryMovementsPage({ searchParams }: Props) {
           </Table>
         </div>
       )}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Нийт: {count}</span>
-        <div className="flex items-center gap-2">
-          {page > 1 ? (
-            <Link
-              href={href({ page: String(page - 1) })}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              ←
-            </Link>
-          ) : null}
-          <span>Хуудас {page}</span>
-          {page * PAGE_SIZE < count ? (
-            <Link
-              href={href({ page: String(page + 1) })}
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              →
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <LinkPaginationFooter
+        page={page}
+        total={count}
+        prevHref={page > 1 ? href({ page: String(page - 1) }) : null}
+        nextHref={
+          page * PAGE_SIZE < count ? href({ page: String(page + 1) }) : null
+        }
+      />
     </div>
   );
 }

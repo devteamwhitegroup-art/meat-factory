@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import {
   Table,
   TableBody,
@@ -79,16 +80,10 @@ export async function HerderSettlementsTab({
         })}
       </div>
 
-      {errorMsg ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {errorMsg}
-        </div>
-      ) : null}
+      <ErrorNotice message={errorMsg} />
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Тооцоо олдсонгүй
-        </div>
+        <EmptyState>Тооцоо олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>

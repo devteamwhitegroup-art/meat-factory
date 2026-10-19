@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { BackButton } from "@/components/common/BackButton";
 import { getClient } from "@/lib/apollo/server";
 import { requireCap } from "@/lib/auth/server";
@@ -72,17 +73,11 @@ export default async function NewFactoryTransferPage({ searchParams }: Props) {
       ) : null}
 
       {!from ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Илгээх үйлдвэрээ сонгоно уу.
-        </div>
+        <EmptyState>Илгээх үйлдвэрээ сонгоно уу.</EmptyState>
       ) : error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorNotice message={error} />
       ) : items.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Илгээх нөөц алга
-        </div>
+        <EmptyState>Илгээх нөөц алга</EmptyState>
       ) : (
         <TransferSendForm
           fromFactory={from}

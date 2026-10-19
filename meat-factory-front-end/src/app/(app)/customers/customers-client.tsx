@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common/ListState";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -373,9 +374,7 @@ export function CustomersClient() {
       {fetching && customers.length === 0 ? (
         <Skeleton className="h-48 w-full" />
       ) : customers.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Харилцагч олдсонгүй
-        </div>
+        <EmptyState>Харилцагч олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>

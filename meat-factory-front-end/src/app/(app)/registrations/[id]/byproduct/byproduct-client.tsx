@@ -7,10 +7,10 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { RegistrationTitle } from "../_components/RegistrationTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/registration/StatusBadge";
 import { BackButton } from "@/components/common/BackButton";
 import { formatMNT } from "@/lib/format/money";
 import { useFactories } from "@/lib/factory/FactoriesProvider";
@@ -81,7 +81,8 @@ export function ByproductClient({ id }: { id: string }) {
       <div className="space-y-4">
         <BackButton href={`/registrations/${id}`} />
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Задалсан мах хүлээн авах үйлдвэрт гэдэсийг жинлэх хуудсан дээр бүртгэнэ.{" "}
+          Задалсан мах хүлээн авах үйлдвэрт гэдэсийг жинлэх хуудсан дээр
+          бүртгэнэ.{" "}
           <Link
             href={`/registrations/${id}/weigh`}
             className="font-medium text-primary underline"
@@ -144,18 +145,11 @@ export function ByproductClient({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href={`/registrations/${id}`} />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-2xl font-semibold">
-                {reg.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={reg.status} />
-            </div>
-          </div>
-        </div>
+        <RegistrationTitle
+          id={id}
+          code={reg.registrationCode}
+          status={reg.status}
+        />
         <Button variant="outline" onClick={onNext} disabled={busy}>
           {busy ? "Хадгалж байна…" : "Дараах: Тооцоо →"}
         </Button>

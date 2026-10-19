@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -206,16 +207,10 @@ export async function ShipmentListView({
         </div>
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorNotice message={error} />
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Ачилт олдсонгүй
-        </div>
+        <EmptyState>Ачилт олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>

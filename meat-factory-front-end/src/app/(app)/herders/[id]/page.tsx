@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/common/ListState";
+import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -157,9 +158,7 @@ export default async function HerderDetailPage({
       <div className="space-y-2">
         <div className="text-lg font-semibold">Бүртгэлүүд</div>
         {regs.length === 0 ? (
-          <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-            Бүртгэл алга
-          </div>
+          <EmptyState>Бүртгэл алга</EmptyState>
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -205,28 +204,14 @@ export default async function HerderDetailPage({
             </Table>
           </div>
         )}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Нийт: {count}</span>
-          <div className="flex items-center gap-2">
-            {page > 1 ? (
-              <Link
-                href={`/herders/${id}?page=${page - 1}`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                ←
-              </Link>
-            ) : null}
-            <span>Хуудас {page}</span>
-            {page * PAGE_SIZE < count ? (
-              <Link
-                href={`/herders/${id}?page=${page + 1}`}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
-              >
-                →
-              </Link>
-            ) : null}
-          </div>
-        </div>
+        <LinkPaginationFooter
+          page={page}
+          total={count}
+          prevHref={page > 1 ? `/herders/${id}?page=${page - 1}` : null}
+          nextHref={
+            page * PAGE_SIZE < count ? `/herders/${id}?page=${page + 1}` : null
+          }
+        />
       </div>
     </div>
   );

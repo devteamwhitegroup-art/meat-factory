@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireCap } from "@/lib/auth/server";
 import { getClient } from "@/lib/apollo/server";
@@ -96,16 +97,10 @@ export default async function ChangeRequestsPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : null}
+      <ErrorNotice message={error} />
 
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Хүсэлт алга
-        </div>
+        <EmptyState>Хүсэлт алга</EmptyState>
       ) : (
         rows.map((q) => {
           const reg = q.registration;
@@ -158,7 +153,9 @@ export default async function ChangeRequestsPage({ searchParams }: Props) {
                     {reg?.registrationCode}
                   </Link>
                   {reg?.factory ? (
-                    <Badge variant="outline">{factoryName(factories, reg.factory)}</Badge>
+                    <Badge variant="outline">
+                      {factoryName(factories, reg.factory)}
+                    </Badge>
                   ) : null}
                   <Badge className={CHANGE_REQUEST_STATUS_COLOR[status]}>
                     {CHANGE_REQUEST_STATUS_MN[status]}

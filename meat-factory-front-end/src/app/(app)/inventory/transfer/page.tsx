@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { getClient } from "@/lib/apollo/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { InventoryStockDoc } from "@/lib/queries/inventory";
@@ -81,21 +82,15 @@ export default async function TransferPage({ searchParams }: Props) {
       ) : null}
 
       {blocked ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
+        <EmptyState>
           Дайврын үйлдвэр өөрөө дайвар хүлээн авдаг тул илгээх шаардлагагүй.
-        </div>
+        </EmptyState>
       ) : !ready ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Илгээх үйлдвэрээ сонгоно уу.
-        </div>
+        <EmptyState>Илгээх үйлдвэрээ сонгоно уу.</EmptyState>
       ) : error ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </div>
+        <ErrorNotice message={error} />
       ) : items.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Илгээх тоолсон дайвар алга
-        </div>
+        <EmptyState>Илгээх тоолсон дайвар алга</EmptyState>
       ) : (
         <TransferForm fromFactory={from} items={items} />
       )}

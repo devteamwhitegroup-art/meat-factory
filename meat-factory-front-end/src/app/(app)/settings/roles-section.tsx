@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common/ListState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -157,9 +158,7 @@ export function RolesSection() {
       {loading && roles.length === 0 ? (
         <Skeleton className="h-48 w-full" />
       ) : roles.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Эрх алга
-        </div>
+        <EmptyState>Эрх алга</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -284,8 +283,8 @@ export function RolesSection() {
 
               {draft.isSystem ? (
                 <p className="text-sm text-muted-foreground">
-                  Системийн админ эрх бүх зөвшөөрлийг агуулна — нэрийг л
-                  өөрчилж болно.
+                  Системийн админ эрх бүх зөвшөөрлийг агуулна — нэрийг л өөрчилж
+                  болно.
                 </p>
               ) : (
                 groups.map((g) => {

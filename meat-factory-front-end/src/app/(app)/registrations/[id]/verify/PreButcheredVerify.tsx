@@ -7,8 +7,7 @@ import { useMutation } from "@apollo/client/react";
 import type { ResultOf } from "@graphql-typed-document-node/core";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { BackButton } from "@/components/common/BackButton";
-import { StatusBadge } from "@/components/registration/StatusBadge";
+import { RegistrationTitle } from "../_components/RegistrationTitle";
 import {
   FinishWeighingDoc,
   RegistrationDetailDoc,
@@ -102,18 +101,11 @@ export function PreButcheredVerify({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href={`/registrations/${id}`} />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-2xl font-semibold">
-                {reg.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={reg.status} />
-            </div>
-          </div>
-        </div>
+        <RegistrationTitle
+          id={id}
+          code={reg.registrationCode}
+          status={reg.status}
+        />
         {!open && reg.status !== "CANCELLED" ? (
           <Link
             href={`/registrations/${id}/settlement`}

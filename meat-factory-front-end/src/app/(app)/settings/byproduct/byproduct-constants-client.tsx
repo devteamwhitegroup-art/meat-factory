@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common/ListState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -239,9 +240,9 @@ export function ByproductConstantsClient() {
       {loading && wrappers.length === 0 ? (
         <Skeleton className="h-48 w-full" />
       ) : wrappers.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
+        <EmptyState>
           Багц алга. «Шинэ багц» дарж үүсгэнэ үү (ж: Адууны өлөн гэдэс).
-        </div>
+        </EmptyState>
       ) : (
         <div className="space-y-4">
           {wrappers.map((w) => (

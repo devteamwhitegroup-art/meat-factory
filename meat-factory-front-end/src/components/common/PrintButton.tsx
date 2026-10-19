@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { PrinterIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ErrorNotice } from "@/components/common/ListState";
 import {
   Dialog,
   DialogContent,
@@ -123,9 +124,7 @@ export function PrintButton({
           {loading ? (
             <Skeleton className="h-80 w-full" />
           ) : previewErr ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              {previewErr}
-            </div>
+            <ErrorNotice message={previewErr} />
           ) : image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

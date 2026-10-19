@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common/ListState";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -182,9 +183,7 @@ export function HerdersClient() {
       {fetching && herders.length === 0 ? (
         <Skeleton className="h-48 w-full" />
       ) : herders.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Малчин олдсонгүй
-        </div>
+        <EmptyState>Малчин олдсонгүй</EmptyState>
       ) : (
         <div className="rounded-md border">
           <Table>

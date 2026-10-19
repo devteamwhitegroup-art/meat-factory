@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getClient } from "@/lib/apollo/server";
@@ -304,13 +305,9 @@ export default async function InventoryPage({ searchParams }: Props) {
 
       {/* ─── Stock split: Мах vs Дайвар ──────────────────────────── */}
       {stockError ? (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {stockError}
-        </div>
+        <ErrorNotice message={stockError} />
       ) : items.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-          Нөөц байхгүй
-        </div>
+        <EmptyState>Нөөц байхгүй</EmptyState>
       ) : (
         <StockSplit
           countOnly={countOnly}
