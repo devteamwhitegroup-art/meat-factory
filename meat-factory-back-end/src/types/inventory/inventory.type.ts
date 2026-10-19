@@ -19,7 +19,8 @@ export enum MOVEMENT_SOURCE {
   BYPRODUCT = 'BYPRODUCT',
   // FACTORY_2 pre-butchered meat — stock as soon as weighing is finished.
   WEIGHING = 'WEIGHING',
-  // Counted byproducts sent FACTORY_1/2 → FACTORY_3 (OUT + IN pair).
+  // Between factories: counted byproducts → the byproduct site (instant OUT +
+  // IN), and factory transfers (OUT on send, IN on receive / cancel).
   TRANSFER = 'TRANSFER',
   // FACTORY_3 disassembly: гэдэс count OUT, weighed organ kg IN.
   PROCESSING = 'PROCESSING',

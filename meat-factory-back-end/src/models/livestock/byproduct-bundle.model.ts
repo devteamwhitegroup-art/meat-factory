@@ -2,15 +2,19 @@ import { DataTypes, Model, Sequelize } from "sequelize";
 import { TByproductBundle } from "../../types/livestock/byproduct-bundle.type";
 import { RegistrationModel } from "./registration.model";
 import { ByproductWrapperModel } from "./byproduct-wrapper.model";
+import { ByproductConstantModel } from "./byproduct-constant.model";
 
-// Herder-facing byproduct row: one per wrapper (гэдэс) per registration.
-// `count` bundles received, `herderCount` of them taken back by the herder;
-// the rest stay with the factory and credit (count − herderCount) × unitPrice
-// to the settlement. unitPrice is the wrapper price snapshotted at save.
+// Herder-facing byproduct row per registration: one per wrapper (гэдэс,
+// LIVE_SLAUGHTER) or per item (constantId, PRE_BUTCHERED) — exactly one is
+// set. `count` received, `herderCount` of them taken back by the herder; the
+// rest stay with the factory and credit (count − herderCount) × unitPrice to
+// the settlement. unitPrice = the site's price list, snapshotted at save
+// (PRE_BUTCHERED: as typed by the receiver).
 export class ByproductBundleModel extends Model implements TByproductBundle {
   public id!: string;
   public registrationId!: string;
-  public wrapperId!: string;
+  public wrapperId!: string | null;
+  public constantId!: string | null;
   public count!: number;
   public herderCount!: number;
   public unitPrice!: number;
@@ -19,15 +23,23 @@ export class ByproductBundleModel extends Model implements TByproductBundle {
 
   public registration?: RegistrationModel;
   public wrapper?: ByproductWrapperModel;
+  public constant?: ByproductConstantModel;
 
   static associate(): void {
     this.belongsTo(RegistrationModel, {
       as: "registration",
       foreignKey: { name: "registrationId", allowNull: false },
     });
+    // RESTRICT: a catalogue entry with intake history can't be deleted.
     this.belongsTo(ByproductWrapperModel, {
       as: "wrapper",
-      foreignKey: { name: "wrapperId", allowNull: false },
+      foreignKey: { name: "wrapperId", allowNull: true },
+      onDelete: "RESTRICT",
+    });
+    this.belongsTo(ByproductConstantModel, {
+      as: "constant",
+      foreignKey: { name: "constantId", allowNull: true },
+      onDelete: "RESTRICT",
     });
   }
 }
@@ -62,7 +74,10 @@ export const createByproductBundleModel = (sequelize: Sequelize) => {
       timestamps: true,
       underscored: true,
       sequelize,
-      indexes: [{ fields: ["registration_id", "wrapper_id"], unique: true }],
+      indexes: [
+        { fields: ["registration_id", "wrapper_id"], unique: true },
+        { fields: ["registration_id", "constant_id"], unique: true },
+      ],
     },
   );
 };

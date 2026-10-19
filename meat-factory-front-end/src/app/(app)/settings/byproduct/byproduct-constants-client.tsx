@@ -39,10 +39,9 @@ import {
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
-import { formatMNT } from "@/lib/format/money";
 
-// price = ₮ per bundle, credited to the herder for each one the factory keeps.
-type WrapperForm = { id?: string; name: string; price: string };
+// Prices are per site (Систем тохиргоо › Үйлдвэр), not on the catalogue.
+type WrapperForm = { id?: string; name: string };
 type ItemForm = {
   id?: string;
   wrapperId: string;
@@ -70,10 +69,7 @@ export function ByproductConstantsClient() {
   const [deleteItem] = useMutation(DeleteByproductConstantDoc);
 
   const [wrapperSheet, setWrapperSheet] = useState(false);
-  const [wrapperForm, setWrapperForm] = useState<WrapperForm>({
-    name: "",
-    price: "0",
-  });
+  const [wrapperForm, setWrapperForm] = useState<WrapperForm>({ name: "" });
   const [itemSheet, setItemSheet] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>({
     wrapperId: "",
@@ -86,29 +82,16 @@ export function ByproductConstantsClient() {
 
   // ── wrapper handlers ──
   function openCreateWrapper() {
-    setWrapperForm({ name: "", price: "0" });
+    setWrapperForm({ name: "" });
     setWrapperSheet(true);
   }
-  function openEditWrapper(w: {
-    id?: string | null;
-    name?: string | null;
-    price?: number | null;
-  }) {
-    setWrapperForm({
-      id: w.id ?? undefined,
-      name: w.name ?? "",
-      price: String(w.price ?? 0),
-    });
+  function openEditWrapper(w: { id?: string | null; name?: string | null }) {
+    setWrapperForm({ id: w.id ?? undefined, name: w.name ?? "" });
     setWrapperSheet(true);
   }
   async function saveWrapper() {
     if (!wrapperForm.name.trim()) {
       toast.error("Багцын нэр оруулна уу");
-      return;
-    }
-    const price = Number(wrapperForm.price || 0);
-    if (!Number.isFinite(price) || price < 0) {
-      toast.error("Үнэ 0-ээс багагүй байх ёстой");
       return;
     }
     await runMutation(
@@ -118,7 +101,6 @@ export function ByproductConstantsClient() {
             variables: {
               id: wrapperForm.id,
               name: wrapperForm.name.trim(),
-              price,
             },
           });
           return r.data?.updateByproductWrapper;
@@ -127,7 +109,6 @@ export function ByproductConstantsClient() {
           variables: {
             animalType: animalType,
             name: wrapperForm.name.trim(),
-            price,
           },
         });
         return r.data?.createByproductWrapper;
@@ -268,9 +249,6 @@ export function ByproductConstantsClient() {
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-semibold">{w.name}</span>
-                  <Badge className="border bg-background text-foreground tabular-nums">
-                    {formatMNT(w.price ?? 0)} / багц
-                  </Badge>
                   <button
                     type="button"
                     onClick={() =>
@@ -385,23 +363,8 @@ export function ByproductConstantsClient() {
                 }
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Үнэ (₮, 1 багц)</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                value={wrapperForm.price}
-                onChange={(e) =>
-                  setWrapperForm((s) => ({ ...s, price: e.target.value }))
-                }
-              />
-            </div>
             <p className="text-xs text-muted-foreground">
-              Үнэ тохируулсан багцыг баталгаажуулалтын үед малчнаас асууна (авах
-              эсвэл үйлдвэрт өгөх). Үйлдвэрт үлдэх багц бүрийн үнийг бой
-              зардлаас хасч тооцно. Үнэгүй (0) багцыг асуухгүй — үйлдвэрт
-              үлдэнэ.
+              Үнийг үйлдвэр бүр өөрөө тохируулна: Систем тохиргоо › Үйлдвэр.
             </p>
             <Button className="w-full" onClick={saveWrapper}>
               Хадгалах

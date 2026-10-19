@@ -73,12 +73,12 @@ export function WeighSlip({ reg }: { reg: Reg }) {
       net: meat - boy,
     };
   });
-  // Хойд үйлдвэр: counted гэдэс are all kept and credited at their price —
+  // Хойд үйлдвэр: counted items are all kept and credited at their price —
   // same as the settlement. (FACTORY_1 decides the herder's take at verify.)
   const gedes = isPreButchered(reg.factory)
     ? compact(reg.byproductBundles)
         .map((b) => ({
-          label: `${b.wrapperName} (${b.animalType})`,
+          label: `${b.name} (${b.animalType})`,
           kept: Number(b.count ?? 0) - Number(b.herderCount ?? 0),
           price: Number(b.unitPrice ?? 0),
         }))
@@ -170,7 +170,7 @@ export function WeighSlip({ reg }: { reg: Reg }) {
             ))}
             {gedes.length > 0 ? (
               <>
-                <div className="text-muted-foreground">Нийт гэдэс</div>
+                <div className="text-muted-foreground">Нийт дайвар</div>
                 <div className="text-right tabular-nums">
                   {formatNumber(gedesTotal)}
                 </div>

@@ -20,7 +20,6 @@ export const ByproductWrapperListDoc = graphql(/* GraphQL */ `
           name
         }
         name
-        price
         isActive
         items {
           id
@@ -36,12 +35,8 @@ export const ByproductWrapperListDoc = graphql(/* GraphQL */ `
 `);
 
 export const CreateByproductWrapperDoc = graphql(/* GraphQL */ `
-  mutation CreateByproductWrapper(
-    $animalType: String!
-    $name: String!
-    $price: Float
-  ) {
-    createByproductWrapper(animalType: $animalType, name: $name, price: $price) {
+  mutation CreateByproductWrapper($animalType: String!, $name: String!) {
+    createByproductWrapper(animalType: $animalType, name: $name) {
       success
       message
       byproductWrapper {
@@ -55,13 +50,11 @@ export const UpdateByproductWrapperDoc = graphql(/* GraphQL */ `
   mutation UpdateByproductWrapper(
     $id: ID!
     $name: String
-    $price: Float
     $isActive: Boolean
   ) {
     updateByproductWrapper(
       id: $id
       name: $name
-      price: $price
       isActive: $isActive
     ) {
       success

@@ -114,7 +114,7 @@ export function VerifyClient({
     for (const b of priced) {
       const n = Number(takeOf(b));
       if (!Number.isInteger(n) || n < 0 || n > (b.count ?? 0)) {
-        toast.error(`${b.wrapperName}: малчин авах тоо 0–${b.count} байна`);
+        toast.error(`${b.name}: малчин авах тоо 0–${b.count} байна`);
         return;
       }
     }
@@ -347,7 +347,7 @@ export function VerifyClient({
                             className="flex flex-wrap items-center gap-3 px-4 py-3"
                           >
                             <div className="min-w-32 flex-1">
-                              <div className="font-medium">{b.wrapperName}</div>
+                              <div className="font-medium">{b.name}</div>
                               <div className="text-xs text-muted-foreground">
                                 {b.animalType} · {count} ш ·{" "}
                                 {formatMNT(Number(b.unitPrice ?? 0))}

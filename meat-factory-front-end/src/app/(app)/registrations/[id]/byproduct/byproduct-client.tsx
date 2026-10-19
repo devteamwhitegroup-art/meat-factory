@@ -25,7 +25,7 @@ import { compact } from "@/lib/compact";
 // and credits each kept one at unitPrice to the settlement.
 type Bundle = {
   wrapperId: string;
-  wrapperName: string;
+  name: string;
   animalType: string;
   count: string;
   herderCount: string;
@@ -60,7 +60,7 @@ export function ByproductClient({ id }: { id: string }) {
     if (!reg) return;
     const b: Bundle[] = compact(reg.byproductBundles).map((x) => ({
       wrapperId: x.wrapperId!,
-      wrapperName: x.wrapperName ?? "",
+      name: x.name ?? "",
       animalType: x.animalType ?? "",
       count: String(x.count ?? 0),
       herderCount: String(x.herderCount ?? 0),
@@ -104,7 +104,7 @@ export function ByproductClient({ id }: { id: string }) {
       const c = Number(b.count) || 0;
       const h = Number(b.herderCount) || 0;
       if (c < 0 || h < 0 || h > c) {
-        toast.error(`${b.wrapperName}: малчны авах тоо 0–${c} байх ёстой`);
+        toast.error(`${b.name}: малчны авах тоо 0–${c} байх ёстой`);
         return false;
       }
     }
@@ -163,8 +163,8 @@ export function ByproductClient({ id }: { id: string }) {
 
       {bundles.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Энэ малын төрөлд тохируулсан дайвар норм алга. «Дайвар норм» хэсэгт
-          нэмнэ үү.
+          Энэ үйлдвэрт энэ малын гэдэс тохируулаагүй байна. Систем тохиргоо ›
+          Үйлдвэр хэсэгт нэмнэ үү.
         </div>
       ) : (
         <>
@@ -190,7 +190,7 @@ export function ByproductClient({ id }: { id: string }) {
                   className="grid grid-cols-2 items-center gap-3 rounded-md border bg-muted/30 px-3 py-2 sm:grid-cols-[1fr_5rem_5rem_6rem_7rem]"
                 >
                   <div className="col-span-2 sm:col-span-1">
-                    <div className="font-medium">{b.wrapperName}</div>
+                    <div className="font-medium">{b.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {b.animalType}
                     </div>

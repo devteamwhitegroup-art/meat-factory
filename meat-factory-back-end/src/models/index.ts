@@ -9,6 +9,10 @@ import {
   createFactoryModel,
   FactoryModel,
 } from "./factory/factory.model";
+import {
+  createFactoryByproductModel,
+  FactoryByproductModel,
+} from "./factory/factory-byproduct.model";
 
 //File
 import { FileModel, createFileModel } from "./global/file.model";
@@ -131,6 +135,14 @@ import {
   createByproductProcessingLineModel,
   ByproductProcessingLineModel,
 } from "./inventory/byproduct-processing-line.model";
+import {
+  createFactoryTransferModel,
+  FactoryTransferModel,
+} from "./inventory/factory-transfer.model";
+import {
+  createFactoryTransferLineModel,
+  FactoryTransferLineModel,
+} from "./inventory/factory-transfer-line.model";
 
 //Settings (singleton config row)
 import { createSettingsModel, SettingsModel } from "./settings/settings.model";
@@ -154,6 +166,7 @@ export const setupModel = (sequelize: Sequelize) => {
 
   //Factory
   createFactoryModel(sequelize);
+  createFactoryByproductModel(sequelize);
 
   //File
   createFileModel(sequelize);
@@ -197,6 +210,8 @@ export const setupModel = (sequelize: Sequelize) => {
   createInventoryMovementModel(sequelize);
   createByproductProcessingModel(sequelize);
   createByproductProcessingLineModel(sequelize);
+  createFactoryTransferModel(sequelize);
+  createFactoryTransferLineModel(sequelize);
 
   //Settings
   createSettingsModel(sequelize);
@@ -214,6 +229,7 @@ export const setupModel = (sequelize: Sequelize) => {
 
   //Factory
   FactoryModel.associate();
+  FactoryByproductModel.associate();
 
   //File
   FileModel.associate();
@@ -257,6 +273,8 @@ export const setupModel = (sequelize: Sequelize) => {
   InventoryMovementModel.associate();
   ByproductProcessingModel.associate();
   ByproductProcessingLineModel.associate();
+  FactoryTransferModel.associate();
+  FactoryTransferLineModel.associate();
 
   //Settings
   SettingsModel.associate();

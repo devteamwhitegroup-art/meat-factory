@@ -8,7 +8,8 @@ export default async function ByproductConstantsPage() {
       <div>
         <p className="text-sm text-muted-foreground">
           Малын төрлөөр багц (ж: Адууны өлөн гэдэс) үүсгэж, дотор нь дайваруудыг
-          нэмнэ. Багц нь бой зардал нөхөх эсэхийг агуулна.
+          нэмнэ. Үнийг үйлдвэр бүр өөрөө тохируулна (Систем тохиргоо ›
+          Үйлдвэр).
         </p>
       </div>
       <ByproductConstantsClient />

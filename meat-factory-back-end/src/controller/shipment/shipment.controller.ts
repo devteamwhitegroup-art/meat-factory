@@ -140,7 +140,7 @@ export class ShipmentController {
   //   MEAT      → "MEAT:<animalType>"
   //   BYPRODUCT → "BYPN:<animalType>:<byproductName>" (animal-less free-form /
   //               legacy cargo keeps "BYPN:<byproductName>")
-  private static _groupKey(
+  static groupKey(
     productType: PRODUCT_TYPE,
     animalType: string | null,
     byproductName: string | null,
@@ -179,7 +179,7 @@ export class ShipmentController {
       const animalType = r.animalType;
       const byproductName =
         productType === PRODUCT_TYPE.BYPRODUCT ? r.byproductName : null;
-      const key = this._groupKey(productType, animalType, byproductName);
+      const key = this.groupKey(productType, animalType, byproductName);
       const g = groups.get(key) ?? {
         productType,
         animalType,
@@ -233,9 +233,10 @@ export class ShipmentController {
 
   // Loadable stock per product group at a factory. Stock only leaves the
   // ledger at DELIVERED, so cargo on every undelivered shipment reserves it.
+  // Factory transfers check it too (FactoryTransferController.create).
   // ponytail: no lock — two loaders racing can both pass; the ledger check at
   // DELIVERED stays the final guard (and LOADED → PENDING the way back).
-  private static async _stockByGroup(
+  static async stockByGroup(
     factory: string,
   ): Promise<Map<string, TShipmentStockRow>> {
     const [items, cargo] = await Promise.all([
@@ -264,7 +265,7 @@ export class ShipmentController {
     ) => {
       const byproductName =
         productType === PRODUCT_TYPE.BYPRODUCT ? rawName : null;
-      const groupKey = this._groupKey(productType, animalType, byproductName);
+      const groupKey = this.groupKey(productType, animalType, byproductName);
       const r = rows.get(groupKey) ?? {
         groupKey,
         productType,
@@ -299,7 +300,7 @@ export class ShipmentController {
   ): Promise<TShipmentStockRow[]> {
     const shipment = await this.findIdCheck(shipmentId);
     AdminController.assertFactory(context, shipment.factory);
-    return [...(await this._stockByGroup(shipment.factory)).values()]
+    return [...(await this.stockByGroup(shipment.factory)).values()]
       .filter((r) => r.onHandKg > 0 || r.reservedKg > 0)
       .sort((a, b) => a.groupKey.localeCompare(b.groupKey));
   }
@@ -319,7 +320,7 @@ export class ShipmentController {
   private static async _assertStockCovers(
     shipment: ShipmentModel,
   ): Promise<void> {
-    const stock = await this._stockByGroup(shipment.factory);
+    const stock = await this.stockByGroup(shipment.factory);
     for (const g of await this._groupEntries(shipment.id)) {
       const s = stock.get(g.groupKey);
       if (s && s.availableKg < 0)
@@ -746,8 +747,8 @@ export class ShipmentController {
     }
 
     const free =
-      (await this._stockByGroup(shipment.factory)).get(
-        this._groupKey(productType, animalType, byproductName),
+      (await this.stockByGroup(shipment.factory)).get(
+        this.groupKey(productType, animalType, byproductName),
       )?.availableKg ?? 0;
     if (net > free)
       throw new Error(

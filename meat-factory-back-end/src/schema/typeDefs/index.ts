@@ -32,6 +32,7 @@ import shipmentType from "./shipment/shipment.type";
 //Inventory
 import inventoryType from "./inventory/inventory.type";
 import byproductProcessingType from "./inventory/byproduct-processing.type";
+import factoryTransferType from "./inventory/factory-transfer.type";
 
 //Dashboard
 import dashboardType from "./dashboard/dashboard.type";
@@ -75,6 +76,7 @@ export const mergedGQLSchema = mergeTypeDefs([
   //Inventory
   inventoryType,
   byproductProcessingType,
+  factoryTransferType,
 
   //Dashboard
   dashboardType,

@@ -345,7 +345,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
       {bundles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Гэдэс</CardTitle>
+            <CardTitle>{pre ? "Дайвар" : "Гэдэс"}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -362,7 +362,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 {bundles.map((b) => (
                   <TableRow key={b.id!}>
                     <TableCell className="font-medium">
-                      {b.wrapperName}
+                      {b.name}
                     </TableCell>
                     <TableCell>{b.animalType}</TableCell>
                     <TableCell>{b.count}</TableCell>

@@ -1,12 +1,14 @@
-import { Op } from "sequelize";
 import { AdminController } from "../user/admin.controller";
 import { PERMISSION } from "../../types/user/permission.type";
-import { FactoryController } from "../factory/factory.controller";
+import {
+  FACTORY_BYPRODUCT_INCLUDE,
+  FactoryController,
+} from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
+import { RegistrationModel } from "../../models/livestock/registration.model";
 import { ByproductBundleModel } from "../../models/livestock/byproduct-bundle.model";
-import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
-import { AnimalModel } from "../../models/livestock/animal.model";
+import { FactoryByproductModel } from "../../models/factory/factory-byproduct.model";
 import { RegistrationController } from "./registration.controller";
 import {
   REGISTRATION_STATUS,
@@ -19,45 +21,53 @@ import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext } from "../../types/global/global.type";
 
+// Wrapper or item row (bundle / price list) → its name + the wrapper that
+// ties it to an animal.
+type TPriced = Pick<FactoryByproductModel, "wrapper" | "constant">;
+const describe = (r: TPriced) => ({
+  name: r.wrapper?.name ?? r.constant?.name ?? "",
+  wrapper: r.wrapper ?? r.constant?.wrapper,
+});
+
 // Incoming byproducts (Дайвар) — sub-domain of the registration aggregate.
-// Intake is гэдэс COUNT only, one bundle row per wrapper: count received, how
-// many the herder takes back, price credited for the rest. Organ kg (элэг,
-// бөөр, …) is only known once FACTORY_3 disassembles and weighs a batch
+// Intake is COUNT only and rows come from the site's price list
+// (FactoryController.byproducts): LIVE_SLAUGHTER counts whole гэдэс and the
+// herder may take some back; PRE_BUTCHERED counts the individual items it
+// receives, at a price the receiver may change. Organ kg of гэдэс is only
+// known once the byproduct site disassembles a batch
 // (ByproductProcessingController).
 export class ByproductBundleController {
   // Saved bundle rows, or — before the first save — one default row per
-  // active wrapper of each animal on the registration (count = head count,
-  // factory keeps all, current price).
+  // price-list entry of each animal on the registration (count = head count
+  // × items per head, factory keeps all, list price).
   static async bundlesFor(
     registrationId: string,
   ): Promise<TByproductBundleView[]> {
     const saved = await ByproductBundleModel.findAll({
       where: { registrationId },
-      include: [
-        {
-          model: ByproductWrapperModel,
-          as: "wrapper",
-          include: [{ model: AnimalModel, as: "animal" }],
-        },
-      ],
+      include: FACTORY_BYPRODUCT_INCLUDE,
     });
     const rows: TByproductBundleView[] =
       saved.length > 0
-        ? saved.map((b) => ({
-            id: b.id,
-            wrapperId: b.wrapperId,
-            wrapperName: b.wrapper?.name ?? "",
-            animalId: b.wrapper?.animalId ?? "",
-            animalType: b.wrapper?.animal?.name ?? "",
-            count: b.count,
-            herderCount: b.herderCount,
-            unitPrice: Number(b.unitPrice),
-          }))
+        ? saved.map((b) => {
+            const { name, wrapper } = describe(b);
+            return {
+              id: b.id,
+              wrapperId: b.wrapperId,
+              constantId: b.constantId,
+              name,
+              animalId: wrapper?.animalId ?? "",
+              animalType: wrapper?.animal?.name ?? "",
+              count: b.count,
+              herderCount: b.herderCount,
+              unitPrice: Number(b.unitPrice),
+            };
+          })
         : await this._defaultBundles(registrationId);
     return rows.sort(
       (a, b) =>
         a.animalType.localeCompare(b.animalType) ||
-        a.wrapperName.localeCompare(b.wrapperName),
+        a.name.localeCompare(b.name),
     );
   }
 
@@ -67,25 +77,44 @@ export class ByproductBundleController {
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
     });
-    const countByAnimal = new Map(lines.map((l) => [l.animalId, l.count]));
-    if (countByAnimal.size === 0) return [];
-    const wrappers = await ByproductWrapperModel.findAll({
-      where: {
-        isActive: true,
-        animalId: { [Op.in]: Array.from(countByAnimal.keys()) },
-      },
-      include: [{ model: AnimalModel, as: "animal" }],
+    const heads = new Map(lines.map((l) => [l.animalId, l.count]));
+    if (heads.size === 0) return [];
+    const reg = await RegistrationModel.findByPk(registrationId, {
+      attributes: ["factory"],
     });
-    return wrappers.map((w) => ({
-      id: null,
-      wrapperId: w.id,
-      wrapperName: w.name,
-      animalId: w.animalId,
-      animalType: w.animal?.name ?? "",
-      count: countByAnimal.get(w.animalId) ?? 0,
-      herderCount: 0,
-      unitPrice: Number(w.price),
-    }));
+    const list = await this._priceList(reg?.factory ?? "");
+    return list.flatMap((p) => {
+      const { name, wrapper } = describe(p);
+      if (!wrapper || !heads.has(wrapper.animalId)) return [];
+      return [
+        {
+          id: null,
+          wrapperId: p.wrapperId,
+          constantId: p.constantId,
+          name,
+          animalId: wrapper.animalId,
+          animalType: wrapper.animal?.name ?? "",
+          count:
+            (heads.get(wrapper.animalId) ?? 0) *
+            (p.constant?.quantityPerAnimal ?? 1),
+          herderCount: 0,
+          unitPrice: Number(p.price),
+        },
+      ];
+    });
+  }
+
+  // The site's price-list entries whose catalogue rows are still active.
+  private static async _priceList(
+    factory: string,
+  ): Promise<FactoryByproductModel[]> {
+    const rows = await FactoryByproductModel.findAll({
+      where: { factory },
+      include: FACTORY_BYPRODUCT_INCLUDE,
+    });
+    return rows.filter(
+      (r) => describe(r).wrapper?.isActive && (r.constant?.isActive ?? true),
+    );
   }
 
   // Price credited to the herder per animal = Σ kept bundles × unit price.
@@ -109,18 +138,18 @@ export class ByproductBundleController {
       factory,
       productType: PRODUCT_TYPE.BYPRODUCT,
       animalId: b.animalId,
-      byproductName: b.wrapperName,
+      byproductName: b.name,
       quantityKg: 0,
       quantityCount: b.count - b.herderCount,
     }));
   }
 
   // Replace this registration's bundles.
-  //   FACTORY_1 — at verify (WEIGHED: the herder decides, per priced wrapper,
-  //     how many to take) and correctable after VERIFIED, until the
+  //   LIVE_SLAUGHTER — at verify (WEIGHED: the herder decides, per priced
+  //     wrapper, how many to take) and correctable after VERIFIED, until the
   //     settlement locks the amounts (the herder's take decides the credit).
-  //   FACTORY_2 — while REGISTERED (receiving); the herder never takes any
-  //     back. finishWeighing stocks what's recorded.
+  //   PRE_BUTCHERED — while REGISTERED (receiving); the herder never takes
+  //     any back. finishWeighing stocks what's recorded.
   static async setBundles(
     registrationId: string,
     bundles: TByproductBundleInput[],
@@ -139,7 +168,12 @@ export class ByproductBundleController {
         : [REGISTRATION_STATUS.WEIGHED, REGISTRATION_STATUS.VERIFIED],
     );
 
-    const rows = await this._validateBundles(registrationId, bundles, pre);
+    const rows = await this._validateBundles(
+      registrationId,
+      reg.factory,
+      bundles,
+      pre,
+    );
     await sequelize.transaction(async (t) => {
       await ByproductBundleModel.destroy({
         where: { registrationId },
@@ -151,45 +185,58 @@ export class ByproductBundleController {
 
   private static async _validateBundles(
     registrationId: string,
+    factory: string,
     bundles: TByproductBundleInput[],
     pre: boolean,
   ) {
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
     });
-    // One bundle per slaughtered head at most (FACTORY_1).
+    // One bundle per slaughtered head at most (LIVE_SLAUGHTER).
     const heads = new Map(lines.map((l) => [l.animalId, l.count]));
-    const wrappers = await ByproductWrapperModel.findAll({
-      where: { id: { [Op.in]: bundles.map((b) => b.wrapperId) } },
-    });
-    const wrapperById = new Map(wrappers.map((w) => [w.id, w]));
+    // Only what the site's price list holds: wrappers (LIVE_SLAUGHTER) or
+    // items (PRE_BUTCHERED).
+    const list = await this._priceList(factory);
+    const byKey = new Map(
+      list.map((p) => [(pre ? p.constantId : p.wrapperId) ?? "", p]),
+    );
     const seen = new Set<string>();
     return bundles.map((b) => {
-      const w = wrapperById.get(b.wrapperId);
-      if (!w || !heads.has(w.animalId))
-        throw new Error("Гэдэс энэ бүртгэлийн малд хамаарахгүй байна");
-      if (seen.has(b.wrapperId)) throw new Error(`Давхардсан гэдэс: ${w.name}`);
-      seen.add(b.wrapperId);
+      const key = (pre ? b.constantId : b.wrapperId) ?? "";
+      const p = byKey.get(key);
+      const { name, wrapper } = p ? describe(p) : { name: "", wrapper: null };
+      if (!p || !wrapper || !heads.has(wrapper.animalId))
+        throw new Error(
+          "Дайвар энэ үйлдвэрийн жагсаалт эсвэл бүртгэлийн малд хамаарахгүй байна",
+        );
+      if (seen.has(key)) throw new Error(`Давхардсан дайвар: ${name}`);
+      seen.add(key);
       const count = Math.floor(Number(b.count));
       const herderCount = pre ? 0 : Math.floor(Number(b.herderCount ?? 0));
       if (!Number.isFinite(count) || count < 0)
-        throw new Error("Гэдэсний тоо сөрөг байж болохгүй");
-      if (!pre && count > (heads.get(w.animalId) ?? 0))
+        throw new Error(`${name}: тоо сөрөг байж болохгүй`);
+      if (!pre && count > (heads.get(wrapper.animalId) ?? 0))
         throw new Error(
-          `${w.name}: тоо төхөөрсөн малын тооноос (${heads.get(w.animalId)}) их байна`,
+          `${name}: тоо төхөөрсөн малын тооноос (${heads.get(wrapper.animalId)}) их байна`,
         );
       if (
         !Number.isFinite(herderCount) ||
         herderCount < 0 ||
         herderCount > count
       )
-        throw new Error(`${w.name}: малчны авах тоо 0–${count} байх ёстой`);
+        throw new Error(`${name}: малчны авах тоо 0–${count} байх ёстой`);
+      // PRE_BUTCHERED: the receiver may price at today's market.
+      const unitPrice =
+        pre && b.unitPrice != null ? Number(b.unitPrice) : Number(p.price);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0)
+        throw new Error(`${name}: үнэ сөрөг байж болохгүй`);
       return {
         registrationId,
-        wrapperId: w.id,
+        wrapperId: p.wrapperId,
+        constantId: p.constantId,
         count,
         herderCount,
-        unitPrice: Number(w.price),
+        unitPrice: Number(unitPrice.toFixed(2)),
       };
     });
   }

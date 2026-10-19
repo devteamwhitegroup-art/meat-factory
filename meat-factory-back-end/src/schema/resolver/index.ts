@@ -26,6 +26,7 @@ import shipmentResolver from "./shipment/shipment.resolver";
 //Inventory
 import inventoryResolver from "./inventory/inventory.resolver";
 import byproductProcessingResolver from "./inventory/byproduct-processing.resolver";
+import factoryTransferResolver from "./inventory/factory-transfer.resolver";
 
 //Dashboard
 import dashboardResolver from "./dashboard/dashboard.resolver";
@@ -66,6 +67,7 @@ export const resolvers = [
   //Inventory
   inventoryResolver,
   byproductProcessingResolver,
+  factoryTransferResolver,
 
   //Dashboard
   dashboardResolver,

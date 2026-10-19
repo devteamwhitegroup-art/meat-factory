@@ -119,17 +119,17 @@ export function SettlementReceipt({
           {bundles.length > 0 ? (
             <div className="space-y-0.5 rounded-md border bg-muted/20 p-3">
               <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-                Дайвар (гэдэс)
+                Дайвар
               </div>
               {bundles.map((b) => {
                 const kept = Number(b.count ?? 0) - Number(b.herderCount ?? 0);
                 const price = Number(b.unitPrice ?? 0);
                 return (
-                  <div key={b.wrapperId} className="space-y-0.5">
+                  <div key={b.wrapperId ?? b.constantId} className="space-y-0.5">
                     {kept > 0 ? (
                       <div className="flex justify-between gap-3">
                         <span>
-                          {b.animalType} · {b.wrapperName} {kept} ×{" "}
+                          {b.animalType} · {b.name} {kept} ×{" "}
                           {formatNumber(price)}
                         </span>
                         <span className="tabular-nums">
@@ -139,7 +139,7 @@ export function SettlementReceipt({
                     ) : null}
                     {Number(b.herderCount ?? 0) > 0 ? (
                       <div className="flex justify-between gap-3 text-muted-foreground">
-                        <span>{b.wrapperName} малчинд</span>
+                        <span>{b.name} малчинд</span>
                         <span className="tabular-nums">{b.herderCount} ш</span>
                       </div>
                     ) : null}

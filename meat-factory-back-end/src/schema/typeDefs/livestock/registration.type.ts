@@ -67,13 +67,15 @@ export default `#graphql
         createdAt: Date
     }
 
-    # Herder-facing byproduct row: one per wrapper (гэдэс). The factory keeps
-    # count − herderCount bundles and credits them × unitPrice to the
+    # Herder-facing byproduct row: one per wrapper (гэдэс, LIVE_SLAUGHTER)
+    # or item (constantId, PRE_BUTCHERED) from the site's price list. The
+    # factory keeps count − herderCount and credits them × unitPrice to the
     # settlement. id is null until first saved (defaults: factory keeps all).
     type ByproductBundle {
         id: ID
         wrapperId: ID
-        wrapperName: String
+        constantId: ID
+        name: String
         animalType: String
         count: Int
         herderCount: Int
@@ -81,10 +83,14 @@ export default `#graphql
     }
 
     input ByproductBundleInput {
-        wrapperId: ID!
+        # LIVE_SLAUGHTER: wrapperId; PRE_BUTCHERED: constantId.
+        wrapperId: ID
+        constantId: ID
         count: Int!
-        # FACTORY_1 only (ignored for FACTORY_2): bundles the herder takes back.
+        # LIVE_SLAUGHTER only: bundles the herder takes back.
         herderCount: Int
+        # PRE_BUTCHERED only: market price (default: the site's price list).
+        unitPrice: Float
     }
 
     type Verification {
@@ -452,9 +458,9 @@ export default `#graphql
             id: ID!
         ): Response @auth(permissions: [REGISTRATION_WEIGH, REGISTRATION_WEIGH_FIX])
 
-        # Replaces the гэдэс counts. FACTORY_1: at verify (WEIGHED) or after
-        # VERIFIED (herder take, count ≤ head count). FACTORY_2: while
-        # REGISTERED (counted on receipt).
+        # Replaces the byproduct rows. LIVE_SLAUGHTER: at verify (WEIGHED) or
+        # after VERIFIED (herder take, count ≤ head count). PRE_BUTCHERED:
+        # while REGISTERED (items counted + priced on receipt).
         setRegistrationByproducts(
             registrationId: ID!
             bundles: [ByproductBundleInput!]!

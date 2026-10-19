@@ -1,9 +1,11 @@
-// Herder-facing byproduct row per wrapper (гэдэс) per registration — see
-// ByproductBundleModel. Intake is count only.
+// Herder-facing byproduct row per registration — see ByproductBundleModel.
+// wrapperId (LIVE_SLAUGHTER) or constantId (PRE_BUTCHERED). Intake is count
+// only.
 export type TByproductBundle = {
   id: string;
   registrationId: string;
-  wrapperId: string;
+  wrapperId: string | null;
+  constantId: string | null;
   count: number;
   herderCount: number;
   unitPrice: number;
@@ -12,17 +14,22 @@ export type TByproductBundle = {
 };
 
 export type TByproductBundleInput = {
-  wrapperId: string;
+  wrapperId?: string | null;
+  constantId?: string | null;
   count: number;
   herderCount?: number | null;
+  // PRE_BUTCHERED only: market price for this intake (default: price list).
+  unitPrice?: number | null;
 };
 
-// Read shape: saved rows, or (before the first save) defaults derived from
-// active wrappers × animal counts, factory keeping everything.
+// Read shape: saved rows, or (before the first save) defaults from the
+// site's price list × animal counts, factory keeping everything.
 export type TByproductBundleView = {
   id: string | null;
-  wrapperId: string;
-  wrapperName: string;
+  wrapperId: string | null;
+  constantId: string | null;
+  // Wrapper or item name.
+  name: string;
   animalId: string;
   animalType: string;
   count: number;

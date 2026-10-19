@@ -267,12 +267,12 @@ async function settlementLines(id: string): Promise<RLine[]> {
       if (kept > 0)
         out.push(
           row(
-            `  ${b.wrapperName} ${kept} x ${mnt(b.unitPrice)}`,
+            `  ${b.name} ${kept} x ${mnt(b.unitPrice)}`,
             `+${mnt(kept * b.unitPrice)}`,
           ),
         );
       if (b.herderCount > 0)
-        out.push(row(`  ${b.wrapperName} малчинд`, `${b.herderCount} ш`));
+        out.push(row(`  ${b.name} малчинд`, `${b.herderCount} ш`));
     }
   }
 
@@ -364,7 +364,7 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
     if (cost > 0) out.push(row("  Бойны зардал", `-${mnt(cost)}`));
   }
 
-  // Хойд үйлдвэр: counted гэдэс are all kept (no herder take) and credited
+  // Хойд үйлдвэр: counted items are all kept (no herder take) and credited
   // at their price — same as the settlement. FACTORY_1 decides at verify.
   let gedes = 0;
   if (FactoryController.isPreButchered(reg.factory)) {
@@ -376,7 +376,7 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
       gedes += kept * b.unitPrice;
       out.push(
         row(
-          `${b.wrapperName} (${b.animalType}) ${kept} x ${mnt(b.unitPrice)}`,
+          `${b.name} (${b.animalType}) ${kept} x ${mnt(b.unitPrice)}`,
           `+${mnt(kept * b.unitPrice)}`,
         ),
       );
@@ -386,7 +386,7 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
   out.push(
     RULE,
     row("НИЙТ МАХ", mnt(gross)),
-    ...(gedes > 0 ? [row("ГЭДЭС", `+${mnt(gedes)}`)] : []),
+    ...(gedes > 0 ? [row("ДАЙВАР", `+${mnt(gedes)}`)] : []),
     row("БОЙ ЗАРДАЛ", `-${mnt(totalBoy)}`),
     { ...row("ЦЭВЭР ОЛГОХ", mnt(gross + gedes - totalBoy)), bold: true },
   );

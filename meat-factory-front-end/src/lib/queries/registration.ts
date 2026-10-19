@@ -141,7 +141,8 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
         byproductBundles {
           id
           wrapperId
-          wrapperName
+          constantId
+          name
           animalType
           count
           herderCount

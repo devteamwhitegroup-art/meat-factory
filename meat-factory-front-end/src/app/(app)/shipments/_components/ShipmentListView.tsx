@@ -13,10 +13,7 @@ import {
 import { getClient } from "@/lib/apollo/server";
 import { ShipmentListDoc } from "@/lib/queries/shipment";
 import { unwrapList } from "@/lib/unwrap";
-import {
-  SHIPMENT_STATUS_MN,
-  DOMESTIC_MARKET_MN,
-} from "@/lib/format/enum";
+import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
 import { getFactories } from "@/lib/factory/server";
 import { factoryName } from "@/lib/factory/factories";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
@@ -150,19 +147,20 @@ export async function ShipmentListView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <h1 className="text-2xl font-semibold">Ачилт</h1>
-          {categories.length > 1 ? (
-            <div className={SEGMENTED}>
-              {categories.map((c) => (
-                <Link
-                  key={c}
-                  href={tabHref(c)}
-                  className={segmentCls(c === category)}
-                >
-                  {CATEGORY_TAB[c]}
-                </Link>
-              ))}
-            </div>
-          ) : null}
+          <div className={SEGMENTED}>
+            {categories.map((c) => (
+              <Link
+                key={c}
+                href={tabHref(c)}
+                className={segmentCls(c === category)}
+              >
+                {CATEGORY_TAB[c]}
+              </Link>
+            ))}
+            <Link href="/shipments/transfers" className={segmentCls(false)}>
+              Үйлдвэр хооронд
+            </Link>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <DateRangeFilter />

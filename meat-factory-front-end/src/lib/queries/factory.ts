@@ -34,3 +34,50 @@ export const UpdateFactoryDoc = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// A site's priced byproducts: whole гэдэс (LIVE_SLAUGHTER, wrapperId) or
+// single items (PRE_BUTCHERED, constantId).
+export const FactoryByproductsDoc = graphql(/* GraphQL */ `
+  query FactoryByproducts($factory: String!) {
+    factoryByproducts(factory: $factory) {
+      success
+      message
+      factoryByproducts {
+        id
+        wrapperId
+        constantId
+        name
+        animalType
+        price
+      }
+    }
+  }
+`);
+
+export const SetFactoryByproductDoc = graphql(/* GraphQL */ `
+  mutation SetFactoryByproduct(
+    $factory: String!
+    $wrapperId: ID
+    $constantId: ID
+    $price: Float!
+  ) {
+    setFactoryByproduct(
+      factory: $factory
+      wrapperId: $wrapperId
+      constantId: $constantId
+      price: $price
+    ) {
+      success
+      message
+    }
+  }
+`);
+
+export const DeleteFactoryByproductDoc = graphql(/* GraphQL */ `
+  mutation DeleteFactoryByproduct($id: ID!) {
+    deleteFactoryByproduct(id: $id) {
+      success
+      message
+    }
+  }
+`);

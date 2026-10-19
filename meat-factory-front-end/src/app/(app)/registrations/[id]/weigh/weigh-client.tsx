@@ -35,7 +35,11 @@ import { WeighEntryDialog } from "./_components/WeighEntryDialog";
 import { WeighingHistoryList } from "./_components/WeighingHistoryList";
 import { SlaughterCostSummary } from "./_components/SlaughterCostSummary";
 import { WeighingAuditLog } from "./_components/WeighingAuditLog";
-import { GedesCountEditor } from "./_components/GedesCountEditor";
+import {
+  ByproductIntakeEditor,
+  intakeInputs,
+  type IntakeEdits,
+} from "./_components/ByproductIntakeEditor";
 import { can, readPermsCookie } from "@/lib/auth/roles";
 
 // Mirrors the back-end rule (WeighingController._assertWeighingEditable):
@@ -75,9 +79,9 @@ export function WeighClient({ id }: { id: string }) {
   const [updateWeighing] = useMutation(UpdateWeighingEntryDoc);
   const [deleteWeighing] = useMutation(DeleteWeighingEntryDoc);
   const [saveByproducts] = useMutation(SetRegistrationByproductsDoc);
-  // FACTORY_2 гэдэс count edits, keyed by wrapperId (unedited rows keep the
-  // BE value).
-  const [gedes, setGedes] = useState<Record<string, string>>({});
+  // Хойд: byproduct count/price edits, keyed by constantId (unedited rows
+  // keep the BE value).
+  const [intake, setIntake] = useState<IntakeEdits>({});
 
   const [perms, setPerms] = useState<string[] | null>(null);
   // permissions come from a client-only cookie; defer to post-mount to avoid
@@ -106,13 +110,13 @@ export function WeighClient({ id }: { id: string }) {
   const [price, setPrice] = useState("");
   const [photoFileId, setPhotoFileId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // In-progress entry + unsaved гэдэс counts survive leaving the page (saved
+  // In-progress entry + unsaved byproduct edits survive leaving the page (saved
   // weighings are already on the server).
   const clearDraft = useDraft(
     `weigh:${id}`,
-    { gedes, tab, keypad, price, photoFileId },
+    { intake, tab, keypad, price, photoFileId },
     (d) => {
-      setGedes(d.gedes);
+      setIntake(d.intake ?? {});
       setTab(d.tab);
       setKeypad(d.keypad);
       setPrice(d.price);
@@ -171,20 +175,17 @@ export function WeighClient({ id }: { id: string }) {
     setBusy(false);
   }
 
-  // FACTORY_2: persist edited гэдэс counts (bundles only, no items).
-  async function saveGedes(): Promise<boolean> {
-    const bundles = compact(reg?.byproductBundles).map((b) => ({
-      wrapperId: b.wrapperId!,
-      count: Number(gedes[b.wrapperId!] ?? b.count ?? 0) || 0,
-    }));
+  // Хойд: persist edited byproduct counts / prices.
+  async function saveIntake(): Promise<boolean> {
+    const bundles = intakeInputs(compact(reg?.byproductBundles), intake);
     return runMutation(
       async () =>
         (await saveByproducts({ variables: { registrationId: id, bundles } }))
           .data?.setRegistrationByproducts,
       {
-        success: "Гэдэс хадгалагдлаа",
+        success: "Дайвар хадгалагдлаа",
         onSuccess: async () => {
-          setGedes({});
+          setIntake({});
           await refetch();
         },
       },
@@ -193,9 +194,9 @@ export function WeighClient({ id }: { id: string }) {
 
   async function finish() {
     setBusy(true);
-    // FACTORY_2 stocks meat + гэдэс at finish — save pending counts first
-    // (untouched counts fall back to the BE defaults).
-    if (pre && Object.keys(gedes).length > 0 && !(await saveGedes())) {
+    // Хойд stocks meat + byproducts at finish — save pending edits first
+    // (untouched rows fall back to the BE defaults).
+    if (pre && Object.keys(intake).length > 0 && !(await saveIntake())) {
       setBusy(false);
       return;
     }
@@ -401,22 +402,15 @@ export function WeighClient({ id }: { id: string }) {
       </Tabs>
 
       {pre ? (
-        <GedesCountEditor
-          bundles={compact(reg.byproductBundles).map((b) => ({
-            wrapperId: b.wrapperId!,
-            wrapperName: b.wrapperName ?? "",
-            animalType: b.animalType ?? "",
-            count: b.count ?? 0,
-          }))}
-          values={gedes}
+        <ByproductIntakeEditor
+          bundles={compact(reg.byproductBundles)}
+          edits={intake}
           editable={reg.status === "REGISTERED" && editable}
           busy={busy}
-          onChange={(wrapperId, value) =>
-            setGedes((s) => ({ ...s, [wrapperId]: value }))
-          }
+          onChange={setIntake}
           onSave={async () => {
             setBusy(true);
-            await saveGedes();
+            await saveIntake();
             setBusy(false);
           }}
         />

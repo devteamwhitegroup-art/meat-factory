@@ -17,7 +17,11 @@ import {
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 import { WeighSlip } from "../_components/WeighSlip";
-import { GedesCountEditor } from "../weigh/_components/GedesCountEditor";
+import {
+  ByproductIntakeEditor,
+  intakeInputs,
+  type IntakeEdits,
+} from "../weigh/_components/ByproductIntakeEditor";
 
 type Reg = NonNullable<
   NonNullable<
@@ -26,8 +30,8 @@ type Reg = NonNullable<
 >;
 
 // Хойд үйлдвэр verification. The meat was weighed on the intake form, so
-// this step checks the weighings, records the гэдэс count and confirms —
-// which finishes weighing on the server (meat + гэдэс into stock), after
+// this step checks the weighings, records the byproduct items and confirms —
+// which finishes weighing on the server (meat + byproducts into stock), after
 // which Тооцоо opens. Weight fixes before that: Хэмжүүр / Засах.
 export function PreButcheredVerify({
   reg,
@@ -37,12 +41,12 @@ export function PreButcheredVerify({
   reg: Reg;
   // нярав / admin (finishing weighing).
   canConfirm: boolean;
-  // Reloads the registration (after a гэдэс save / confirm).
+  // Reloads the registration (after a byproduct save / confirm).
   onDone: () => unknown;
 }) {
   const router = useRouter();
   const id = reg.id!;
-  const [gedes, setGedes] = useState<Record<string, string>>({});
+  const [intake, setIntake] = useState<IntakeEdits>({});
   const [busy, setBusy] = useState(false);
   const [saveBundles] = useMutation(SetRegistrationByproductsDoc);
   const [finish] = useMutation(FinishWeighingDoc);
@@ -50,28 +54,25 @@ export function PreButcheredVerify({
   const entries = compact(reg.weighingEntries);
   const bundles = compact(reg.byproductBundles);
 
-  // Pending гэдэс counts (untouched rows keep the saved / default value).
-  async function saveGedes(): Promise<boolean> {
+  // Pending byproduct edits (untouched rows keep the saved / default value).
+  async function saveIntake(): Promise<boolean> {
     return runMutation(
       async () =>
         (
           await saveBundles({
             variables: {
               registrationId: id,
-              bundles: bundles.map((b) => ({
-                wrapperId: b.wrapperId!,
-                count: Number(gedes[b.wrapperId!] ?? b.count ?? 0) || 0,
-              })),
+              bundles: intakeInputs(bundles, intake),
             },
           })
         ).data?.setRegistrationByproducts,
       {
-        success: "Гэдэс хадгалагдлаа",
+        success: "Дайвар хадгалагдлаа",
         // Reload so the saved counts show (clearing the edits alone would
         // fall back to the stale values).
         onSuccess: async () => {
           await onDone();
-          setGedes({});
+          setIntake({});
         },
       },
     );
@@ -79,7 +80,7 @@ export function PreButcheredVerify({
 
   async function confirm() {
     setBusy(true);
-    if (Object.keys(gedes).length > 0 && !(await saveGedes())) {
+    if (Object.keys(intake).length > 0 && !(await saveIntake())) {
       setBusy(false);
       return;
     }
@@ -138,22 +139,15 @@ export function PreButcheredVerify({
         </div>
       )}
 
-      <GedesCountEditor
-        bundles={bundles.map((b) => ({
-          wrapperId: b.wrapperId!,
-          wrapperName: b.wrapperName ?? "",
-          animalType: b.animalType ?? "",
-          count: b.count ?? 0,
-        }))}
-        values={gedes}
+      <ByproductIntakeEditor
+        bundles={bundles}
+        edits={intake}
         editable={open && canConfirm}
         busy={busy}
-        onChange={(wrapperId, value) =>
-          setGedes((s) => ({ ...s, [wrapperId]: value }))
-        }
+        onChange={setIntake}
         onSave={async () => {
           setBusy(true);
-          await saveGedes();
+          await saveIntake();
           setBusy(false);
         }}
       />
@@ -172,7 +166,7 @@ export function PreButcheredVerify({
         )
       ) : (
         <div className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
-          Баталгаажсан — мах, гэдэс нөөцөд орсон.
+          Баталгаажсан — мах, дайвар нөөцөд орсон.
         </div>
       )}
     </div>

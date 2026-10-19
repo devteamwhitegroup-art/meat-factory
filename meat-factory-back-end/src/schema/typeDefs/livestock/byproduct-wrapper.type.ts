@@ -8,8 +8,6 @@ export default `#graphql
         animal: Animal
         animalType: String
         name: String
-        # Credited to the herder per bundle the factory keeps.
-        price: Float
         isActive: Boolean
         items: [ByproductConstant]
         createdAt: Date
@@ -43,14 +41,12 @@ export default `#graphql
         createByproductWrapper(
             animalType: String!
             name: String!
-            price: Float
         ): ByproductWrapperResponse @auth(permissions: [CATALOG_MANAGE])
 
         updateByproductWrapper(
             id: ID!
             animalType: String
             name: String
-            price: Float
             isActive: Boolean
         ): ByproductWrapperResponse @auth(permissions: [CATALOG_MANAGE])
 

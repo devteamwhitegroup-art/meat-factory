@@ -36,3 +36,34 @@ export type TUpdateFactory = {
 };
 
 export const FACTORY_CODE_RE = /^[A-Z][A-Z0-9_]{1,31}$/;
+
+// A site's priced byproduct list (FactoryByproducts). The kind decides what
+// is priced: LIVE_SLAUGHTER → whole гэдэс (wrapperId), PRE_BUTCHERED →
+// individual items (constantId). BYPRODUCT sites have none.
+export type TFactoryByproduct = {
+  id: string;
+  factory: string;
+  wrapperId: string | null;
+  constantId: string | null;
+  price: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// Upsert by (factory, wrapperId | constantId).
+export type TSetFactoryByproduct = {
+  factory: string;
+  wrapperId?: string | null;
+  constantId?: string | null;
+  price: number;
+};
+
+export type TFactoryByproductView = {
+  id: string;
+  factory: string;
+  wrapperId: string | null;
+  constantId: string | null;
+  name: string;
+  animalType: string;
+  price: number;
+};

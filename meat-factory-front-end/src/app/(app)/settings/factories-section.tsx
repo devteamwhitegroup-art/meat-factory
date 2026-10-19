@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { EyeIcon, PencilIcon, PlusIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +58,8 @@ const BLANK: Draft = {
 };
 
 // Sites. Every factory rule branches on `kind`, so a new site is a row here,
-// not a code change. Kind is fixed once records exist under it.
+// not a code change. Kind is fixed once records exist under it. The name
+// opens the site's detail page (byproduct price list).
 export function FactoriesSection() {
   const router = useRouter();
   const { data, loading, refetch } = useQuery(FactoriesDoc, {
@@ -127,14 +129,21 @@ export function FactoriesSection() {
                 <TableHead>Нэр</TableHead>
                 <TableHead>Төрөл</TableHead>
                 <TableHead>Төлөв</TableHead>
-                <TableHead className="w-16" />
+                <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {factories.map((f) => (
                 <TableRow key={f.code}>
                   <TableCell className="font-mono text-xs">{f.code}</TableCell>
-                  <TableCell className="font-medium">{f.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/settings/factories/${f.code}`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      {f.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{FACTORY_KIND_MN[f.kind] ?? f.kind}</TableCell>
                   <TableCell>
                     {f.isActive ? (
@@ -146,6 +155,17 @@ export function FactoriesSection() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
+                    <Link
+                      href={`/settings/factories/${f.code}`}
+                      aria-label="Дэлгэрэнгүй"
+                      title="Дэлгэрэнгүй"
+                      className={buttonVariants({
+                        variant: "ghost",
+                        size: "icon",
+                      })}
+                    >
+                      <EyeIcon className="size-4" />
+                    </Link>
                     <Button
                       variant="ghost"
                       size="icon"
