@@ -169,7 +169,7 @@ export function AdminsSection() {
                   <TableCell className="font-medium">{a.param}</TableCell>
                   <TableCell>
                     {a.role ? (
-                      <Badge className="border-0 bg-blue-100 text-blue-800">
+                      <Badge className="border-0 bg-blue-500/12 text-blue-700 dark:text-blue-400">
                         {a.role.name}
                       </Badge>
                     ) : (

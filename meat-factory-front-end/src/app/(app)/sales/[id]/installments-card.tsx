@@ -103,14 +103,14 @@ export function InstallmentsCard({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle>Хэсэгчилсэн төлбөр</CardTitle>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge className="border-0 bg-emerald-100 text-emerald-800 tabular-nums">
+          <Badge className="border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 tabular-nums">
             Төлсөн: {formatMNT(paidSum)}
           </Badge>
           <Badge
             className={
               outstanding > 0
-                ? "border-0 bg-amber-100 text-amber-800 tabular-nums"
-                : "border-0 bg-emerald-100 text-emerald-800 tabular-nums"
+                ? "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400 tabular-nums"
+                : "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 tabular-nums"
             }
           >
             Үлдэгдэл: {formatMNT(outstanding)}

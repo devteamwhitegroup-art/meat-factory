@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { ApolloProvider } from "@/lib/apollo/provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// ponytail: the reference portal uses the licensed GIP typeface; Manrope is
+// the closest free geometric sans with full Cyrillic. Swap for next/font/local
+// if the client supplies GIP .otf files.
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin", "cyrillic"],
 });
 
@@ -16,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Махны үйлдвэрийн ERP",
+  title: "Вайтгрүпп ERP",
   description: "Meat factory ERP — Вайтгрүпп ХХК",
 };
 
@@ -28,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="mn"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body

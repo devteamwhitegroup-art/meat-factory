@@ -222,11 +222,11 @@ export default async function InventoryPage({ searchParams }: Props) {
               Экспортод ачих боломжтой
             </CardTitle>
             {exportAlert ? (
-              <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <Badge className="border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400">
                 Босго давсан
               </Badge>
             ) : exportThreshold > 0 ? (
-              <Badge className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <Badge className="border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
                 Хэвийн
               </Badge>
             ) : null}
@@ -242,11 +242,11 @@ export default async function InventoryPage({ searchParams }: Props) {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base">Дотоодод ачих боломжтой</CardTitle>
             {domesticAlert ? (
-              <Badge className="border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <Badge className="border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400">
                 Босго давсан
               </Badge>
             ) : domesticThreshold > 0 ? (
-              <Badge className="border-0 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <Badge className="border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
                 Хэвийн
               </Badge>
             ) : null}

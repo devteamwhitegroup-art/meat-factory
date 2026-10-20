@@ -27,9 +27,9 @@ export const MEDICAL_NUMBER_STATUS_MN: Record<string, string> = {
 };
 
 export const MEDICAL_NUMBER_STATUS_COLOR: Record<string, string> = {
-  PENDING: "border-0 bg-amber-100 text-amber-800",
-  APPROVED: "border-0 bg-emerald-100 text-emerald-800",
-  REJECTED: "border-0 bg-red-100 text-red-800",
+  PENDING: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  APPROVED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  REJECTED: "border-0 bg-red-500/12 text-red-700 dark:text-red-400",
 };
 
 export const CHANGE_REQUEST_STATUS_MN: Record<string, string> = {
@@ -71,9 +71,9 @@ export const CUSTOMER_KIND_MN: Record<string, string> = {
 
 // Distinct badge colors per kind — shared by the customer list + pickers.
 export const CUSTOMER_KIND_COLOR: Record<string, string> = {
-  LOCAL_BROKER: "border-0 bg-amber-100 text-amber-800",
-  ULAANBAATAR_BROKER: "border-0 bg-blue-100 text-blue-800",
-  FACTORY: "border-0 bg-slate-200 text-slate-800",
+  LOCAL_BROKER: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  ULAANBAATAR_BROKER: "border-0 bg-blue-500/12 text-blue-700 dark:text-blue-400",
+  FACTORY: "border-0 bg-slate-500/12 text-slate-700 dark:text-slate-300",
 };
 
 export const MOVEMENT_TYPE_MN: Record<string, string> = {

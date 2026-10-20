@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { Sidebar } from "./Sidebar";
+import { Shell } from "./Shell";
 import { Topbar } from "./Topbar";
 import { isKioskNav, navItemsFor } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/server";
@@ -8,7 +8,7 @@ import { factoryKind, factoryName } from "@/lib/factory/factories";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const [s, factories] = await Promise.all([getSession(), getFactories()]);
-  // Staff's own factory; cross-factory roles span all of them.
+  // The account's own factory; cross-factory roles span all of them.
   const brand = s.factory ? factoryName(factories, s.factory) : "Бүх үйлдвэр";
   const items = navItemsFor(s.perms, factoryKind(factories, s.factory));
 
@@ -24,7 +24,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           navItems={items}
           brand={brand}
         />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6">
           <div className="mx-auto w-full max-w-4xl">{children}</div>
         </main>
       </div>
@@ -32,20 +32,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const sidebarCollapsed = (await cookies()).get("mf_sidebar")?.value === "1";
-
-  // Fixed-height shell: the row is exactly the viewport, the page itself never
-  // scrolls, and <main> is the only scroll container — so the sidebar keeps
-  // full height regardless of how tall the page content is.
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        items={items}
-        roleName={s.roleName}
-        name={s.name}
-        brand={brand}
-        defaultCollapsed={sidebarCollapsed}
-      />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
-    </div>
+    <Shell
+      items={items}
+      roleName={s.roleName}
+      name={s.name}
+      brand={brand}
+      defaultCollapsed={sidebarCollapsed}
+    >
+      {children}
+    </Shell>
   );
 }

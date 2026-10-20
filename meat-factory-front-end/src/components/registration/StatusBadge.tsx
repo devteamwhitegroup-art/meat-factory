@@ -3,13 +3,13 @@ import { REGISTRATION_STATUS_MN } from "@/lib/format/enum";
 import { cn } from "@/lib/utils";
 
 const COLOR: Record<string, string> = {
-  REGISTERED: "bg-slate-200 text-slate-800",
-  WEIGHED: "bg-blue-100 text-blue-800",
-  VERIFIED: "bg-indigo-100 text-indigo-800",
-  PAYMENT_PENDING: "bg-amber-100 text-amber-800",
-  PARTIALLY_SETTLED: "bg-amber-100 text-amber-800",
-  SETTLED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-rose-100 text-rose-800",
+  REGISTERED: "bg-slate-500/12 text-slate-700 dark:text-slate-300",
+  WEIGHED: "bg-blue-500/12 text-blue-700 dark:text-blue-400",
+  VERIFIED: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-400",
+  PAYMENT_PENDING: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  PARTIALLY_SETTLED: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  SETTLED: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  CANCELLED: "bg-rose-500/12 text-rose-700 dark:text-rose-400",
 };
 
 export function StatusBadge({ status }: { status: string | null | undefined }) {

@@ -1,4 +1,13 @@
 import Link from "next/link";
+import {
+  Banknote,
+  Clock,
+  HandCoins,
+  Hourglass,
+  Package,
+  Receipt,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -112,33 +121,43 @@ export default async function DashboardPage({
       </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Махны орлого" value={formatMNT(d.totalMeatIncome)} />
+        <MetricCard
+          label="Махны орлого"
+          value={formatMNT(d.totalMeatIncome)}
+          icon={Banknote}
+        />
         <MetricCard
           label="Малчдад төлсөн"
           value={formatMNT(d.totalHerderIncome)}
+          icon={HandCoins}
         />
         <MetricCard
           label="Хүлээгдэж буй төлбөр"
           value={formatMNT(d.pendingPayoutAmount)}
           accent="amber"
+          icon={Clock}
         />
         <MetricCard
           label="Идэвхтэй малчид"
           value={String(d.activeHerderCount ?? 0)}
+          icon={Users}
         />
         <MetricCard
           label="Гүйлгээний тоо"
           value={String(d.transactionCount ?? 0)}
+          icon={Receipt}
         />
         <MetricCard
           label="Хүлээгдэж буй гүйлгээ"
           value={String(d.pendingServicesCount ?? 0)}
           accent="amber"
+          icon={Hourglass}
         />
         {showByproduct ? (
           <MetricCard
             label="Дайвар (кг, гарт өгсөн)"
             value={formatNumber(d.totalByproductKg) + " кг"}
+            icon={Package}
           />
         ) : null}
       </div>
@@ -196,8 +215,8 @@ export default async function DashboardPage({
                       className={
                         "ml-3 border-0 " +
                         (t.paymentStatus === "PAID"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800")
+                          ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
+                          : "bg-amber-500/12 text-amber-700 dark:text-amber-400")
                       }
                     >
                       {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ??

@@ -119,8 +119,8 @@ export async function CustomerSalesTab({
                     <Badge
                       className={
                         r.paymentStatus === "PAID"
-                          ? "border-0 bg-emerald-100 text-emerald-800"
-                          : "border-0 bg-amber-100 text-amber-800"
+                          ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
+                          : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
                       }
                     >
                       {PAYMENT_STATUS_MN[r.paymentStatus ?? ""] ??

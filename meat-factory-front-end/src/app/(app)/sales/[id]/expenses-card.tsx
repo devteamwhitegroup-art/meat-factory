@@ -94,7 +94,7 @@ export function ExpensesCard({
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle>Бусад зардал</CardTitle>
-        <Badge className="border-0 bg-rose-100 text-rose-800 tabular-nums">
+        <Badge className="border-0 bg-rose-500/12 text-rose-700 dark:text-rose-400 tabular-nums">
           Нийт: {formatMNT(total)}
         </Badge>
       </CardHeader>

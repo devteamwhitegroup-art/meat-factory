@@ -35,7 +35,7 @@ import { toSaleLineRows } from "@/components/sales/sale-line-rows";
 import { ShipmentAnalyticsCard } from "./_components/ShipmentAnalyticsCard";
 
 const CATEGORY_COLOR: Record<string, string> = {
-  EXPORT: "border-0 bg-indigo-100 text-indigo-800",
+  EXPORT: "border-0 bg-indigo-500/12 text-indigo-700 dark:text-indigo-400",
   DOMESTIC: "border-0 bg-teal-100 text-teal-800",
 };
 
@@ -162,7 +162,7 @@ export function ShipmentDetailClient({
             </Badge>
           ) : null}
           {category === "DOMESTIC" && s.domesticMarket ? (
-            <Badge className="border-0 bg-sky-100 text-sky-800">
+            <Badge className="border-0 bg-sky-500/12 text-sky-700 dark:text-sky-400">
               {DOMESTIC_MARKET_MN[s.domesticMarket] ?? s.domesticMarket}
             </Badge>
           ) : null}
@@ -193,7 +193,7 @@ export function ShipmentDetailClient({
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium",
                     i <= stepIdx
-                      ? "bg-emerald-100 text-emerald-800"
+                      ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
                       : "bg-muted text-muted-foreground",
                   )}
                 >
@@ -340,8 +340,8 @@ export function ShipmentDetailClient({
             <Badge
               className={
                 s.salesTransaction.paymentStatus === "PAID"
-                  ? "border-0 bg-emerald-100 text-emerald-800"
-                  : "border-0 bg-amber-100 text-amber-800"
+                  ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
+                  : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
               }
             >
               {PAYMENT_STATUS_MN[s.salesTransaction.paymentStatus ?? ""] ??

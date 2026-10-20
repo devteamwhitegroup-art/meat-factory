@@ -147,7 +147,7 @@ export function FactoriesSection() {
                   <TableCell>{FACTORY_KIND_MN[f.kind] ?? f.kind}</TableCell>
                   <TableCell>
                     {f.isActive ? (
-                      <Badge className="border-0 bg-emerald-100 text-emerald-800">
+                      <Badge className="border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400">
                         Идэвхтэй
                       </Badge>
                     ) : (

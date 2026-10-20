@@ -30,10 +30,10 @@ const STATUS_TABS = [
 ];
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  IN_TRANSIT: { label: "Замд", cls: "border-0 bg-amber-100 text-amber-800" },
+  IN_TRANSIT: { label: "Замд", cls: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400" },
   RECEIVED: {
     label: "Хүлээн авсан",
-    cls: "border-0 bg-emerald-100 text-emerald-800",
+    cls: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
   },
   CANCELLED: { label: "Цуцалсан", cls: "border-0 bg-slate-200 text-slate-700" },
 };

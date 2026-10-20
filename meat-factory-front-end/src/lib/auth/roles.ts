@@ -23,16 +23,30 @@ export function canCreateRegistration(
   return factoryKind !== "PRE_BUTCHERED" || can(perms, "REGISTRATION_WEIGH");
 }
 
-export type NavItem = { href: string; label: string };
+// `group` is the sidebar section heading; sub-page tab lists leave it out.
+export type NavItem = { href: string; label: string; group?: string };
 type NavEntry = NavItem & { perms: Permission[]; livestock?: boolean };
+
+const G = {
+  main: "Үндсэн",
+  sales: "Борлуулалт",
+  stock: "Агуулах",
+  system: "Систем",
+};
 
 // Main menu in display order; an item shows when the account holds ANY of
 // its permissions. Sub-pages left out stay reachable by link.
 const NAV: NavEntry[] = [
-  { href: "/dashboard", label: "Тайлан", perms: ["DASHBOARD_VIEW"] },
+  {
+    href: "/dashboard",
+    label: "Тайлан",
+    group: G.main,
+    perms: ["DASHBOARD_VIEW"],
+  },
   {
     href: "/registrations",
     label: "Бүртгэл",
+    group: G.main,
     perms: [
       "REGISTRATION_CREATE",
       "REGISTRATION_WEIGH",
@@ -45,23 +59,51 @@ const NAV: NavEntry[] = [
   {
     href: "/medical-numbers",
     label: "Эмнэлгийн дугаар",
+    group: G.main,
     perms: ["MEDICAL_NUMBER_CHECK"],
     livestock: true,
   },
-  { href: "/sales", label: "Гүйлгээ", perms: ["SALES_MANAGE"] },
-  { href: "/byproduct", label: "Дайвар", perms: ["BYPRODUCT_PROCESS"] },
-  { href: "/inventory", label: "Нөөц", perms: ["INVENTORY_VIEW"] },
-  { href: "/shipments", label: "Ачилт", perms: ["SHIPMENT_VIEW"] },
-  { href: "/herders", label: "Малчид", perms: ["HERDER_MANAGE"] },
-  { href: "/customers", label: "Харилцагч", perms: ["CUSTOMER_MANAGE"] },
+  { href: "/sales", label: "Гүйлгээ", group: G.sales, perms: ["SALES_MANAGE"] },
+  {
+    href: "/byproduct",
+    label: "Дайвар",
+    group: G.stock,
+    perms: ["BYPRODUCT_PROCESS"],
+  },
+  {
+    href: "/inventory",
+    label: "Нөөц",
+    group: G.stock,
+    perms: ["INVENTORY_VIEW"],
+  },
+  {
+    href: "/shipments",
+    label: "Ачилт",
+    group: G.sales,
+    perms: ["SHIPMENT_VIEW"],
+  },
+  {
+    href: "/herders",
+    label: "Малчид",
+    group: G.main,
+    perms: ["HERDER_MANAGE"],
+  },
+  {
+    href: "/customers",
+    label: "Харилцагч",
+    group: G.sales,
+    perms: ["CUSTOMER_MANAGE"],
+  },
   {
     href: "/change-requests",
     label: "Засварын хүсэлт",
+    group: G.system,
     perms: ["CHANGE_REQUEST_REVIEW"],
   },
   {
     href: "/settings",
     label: "Систем тохиргоо",
+    group: G.system,
     perms: ["SETTINGS_MANAGE", "STAFF_MANAGE", "CATALOG_MANAGE"],
   },
 ];
@@ -75,7 +117,7 @@ export function navItemsFor(
   const byproductSite = factoryKind === "BYPRODUCT";
   const items = NAV.filter(
     (n) => can(perms, ...n.perms) && !(byproductSite && n.livestock),
-  ).map(({ href, label }) => ({ href, label }));
+  ).map(({ href, label, group }) => ({ href, label, group }));
   if (byproductSite)
     items.sort((a, b) =>
       a.href === "/byproduct" ? -1 : b.href === "/byproduct" ? 1 : 0,

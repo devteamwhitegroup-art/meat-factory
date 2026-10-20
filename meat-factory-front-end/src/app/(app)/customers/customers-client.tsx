@@ -416,8 +416,8 @@ export function CustomersClient() {
                       <Badge
                         className={
                           c.isActive
-                            ? "border-0 bg-emerald-100 text-emerald-800"
-                            : "border-0 bg-rose-100 text-rose-800"
+                            ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
+                            : "border-0 bg-rose-500/12 text-rose-700 dark:text-rose-400"
                         }
                       >
                         {c.isActive ? "Тийм" : "Үгүй"}
