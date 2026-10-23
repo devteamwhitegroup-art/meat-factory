@@ -149,7 +149,7 @@ export function ShipmentDetailClient({
           />
           <div>
             <div className="text-sm text-muted-foreground">Ачилтын дугаар</div>
-            <h1 className="font-mono text-2xl font-semibold">
+            <h1 className="font-mono text-2xl font-bold tracking-tight md:text-3xl">
               {s.shipmentCode}
             </h1>
           </div>

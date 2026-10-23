@@ -4,6 +4,7 @@ export type THerder = {
   id: string;
   name: string; // Малчны нэр
   registrationNo: string; // Регистрийн дугаар
+  tin: string | null; // Татвар төлөгчийн дугаар (ТТД) — eBarimt seller
   phone: string | null; // Утасны дугаар
   bankAccount: string | null; // Дансны дугаар
   bankName: string | null; // Банкны нэр (e.g. "Хаан банк")
@@ -21,6 +22,7 @@ export type THerder = {
 export type TCreateHerder = {
   name: string;
   registrationNo: string;
+  tin?: string | null;
   phone?: string | null;
   bankAccount?: string | null;
   bankName?: string | null;

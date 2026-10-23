@@ -10,6 +10,7 @@ export const HerderListDoc = graphql(/* GraphQL */ `
         id
         name
         registrationNo
+        tin
         phone
         bankAccount
         bankName
@@ -30,6 +31,7 @@ export const CreateHerderDoc = graphql(/* GraphQL */ `
   mutation CreateHerder(
     $name: String!
     $registrationNo: String!
+    $tin: String
     $phone: String
     $bankAccount: String
     $bankName: String
@@ -40,6 +42,7 @@ export const CreateHerderDoc = graphql(/* GraphQL */ `
     createHerder(
       name: $name
       registrationNo: $registrationNo
+      tin: $tin
       phone: $phone
       bankAccount: $bankAccount
       bankName: $bankName
@@ -53,6 +56,7 @@ export const CreateHerderDoc = graphql(/* GraphQL */ `
         id
         name
         registrationNo
+        tin
         phone
         bankAccount
         bankName
@@ -73,6 +77,7 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
     $id: ID!
     $name: String
     $registrationNo: String
+    $tin: String
     $phone: String
     $bankAccount: String
     $bankName: String
@@ -84,6 +89,7 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
       id: $id
       name: $name
       registrationNo: $registrationNo
+      tin: $tin
       phone: $phone
       bankAccount: $bankAccount
       bankName: $bankName
@@ -97,6 +103,7 @@ export const UpdateHerderDoc = graphql(/* GraphQL */ `
         id
         name
         registrationNo
+        tin
         phone
         bankAccount
         bankName
@@ -131,6 +138,7 @@ export const HerderDetailDoc = graphql(/* GraphQL */ `
         id
         name
         registrationNo
+        tin
         phone
         address
         bankAccount

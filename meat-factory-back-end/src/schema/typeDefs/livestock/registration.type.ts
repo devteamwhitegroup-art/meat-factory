@@ -152,6 +152,20 @@ export default `#graphql
         # reused on every subsequent print.
         storekeeperSignatureFileId: ID
         storekeeperSignature: File
+        # eBarimt issued on the herder's behalf (PosAPI 3.0). ebarimtId is
+        # the ДДТД; null until issued. A voided receipt keeps its id and sets
+        # ebarimtVoidedAt. ebarimtError = last failed attempt.
+        ebarimtId: String
+        ebarimtDate: String
+        ebarimtIssuedAt: Date
+        ebarimtVoidedAt: Date
+        ebarimtError: String
+        # Manual eBarimt check while PosAPI is parked: whether the herder's
+        # receipt was taken, a photo of it and a note.
+        ebarimtTaken: Boolean
+        ebarimtImageFileId: ID
+        ebarimtImage: File
+        ebarimtNote: String
         lines: [SettlementLine]
         # Money-flow statement images (bank receipts) attached after payout.
         paymentProofs: [SettlementPaymentProof]
@@ -513,6 +527,27 @@ export default `#graphql
         setSettlementStorekeeperSignature(
             registrationId: ID!
             fileId: ID
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
+
+        # Manual eBarimt check (taken + photo + note); every save overwrites
+        # all three.
+        setSettlementEbarimtCheck(
+            registrationId: ID!
+            taken: Boolean!
+            imageFileId: ID
+            note: String
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
+
+        # Issue the herder's eBarimt for this settlement: factory = issuer and
+        # buyer (B2B_RECEIPT), herder = seller (sub-receipt merchantTin),
+        # VAT_FREE with the herder meat taxProductCode. Needs the herder's ТТД.
+        issueSettlementEbarimt(
+            registrationId: ID!
+        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
+
+        # Void the issued eBarimt (PosAPI DELETE /rest/receipt).
+        voidSettlementEbarimt(
+            registrationId: ID!
         ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
 
         cancelRegistration(

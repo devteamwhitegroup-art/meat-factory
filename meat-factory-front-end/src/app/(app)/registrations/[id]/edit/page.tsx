@@ -101,7 +101,7 @@ export default async function EditRegistrationPage({
       <div className="flex items-center gap-6">
         <BackButton href={`/registrations/${id}`} />
         <div>
-          <h1 className="text-2xl font-semibold">Бүртгэл засах</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Бүртгэл засах</h1>
           <div className="font-mono text-sm text-muted-foreground">
             {r.registrationCode}
           </div>

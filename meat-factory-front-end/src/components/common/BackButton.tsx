@@ -16,8 +16,6 @@ export function BackButton({
     <Button
       type="button"
       variant="outline"
-      size="lg"
-      className="h-11 gap-2 text-base"
       onClick={() => (href ? router.push(href) : router.back())}
     >
       <ArrowLeftIcon />

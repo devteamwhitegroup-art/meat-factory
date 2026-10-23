@@ -7,12 +7,11 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { XIcon } from "lucide-react";
+import { CheckIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
@@ -82,10 +81,43 @@ function ReadOnlyField({
   return (
     <div className="space-y-1.5">
       <Label className="text-base text-muted-foreground">{label}</Label>
-      <div className="flex h-12 items-center rounded-lg border bg-muted/40 px-3 text-base">
+      <div className="flex h-12 items-center rounded-lg border border-dashed bg-muted/50 px-3.5 text-base">
         {value ? value : <span className="text-muted-foreground">—</span>}
       </div>
     </div>
+  );
+}
+
+// One numbered block of the intake form: «1 Машин ба малчин» + a plain
+// one-line instruction, so a new user knows the order to fill things in.
+function FormSection({
+  n,
+  title,
+  hint,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-5">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground">
+            {n}
+          </span>
+          <div className="space-y-0.5">
+            <div className="text-xl font-semibold">{title}</div>
+            {hint ? (
+              <div className="text-sm text-muted-foreground">{hint}</div>
+            ) : null}
+          </div>
+        </div>
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -233,24 +265,207 @@ export function IntakeForm({
     }
   }
 
+  // Numbered in the order the gate actually works; the factory step only
+  // exists for cross-factory accounts.
+  let step = 0;
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardContent className="space-y-6 p-6">
-            {/* Машины дугаар + Мал эмнэлгийн дугаар. The registration code is
-                assigned by the server on create. */}
-            <div className="grid items-start gap-6 sm:grid-cols-2 mb-0">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        {/* Owner/admin choose the receiving factory; staff are fixed to
+            theirs (no banner). FACTORY_2 (pre-butchered) drops stamp +
+            бой зардал. */}
+        {factory ? null : (
+          <FormSection
+            n={++step}
+            title="Үйлдвэр"
+            hint="Аль үйлдвэрт хүлээн авч байгааг сонгоно."
+          >
+            <Controller
+              control={form.control}
+              name="factory"
+              render={({ field }) => (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {intake.map((f) => (
+                    <label
+                      key={f.code}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4 transition-colors has-checked:border-primary has-checked:bg-primary/5"
+                    >
+                      <input
+                        type="radio"
+                        name="factory"
+                        checked={field.value === f.code}
+                        onChange={() => field.onChange(f.code)}
+                        className="mt-1 size-5 accent-primary"
+                      />
+                      <div className="space-y-0.5">
+                        <div className="text-base font-semibold">{f.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {FACTORY_KIND_HINT[f.kind]}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            />
+          </FormSection>
+        )}
+
+        <FormSection
+          n={++step}
+          title="Машин ба малчин"
+          hint="Машины дугаарыг бичээд, малчныг нэрээр нь хайж сонгоно."
+        >
+          {/* The registration code is assigned by the server on create. */}
+          <FormField
+            control={form.control}
+            name="vehicleNumber"
+            render={({ field }) => (
+              <FormItem className="max-w-sm">
+                <FormLabel className="text-base">Машины дугаар</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="8901 ДОУ"
+                    className="h-12 text-lg"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="herderId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base">Малчин сонгох</FormLabel>
+                <FormControl>
+                  <HerderPicker
+                    key={pickerKey}
+                    initialLabel={herder?.name ?? undefined}
+                    value={field.value || null}
+                    onChange={(id) => field.onChange(id ?? "")}
+                    onSelect={setHerder}
+                    quick={quickHerder}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ReadOnlyField label="Малчны нэр" value={herder?.name} />
+            <ReadOnlyField
+              label="Регистрийн дугаар"
+              value={herder?.registrationNo}
+            />
+            <ReadOnlyField label="Утасны дугаар" value={herder?.phone} />
+            <ReadOnlyField label="Хаяг" value={herder?.address} />
+          </div>
+        </FormSection>
+
+        <FormSection
+          n={++step}
+          title={pre ? "Мах ба жин" : "Малын тоо"}
+          hint={
+            pre
+              ? "Ирсэн мах бүрийн жин, кг тутмын үнийг оруулна."
+              : "Төрөл бүрээс хэдэн толгой ирснийг − / + товчоор оруулна."
+          }
+        >
+          {/* Хойд үйлдвэр: weigh the meat here; live animals: head count. */}
+          {pre ? (
+            <Controller
+              control={form.control}
+              name="weighings"
+              render={({ field }) => (
+                <IntakeWeighRows
+                  value={field.value}
+                  onChange={(v) => field.onChange(v)}
+                />
+              )}
+            />
+          ) : (
+            <Controller
+              control={form.control}
+              name="counts"
+              render={({ field }) => (
+                <AnimalCountGrid
+                  value={(field.value as Record<string, number>) ?? {}}
+                  onChange={(v) => field.onChange(v)}
+                />
+              )}
+            />
+          )}
+        </FormSection>
+
+        <FormSection
+          n={++step}
+          title="Мал эмнэлгийн дугаар"
+          hint="Заавал биш. Эмчтэй ярьсны дараа бүртгэлийн хуудаснаас нэмж болно."
+        >
+          <FormField
+            control={form.control}
+            name="medicalNumbers"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base">Дугаар (7 оронтой)</FormLabel>
+                <MedicalNumberAdder
+                  onAdd={(list) =>
+                    field.onChange([...new Set([...field.value, ...list])])
+                  }
+                />
+                {field.value.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {field.value.map((n) => (
+                      <span
+                        key={n}
+                        className="inline-flex items-center gap-1.5 rounded-lg border bg-muted/50 px-3 py-1.5 font-mono text-base tabular-nums"
+                      >
+                        {n}
+                        <button
+                          type="button"
+                          aria-label={`${n} хасах`}
+                          onClick={() =>
+                            field.onChange(field.value.filter((x) => x !== n))
+                          }
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <XIcon className="size-4" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormSection>
+
+        <FormSection
+          n={++step}
+          title={pre ? "Гарын үсэг, зураг" : "Тамга, гарын үсэг, зураг"}
+          hint="Малчинд гарын үсэг зуруулж, зураг дарна."
+        >
+          {/* Таних тэмдэг + Он сар */}
+          <div className="grid gap-6 sm:grid-cols-2">
+            {pre ? null : (
               <FormField
                 control={form.control}
-                name="vehicleNumber"
+                name="stamp"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base">Машины дугаар</FormLabel>
+                    <FormLabel className="text-base">
+                      Таних тэмдэг
+                      {stampRequired ? "" : " (заавал биш)"}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="8901 ДОУ"
+                        value={field.value ?? ""}
+                        placeholder="Малын тамганы тайлбар"
                         className="h-12 text-lg"
                       />
                     </FormControl>
@@ -258,242 +473,64 @@ export function IntakeForm({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="medicalNumbers"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">
-                      Мал эмнэлгийн дугаар (7 оронтой, заавал биш)
-                    </FormLabel>
-                    <MedicalNumberAdder
-                      onAdd={(list) =>
-                        field.onChange([...new Set([...field.value, ...list])])
-                      }
-                    />
-                    {field.value.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {field.value.map((n) => (
-                          <span
-                            key={n}
-                            className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm tabular-nums"
-                          >
-                            {n}
-                            <button
-                              type="button"
-                              aria-label={`${n} хасах`}
-                              onClick={() =>
-                                field.onChange(
-                                  field.value.filter((x) => x !== n),
-                                )
-                              }
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <XIcon className="size-3.5" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Эмчтэй ярьсны дараа бүртгэлийн хуудаснаас нэмж болно.
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Owner/admin choose the receiving factory; staff are fixed to
-                theirs (no banner). FACTORY_2 (pre-butchered) drops stamp +
-                бой зардал. */}
-            {factory ? null : (
-              <Controller
-                control={form.control}
-                name="factory"
-                render={({ field }) => (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {intake.map((f) => (
-                      <label
-                        key={f.code}
-                        className="flex cursor-pointer items-start gap-3 rounded-md border bg-muted/30 p-3"
-                      >
-                        <input
-                          type="radio"
-                          name="factory"
-                          checked={field.value === f.code}
-                          onChange={() => field.onChange(f.code)}
-                          className="mt-1 h-5 w-5"
-                        />
-                        <div className="space-y-0.5">
-                          <div className="text-base font-medium">
-                            {f.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {FACTORY_KIND_HINT[f.kind]}
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              />
             )}
+            <ReadOnlyField label="Он сар" value={form.getValues("intakeDate")} />
+          </div>
 
-            <Separator />
-
-            {/* Малчны мэдээлэл */}
-            <div className="text-lg font-semibold">Малчны мэдээлэл</div>
-            <FormField
-              control={form.control}
-              name="herderId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Малчин сонгох</FormLabel>
-                  <FormControl>
-                    <HerderPicker
-                      key={pickerKey}
-                      initialLabel={herder?.name ?? undefined}
-                      value={field.value || null}
-                      onChange={(id) => field.onChange(id ?? "")}
-                      onSelect={setHerder}
-                      quick={quickHerder}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ReadOnlyField label="Утасны дугаар" value={herder?.phone} />
-              <ReadOnlyField label="Хаяг" value={herder?.address} />
-              <ReadOnlyField
-                label="Регистрийн дугаар"
-                value={herder?.registrationNo}
-              />
-              <ReadOnlyField label="Малчны нэр" value={herder?.name} />
-            </div>
-
-            <Separator />
-
-            {/* Таних тэмдэг + Он сар */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              {pre ? null : (
-                <FormField
-                  control={form.control}
-                  name="stamp"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base">
-                        Таних тэмдэг
-                        {stampRequired ? "" : " (заавал биш)"}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ""}
-                          placeholder="Малын тамганы тайлбар"
-                          className="h-12 text-lg"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <ReadOnlyField
-                label="Он сар"
-                value={form.getValues("intakeDate")}
-              />
-            </div>
-
-            {/* Тамга зурах + Гарын үсэг зурах */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              {pre ? null : (
-                <Controller
-                  control={form.control}
-                  name="stampFileId"
-                  render={({ field }) => (
-                    <SignatureField
-                      value={field.value ?? null}
-                      onChange={(id) => field.onChange(id)}
-                      label={
-                        stampRequired
-                          ? "Тамга (зурах)"
-                          : "Тамга (зурах, заавал биш)"
-                      }
-                      type="register"
-                    />
-                  )}
-                />
-              )}
+          {/* Тамга зурах + Гарын үсэг зурах */}
+          <div className="grid gap-6 sm:grid-cols-2">
+            {pre ? null : (
               <Controller
                 control={form.control}
-                name="signatureFileId"
+                name="stampFileId"
                 render={({ field }) => (
                   <SignatureField
                     value={field.value ?? null}
                     onChange={(id) => field.onChange(id)}
-                    label="Гарын үсэг (зурах)"
+                    label={
+                      stampRequired
+                        ? "Тамга (зурах)"
+                        : "Тамга (зурах, заавал биш)"
+                    }
                     type="register"
                   />
                 )}
               />
-            </div>
+            )}
             <Controller
               control={form.control}
-              name="photoFileId"
+              name="signatureFileId"
               render={({ field }) => (
-                <PhotoCaptureButton
+                <SignatureField
                   value={field.value ?? null}
                   onChange={(id) => field.onChange(id)}
-                  label="Зураг дарах"
+                  label="Гарын үсэг (зурах)"
                   type="register"
                 />
               )}
             />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-4 p-6">
-            {/* Хойд үйлдвэр: weigh the meat here; live animals: head count. */}
-            <div className="text-lg font-semibold">
-              {pre ? "Мах ба жин" : "Малын тоо"}
-            </div>
-            {pre ? (
-              <Controller
-                control={form.control}
-                name="weighings"
-                render={({ field }) => (
-                  <IntakeWeighRows
-                    value={field.value}
-                    onChange={(v) => field.onChange(v)}
-                  />
-                )}
-              />
-            ) : (
-              <Controller
-                control={form.control}
-                name="counts"
-                render={({ field }) => (
-                  <AnimalCountGrid
-                    value={(field.value as Record<string, number>) ?? {}}
-                    onChange={(v) => field.onChange(v)}
-                  />
-                )}
+          </div>
+          <Controller
+            control={form.control}
+            name="photoFileId"
+            render={({ field }) => (
+              <PhotoCaptureButton
+                value={field.value ?? null}
+                onChange={(id) => field.onChange(id)}
+                label="Зураг дарах"
+                type="register"
               />
             )}
-          </CardContent>
-        </Card>
+          />
+        </FormSection>
 
         <Button
           type="submit"
           size="lg"
-          className="h-14 w-full text-lg"
+          className="h-16 w-full text-xl"
           disabled={submitting}
         >
+          <CheckIcon className="size-6" />
           {submitting ? "Бүртгэж байна…" : "Бүртгэх"}
         </Button>
       </form>

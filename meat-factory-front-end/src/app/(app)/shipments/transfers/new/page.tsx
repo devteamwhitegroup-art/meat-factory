@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
-import { BackButton } from "@/components/common/BackButton";
 import { getClient } from "@/lib/apollo/server";
 import { requireCap } from "@/lib/auth/server";
 import { getFactories } from "@/lib/factory/server";
@@ -9,6 +8,7 @@ import { InventoryStockDoc } from "@/lib/queries/inventory";
 import { unwrapList } from "@/lib/unwrap";
 import { transferLineText } from "../_components/transfer-line";
 import { TransferSendForm } from "../_components/TransferSendForm";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type Props = { searchParams: Promise<{ factory?: string }> };
 
@@ -49,14 +49,11 @@ export default async function NewFactoryTransferPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <BackButton href="/shipments/transfers" />
-        <h1 className="text-2xl font-semibold">Үйлдвэр хооронд илгээх</h1>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Илгээмэгц таны нөөцөөс хасагдана. Хүлээн авах үйлдвэр баталгаажуулахад
-        тэдний нөөцөд нэмэгдэнэ.
-      </p>
+      <PageHeader
+        back="/shipments/transfers"
+        title="Үйлдвэр хооронд илгээх"
+        description="Илгээмэгц таны нөөцөөс хасагдана. Хүлээн авах үйлдвэр баталгаажуулахад тэдний нөөцөд нэмэгдэнэ."
+      />
 
       {session.crossFactory ? (
         <div className={SEGMENTED}>

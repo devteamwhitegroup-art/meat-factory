@@ -1,4 +1,16 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  Ban,
+  Calculator,
+  CircleCheckBig,
+  ClipboardPlus,
+  Package,
+  Pencil,
+  Scale,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,11 +36,16 @@ import {
   isPreButchered,
 } from "@/lib/factory/factories";
 import { compact } from "@/lib/compact";
-import { BackButton } from "@/components/common/BackButton";
+import { PageHeader } from "@/components/common/PageHeader";
+import { ErrorNotice } from "@/components/common/ListState";
+import { cn } from "@/lib/utils";
 import { canCreateRegistration } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/server";
 import { MedicalNumbersCard } from "./_components/MedicalNumbersCard";
 import { HerderInfoCard } from "./_components/HerderInfoCard";
+import { RegistrationProgress } from "./_components/RegistrationProgress";
+
+type Action = { label: string; href: string; icon: LucideIcon };
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -41,14 +58,14 @@ export default async function RegistrationDetailPage({ params }: Props) {
   const wrap = data?.registration;
   if (!wrap?.success || !wrap.registration) {
     return (
-      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-        {wrap?.message ?? "Бүртгэл олдсонгүй"}
+      <div className="space-y-6">
+        <PageHeader back="/registrations" title="Бүртгэл" />
+        <ErrorNotice message={wrap?.message ?? "Бүртгэл олдсонгүй"} />
       </div>
     );
   }
   const r = wrap.registration;
   const status = r.status ?? "REGISTERED";
-  const isOpen = status === "REGISTERED";
   // FACTORY_2 (pre-butchered): no verify / byproduct steps — гэдэс is counted
   // on the weigh page and finance settles straight from WEIGHED.
   const [session, factories] = await Promise.all([
@@ -66,111 +83,225 @@ export default async function RegistrationDetailPage({ params }: Props) {
     factoryKind(factories, session.factory),
   );
 
+  const base = `/registrations/${r.id}`;
+  const canSettle = session.can("SETTLEMENT_CREATE", "SETTLEMENT_PAY");
+  const weighed = compact(r.weighingEntries).length > 0;
+  const step = (label: string, path: string, icon: LucideIcon): Action => ({
+    label,
+    href: `${base}/${path}`,
+    icon,
+  });
+
+  // The one thing to do next, worded as an instruction. `action` is null
+  // when someone with other rights does it (the step still shows).
+  let next: { title: string; hint: string; action: Action | null } | null =
+    null;
+  switch (status) {
+    case "REGISTERED":
+      // Хойд үйлдвэр weighs on the intake form → straight to verify.
+      next =
+        pre && weighed
+          ? {
+              title: "Жин баталгаажуулах",
+              hint: "Оруулсан мах, жин, үнийг шалгаад баталгаажуулна.",
+              action: session.can("REGISTRATION_WEIGH")
+                ? step("Баталгаажуулах", "verify", ShieldCheck)
+                : null,
+            }
+          : {
+              title: "Жинлэх",
+              hint: pre
+                ? "Махыг жинлэж, кг тутмын үнийг оруулна."
+                : "Малыг нэг нэгээр нь жинлүүрт жинлэнэ.",
+              action: session.can("REGISTRATION_WEIGH")
+                ? step("Жинлэх", "weigh", Scale)
+                : null,
+            };
+      break;
+    case "WEIGHED":
+      next = pre
+        ? {
+            title: "Тооцоо хийх",
+            hint: "Малчинд олгох мөнгөн дүнг тооцоолно.",
+            action: canSettle ? step("Тооцоо хийх", "settlement", Calculator) : null,
+          }
+        : {
+            title: "Баталгаажуулах",
+            hint: "Жинг шалгаж, малчинд гарын үсэг зуруулна.",
+            action: session.can("REGISTRATION_VERIFY")
+              ? step("Баталгаажуулах", "verify", ShieldCheck)
+              : null,
+          };
+      break;
+    case "VERIFIED":
+      next =
+        bundles.length === 0 && session.can("REGISTRATION_WEIGH")
+          ? {
+              title: "Гэдэс тоолох",
+              hint: "Малчинд өгөх болон үйлдвэрт үлдэх гэдсийг тоолно. Дараа нь тооцоо хийнэ.",
+              action: step("Гэдэс тоолох", "byproduct", Package),
+            }
+          : {
+              title: "Тооцоо хийх",
+              hint: "Малчинд олгох мөнгөн дүнг тооцоолно.",
+              action: canSettle
+                ? step("Тооцоо хийх", "settlement", Calculator)
+                : null,
+            };
+      break;
+    case "PAYMENT_PENDING":
+      next = {
+        title: "Төлбөр олгох",
+        hint: "Малчинд мөнгийг шилжүүлээд, «Төлсөн» гэж тэмдэглэнэ.",
+        action: session.can("SETTLEMENT_PAY")
+          ? step("Төлбөр олгох", "settlement", Calculator)
+          : null,
+      };
+      break;
+    case "PARTIALLY_SETTLED":
+      next = {
+        title: "Үлдэгдэл олгох",
+        hint: "Эмнэлгийн дугаар баталгаажсаны дараа үлдэгдэл мөнгийг олгоно.",
+        action: session.can("SETTLEMENT_PAY")
+          ? step("Үлдэгдэл олгох", "settlement", Calculator)
+          : null,
+      };
+      break;
+  }
+
+  // Everything else this account may open, as quieter buttons. Only what the
+  // account can actually use — the back-end and page gates would block the
+  // rest anyway.
+  const more: Action[] = [];
+  // Intake fix: direct the same day, a change request after.
+  if (
+    (status === "REGISTERED" || status === "WEIGHED" || status === "VERIFIED") &&
+    session.can("REGISTRATION_CREATE")
+  )
+    more.push(
+      step(r.editableByMe ? "Засах" : "Засварын хүсэлт", "edit", Pencil),
+    );
+  if (
+    (status === "WEIGHED" ||
+      status === "VERIFIED" ||
+      status === "PAYMENT_PENDING") &&
+    session.can("REGISTRATION_WEIGH_FIX")
+  )
+    more.push(step("Жин засах", "weigh", Scale));
+  if (status === "VERIFIED" && !pre && session.can("REGISTRATION_WEIGH"))
+    more.push(step("Гэдэс", "byproduct", Package));
+  if (
+    status !== "REGISTERED" &&
+    status !== "CANCELLED" &&
+    !pre &&
+    session.can("REGISTRATION_VERIFY")
+  )
+    more.push(step("Баталгаажуулалт", "verify", ShieldCheck));
+  if (
+    (status === "VERIFIED" ||
+      (pre && status === "WEIGHED") ||
+      status === "PAYMENT_PENDING" ||
+      status === "PARTIALLY_SETTLED" ||
+      status === "SETTLED") &&
+    canSettle
+  )
+    more.push(step("Тооцоо", "settlement", Calculator));
+  const secondary = more.filter((a) => a.href !== next?.action?.href);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-6">
-          <BackButton href="/registrations" />
-          <div>
-            <div className="text-sm text-muted-foreground">Бүртгэлийн код</div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-mono text-3xl font-semibold">
-                {r.registrationCode ?? "—"}
-              </h1>
-              <StatusBadge status={status} />
-              {r.factory ? (
-                <Badge variant="outline">{factoryName(factories, r.factory)}</Badge>
-              ) : null}
-            </div>
+      <PageHeader
+        back="/registrations"
+        title={<span className="font-mono">{r.registrationCode ?? "—"}</span>}
+        description={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={status} />
+            {r.factory ? (
+              <Badge variant="outline">{factoryName(factories, r.factory)}</Badge>
+            ) : null}
+            <span>
+              {r.herder?.name ?? "—"} · {fmtDateTime(r.createdAt ?? r.intakeDate)}
+            </span>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {/* Back-to-back intake: start the next registration from here. */}
-          {canCreate && (
-            <Link
-              href="/registrations/new"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Шинэ бүртгэл
-            </Link>
-          )}
-          {/* Intake fix: direct the same day, a change request after. */}
-          {(status === "REGISTERED" ||
-            status === "WEIGHED" ||
-            status === "VERIFIED") &&
-            session.can("REGISTRATION_CREATE") && (
+        }
+        actions={
+          <>
+            {secondary.map((a) => (
               <Link
-                href={`/registrations/${r.id}/edit`}
+                key={a.label}
+                href={a.href}
                 className={buttonVariants({ variant: "outline" })}
               >
-                {r.editableByMe ? "Засах" : "Засварын хүсэлт"}
-              </Link>
-            )}
-          {/* Хойд үйлдвэр weighs on the intake form → straight to verify. */}
-          {status === "REGISTERED" &&
-            session.can("REGISTRATION_WEIGH") &&
-            (pre && compact(r.weighingEntries).length > 0 ? (
-              <Link
-                href={`/registrations/${r.id}/verify`}
-                className={buttonVariants()}
-              >
-                Баталгаажуулах
-              </Link>
-            ) : (
-              <Link
-                href={`/registrations/${r.id}/weigh`}
-                className={buttonVariants()}
-              >
-                Хэмжүүр
+                <a.icon />
+                {a.label}
               </Link>
             ))}
-          {(status === "WEIGHED" ||
-            status === "VERIFIED" ||
-            status === "PAYMENT_PENDING") &&
-            session.can("REGISTRATION_WEIGH_FIX") && (
+            {/* Back-to-back intake: start the next registration from here. */}
+            {canCreate ? (
               <Link
-                href={`/registrations/${r.id}/weigh`}
-                className={buttonVariants({ variant: "outline" })}
+                href="/registrations/new"
+                className={buttonVariants({ variant: "secondary" })}
               >
-                Жин засах
+                <ClipboardPlus />
+                Шинэ бүртгэл
               </Link>
-            )}
-          {status === "VERIFIED" && !pre && session.can("REGISTRATION_WEIGH") && (
-            <Link
-              href={`/registrations/${r.id}/byproduct`}
-              className={buttonVariants()}
-            >
-              Дайвар
-            </Link>
-          )}
-          {status !== "REGISTERED" &&
-            status !== "CANCELLED" &&
-            !pre &&
-            session.can("REGISTRATION_VERIFY") && (
-              <Link
-                href={`/registrations/${r.id}/verify`}
-                className={buttonVariants(
-                  status === "WEIGHED" ? {} : { variant: "outline" },
+            ) : null}
+          </>
+        }
+      />
+
+      {status === "CANCELLED" ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/8 p-5 text-lg font-semibold text-rose-800 dark:text-rose-300">
+          <Ban className="size-6 shrink-0" />
+          Энэ бүртгэл цуцлагдсан.
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="space-y-5">
+            <RegistrationProgress status={status} pre={pre} />
+            {next ? (
+              <div
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 md:p-5",
+                  next.action
+                    ? "border-primary/30 bg-primary/5"
+                    : "bg-muted/60",
                 )}
               >
-                {status === "WEIGHED" ? "Баталгаажуулах" : "Баталгаажуулалт"}
-              </Link>
-            )}
-          {(status === "VERIFIED" ||
-            (pre && status === "WEIGHED") ||
-            status === "PAYMENT_PENDING" ||
-            status === "PARTIALLY_SETTLED" ||
-            status === "SETTLED") &&
-            session.can("SETTLEMENT_CREATE", "SETTLEMENT_PAY") && (
-              <Link
-                href={`/registrations/${r.id}/settlement`}
-                className={buttonVariants()}
-              >
-                Тооцоо
-              </Link>
-            )}
-        </div>
-      </div>
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold text-primary">
+                    Дараагийн алхам
+                  </div>
+                  <div className="text-xl font-bold">{next.title}</div>
+                  <div className="text-base text-muted-foreground">
+                    {next.action
+                      ? next.hint
+                      : `${next.hint} Энэ алхмыг өөр эрхтэй ажилтан хийнэ.`}
+                  </div>
+                </div>
+                {next.action ? (
+                  <Link
+                    href={next.action.href}
+                    className={cn(
+                      buttonVariants({ size: "lg" }),
+                      "h-14 w-full px-8 text-lg sm:w-auto",
+                    )}
+                  >
+                    <next.action.icon className="size-6" />
+                    {next.action.label}
+                    <ArrowRight className="size-5" />
+                  </Link>
+                ) : null}
+              </div>
+            ) : status === "SETTLED" ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-4 text-base font-semibold text-emerald-800 dark:text-emerald-300">
+                <CircleCheckBig className="size-6 shrink-0" />
+                Бүх алхам дууссан — малчинд төлбөр бүрэн олгогдсон.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <HerderInfoCard
@@ -180,6 +311,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                   id: r.herder.id,
                   name: r.herder.name,
                   registrationNo: r.herder.registrationNo,
+                  tin: r.herder.tin,
                   phone: r.herder.phone,
                   bankAccount: r.herder.bankAccount,
                   bankName: r.herder.bankName,
@@ -196,7 +328,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
           <CardHeader>
             <CardTitle>Бүртгэлийн мэдээлэл</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2 text-sm">
+          <CardContent className="grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-6 gap-y-3 text-base">
             <div className="text-muted-foreground">Машины дугаар</div>
             <div>{r.vehicleNumber ?? "—"}</div>
             {!pre && (
@@ -264,9 +396,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
         <CardHeader>
           <CardTitle>Малын төрөл</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3 text-sm">
+        <CardContent className="flex flex-wrap gap-3 text-base">
           {compact(r.animalLines).map((l) => (
-            <div key={l.id!} className="rounded-md border px-3 py-1.5">
+            <div key={l.id!} className="rounded-lg border bg-muted/50 px-4 py-2">
               {l.animalType}
               {l.count ? (
                 <>
@@ -470,12 +602,6 @@ export default async function RegistrationDetailPage({ params }: Props) {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {isOpen && (
-        <div className="text-xs text-muted-foreground">
-          Цуцлах болон бусад үйлдлийг тус тусын дэлгэцээс хий.
-        </div>
       )}
     </div>
   );

@@ -1,9 +1,15 @@
 import Link from "next/link";
+import { ClipboardPlus } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { chipCls } from "@/components/ui/segmented";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
+import { PageHeader } from "@/components/common/PageHeader";
+import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import { RegistrationCard } from "@/components/registration/RegistrationCard";
+import { STATUS_STYLE } from "@/components/registration/StatusBadge";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationListDoc } from "@/lib/queries/registration";
+import type { Registration_Status } from "@/lib/gql/graphql";
 import { unwrapList } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
 import { pageAndRange } from "@/lib/date/range";
@@ -11,7 +17,6 @@ import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { REGISTRATION_STATUS_MN } from "@/lib/format/enum";
 import { getFactories } from "@/lib/factory/server";
 import { factoryKind, factoryName } from "@/lib/factory/factories";
-import { Badge } from "@/components/ui/badge";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { canCreateRegistration } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/server";
@@ -26,29 +31,43 @@ type Props = {
   }>;
 };
 
+type Stage = { value: string; label: string; statuses: Registration_Status[] };
+
+const PAGE_SIZE = 24;
+
 // One chip per REGISTRATION_STATUS value (plus "Бүгд") — every status is
 // individually filterable. Derived from REGISTRATION_STATUS_MN (single
 // source of truth for the Mongolian labels) so a future status shows up
 // here automatically.
-const STAGES: Array<{
-  value: string;
-  label: string;
-  statuses: string[];
-}> = [
+const STAGES: Stage[] = [
   { value: "", label: "Бүгд", statuses: [] },
   ...Object.entries(REGISTRATION_STATUS_MN).map(([status, label]) => ({
     value: status.toLowerCase(),
     label,
-    statuses: [status],
+    statuses: [status as Registration_Status],
   })),
 ];
 
 // нярав / эмч work the floor only — payment statuses belong to the accountant,
 // so their "Бүгд" and chips cover just these.
-const FLOOR_STATUSES = ["REGISTERED", "WEIGHED", "VERIFIED"];
-const FLOOR_STAGES = [
+const FLOOR_STATUSES: Registration_Status[] = [
+  "REGISTERED",
+  "WEIGHED",
+  "VERIFIED",
+];
+const FLOOR_STAGES: Stage[] = [
   { value: "", label: "Бүгд", statuses: FLOOR_STATUSES },
   ...STAGES.filter((s) => s.statuses.some((x) => FLOOR_STATUSES.includes(x))),
+];
+
+// Grouped stages other pages link to (the dashboard pipeline tile); shown
+// as a chip only while selected.
+const LINKED_STAGES: Stage[] = [
+  {
+    value: "in_process",
+    label: "Дүн тооцоолж буй",
+    statuses: ["WEIGHED", "VERIFIED"],
+  },
 ];
 
 export default async function RegistrationsPage({ searchParams }: Props) {
@@ -65,17 +84,20 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   const factory = factories.some((f) => f.code === sp.factory)
     ? (sp.factory as string)
     : null;
-  const stage = stages.find((s) => s.value === (sp.stage ?? "")) ?? stages[0];
+  const linked = LINKED_STAGES.find((s) => s.value === sp.stage);
+  const stage =
+    linked ?? stages.find((s) => s.value === (sp.stage ?? "")) ?? stages[0];
   const { page, dateRange } = pageAndRange(sp);
 
-  // Stage chip hrefs preserve the active date range so switching stage doesn't
-  // drop the filter.
-  const stageHref = (stageVal: string) => {
+  // Chip / page hrefs keep the other filters.
+  const href = (over: { stage?: string; page?: number }) => {
     const params = new URLSearchParams();
-    if (stageVal) params.set("stage", stageVal);
+    const st = over.stage ?? stage.value;
+    if (st) params.set("stage", st);
     if (factory) params.set("factory", factory);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
+    if (over.page && over.page > 1) params.set("page", String(over.page));
     const qs = params.toString();
     return qs ? `/registrations?${qs}` : "/registrations";
   };
@@ -83,10 +105,10 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   const { data } = await getClient().query({
     query: RegistrationListDoc,
     variables: {
-      statuses: stage.statuses.length > 0 ? (stage.statuses as never) : null,
+      statuses: stage.statuses.length > 0 ? stage.statuses : null,
       factory,
       dateRange,
-      limit: 24,
+      limit: PAGE_SIZE,
       page,
     },
   });
@@ -97,40 +119,42 @@ export default async function RegistrationsPage({ searchParams }: Props) {
     error: errorMsg,
   } = unwrapList(data?.registrations, data?.registrations?.registrations);
 
+  const chips = linked ? [linked, ...stages] : stages;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Бүртгэлийн дугаарын хэсэг</h1>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter />
-          {canCreateRegistration(
-            session.perms,
-            factoryKind(factories, session.factory),
-          ) ? (
-            <Link href="/registrations/new" className={buttonVariants()}>
-              Шинэ бүртгэл
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <PageHeader
+        title="Бүртгэл"
+        description="Хүлээн авсан мал, махны бүртгэлүүд. Бүртгэл дээр дарж дараагийн алхмыг хийнэ."
+        actions={
+          <>
+            <DateRangeFilter />
+            {canCreateRegistration(
+              session.perms,
+              factoryKind(factories, session.factory),
+            ) ? (
+              <Link href="/registrations/new" className={buttonVariants()}>
+                <ClipboardPlus />
+                Шинэ бүртгэл
+              </Link>
+            ) : null}
+          </>
+        }
+      />
 
       {crossFactory ? <FactoryFilter /> : null}
 
       <div className="flex flex-wrap gap-2">
-        {stages.map((s) => {
-          const active = stage.value === s.value;
-          const href = stageHref(s.value);
+        {chips.map((s) => {
+          const Icon =
+            s.statuses.length === 1 ? STATUS_STYLE[s.statuses[0]]?.icon : null;
           return (
             <Link
               key={s.value}
-              href={href}
-              className={
-                "rounded-full border px-3 py-1 text-xs transition-colors " +
-                (active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-muted")
-              }
+              href={href({ stage: s.value })}
+              className={chipCls(stage.value === s.value)}
             >
+              {Icon ? <Icon className="mr-1.5 size-4" /> : null}
               {s.label}
             </Link>
           );
@@ -140,35 +164,36 @@ export default async function RegistrationsPage({ searchParams }: Props) {
       <ErrorNotice message={errorMsg} />
 
       {rows.length === 0 ? (
-        <EmptyState>Бүртгэл олдсонгүй</EmptyState>
+        <EmptyState>Энэ шүүлтүүрт бүртгэл олдсонгүй</EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {rows.map((r) => (
-            <div key={r.id} className="relative">
-              <RegistrationCard
-                id={r.id!}
-                registrationCode={r.registrationCode ?? null}
-                status={r.status ?? "REGISTERED"}
-                herderName={r.herder?.name ?? null}
-                animalLines={compact(r.animalLines).map((l) => ({
-                  animalType: l.animalType ?? "",
-                  count: l.count ?? 0,
-                }))}
-              />
-              {crossFactory ? (
-                <Badge
-                  variant="outline"
-                  className="pointer-events-none absolute top-3 right-3 bg-background"
-                >
-                  {factoryName(factories, r.factory)}
-                </Badge>
-              ) : null}
-            </div>
+            <RegistrationCard
+              key={r.id}
+              id={r.id!}
+              registrationCode={r.registrationCode ?? null}
+              status={r.status ?? "REGISTERED"}
+              herderName={r.herder?.name ?? null}
+              vehicleNumber={r.vehicleNumber}
+              intakeDate={r.intakeDate}
+              factoryLabel={
+                crossFactory ? factoryName(factories, r.factory) : null
+              }
+              animalLines={compact(r.animalLines).map((l) => ({
+                animalType: l.animalType ?? "",
+                count: l.count ?? 0,
+              }))}
+            />
           ))}
         </div>
       )}
 
-      <div className="text-xs text-muted-foreground">Нийт: {count}</div>
+      <LinkPaginationFooter
+        page={page}
+        total={count}
+        prevHref={page > 1 ? href({ page: page - 1 }) : null}
+        nextHref={page * PAGE_SIZE < count ? href({ page: page + 1 }) : null}
+      />
     </div>
   );
 }

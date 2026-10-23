@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { buttonVariants } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { fmtDateTime } from "@/lib/format/date";
 import { transferLineText } from "./_components/transfer-line";
 import { TransferActions } from "./_components/TransferActions";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const STATUS_TABS = [
   { value: "IN_TRANSIT", label: "Замд" },
@@ -83,28 +85,30 @@ export default async function FactoryTransfersPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-2xl font-semibold">Ачилт</h1>
-          <div className={SEGMENTED}>
-            <Link href="/shipments?tab=domestic" className={segmentCls(false)}>
-              Дотоод
+      <PageHeader
+        title="Ачилт"
+        description="Харилцагч руу гарсан ачилт болон үйлдвэр хоорондын шилжүүлэг."
+        actions={
+          canAct ? (
+            <Link href="/shipments/transfers/new" className={buttonVariants()}>
+              <Plus />
+              Шинэ илгээлт
             </Link>
-            {noExport ? null : (
-              <Link href="/shipments?tab=export" className={segmentCls(false)}>
-                Экспорт
-              </Link>
-            )}
-            <Link href="/shipments/transfers" className={segmentCls(true)}>
-              Үйлдвэр хооронд
-            </Link>
-          </div>
-        </div>
-        {canAct ? (
-          <Link href="/shipments/transfers/new" className={buttonVariants()}>
-            Шинэ илгээлт
+          ) : null
+        }
+      />
+      <div className={SEGMENTED}>
+        <Link href="/shipments?tab=domestic" className={segmentCls(false)}>
+          Дотоод
+        </Link>
+        {noExport ? null : (
+          <Link href="/shipments?tab=export" className={segmentCls(false)}>
+            Экспорт
           </Link>
-        ) : null}
+        )}
+        <Link href="/shipments/transfers" className={segmentCls(true)}>
+          Үйлдвэр хооронд
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">

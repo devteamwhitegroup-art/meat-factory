@@ -13,6 +13,7 @@ import {
   isByproductSite,
 } from "@/lib/factory/factories";
 import { TransferForm } from "./transfer-form";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type Props = { searchParams: Promise<{ factory?: string }> };
 
@@ -60,12 +61,11 @@ export default async function TransferPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Дайвар илгээх → {target}</h1>
+      <PageHeader
+        title={`Дайвар илгээх → ${target}`}
+        description="Тоолсон гэдсийг дайврын үйлдвэр рүү илгээнэ. Илгээгчийн нөөцөөс хасагдаж, дайврын үйлдвэрийн нөөцөд нэмэгдэнэ."
+      />
       <InventoryTabs />
-      <div className="text-sm text-muted-foreground">
-        Тоолсон гэдсийг дайврын үйлдвэр рүү илгээнэ. Илгээгчийн нөөцөөс
-        хасагдаж, дайврын үйлдвэрийн нөөцөд нэмэгдэнэ.
-      </div>
 
       {crossFactory ? (
         <div className={SEGMENTED}>

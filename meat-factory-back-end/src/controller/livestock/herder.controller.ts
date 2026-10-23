@@ -39,6 +39,14 @@ export class HerderController {
   private static _normPhone(v: string | null | undefined): string | null {
     return v?.replace(/\s+/g, "") || null;
   }
+  // ТТД: digits only, 11 (legal entity / person TIN) to 14 (civil id).
+  private static _normTin(v: string | null | undefined): string | null {
+    const d = v?.replace(/\D/g, "") ?? "";
+    if (!d) return null;
+    if (d.length < 11 || d.length > 14)
+      throw new Error("ТТД 11-14 оронтой тоо байна");
+    return d;
+  }
 
   // One herder per register number and per phone. The unique indexes on the
   // model back this up; this gives the readable message.
@@ -68,6 +76,7 @@ export class HerderController {
     const {
       name,
       registrationNo,
+      tin,
       phone,
       bankAccount,
       bankName,
@@ -97,6 +106,7 @@ export class HerderController {
     const row = await HerderModel.create({
       name: name.trim(),
       registrationNo: regNo,
+      tin: this._normTin(tin),
       phone: phoneNo,
       bankAccount: bankAccount ?? null,
       bankName: bankName?.trim() || null,
@@ -215,6 +225,7 @@ export class HerderController {
       id,
       name,
       registrationNo,
+      tin,
       phone,
       bankAccount,
       bankName,
@@ -228,6 +239,7 @@ export class HerderController {
     if (registrationNo !== undefined)
       herder.registrationNo = this._normRegNo(registrationNo);
     if (phone !== undefined) herder.phone = this._normPhone(phone);
+    if (tin !== undefined) herder.tin = this._normTin(tin);
     if (!herder.registrationNo)
       throw new Error("Herder registration number is required");
     if (herder.changed("registrationNo") || herder.changed("phone"))

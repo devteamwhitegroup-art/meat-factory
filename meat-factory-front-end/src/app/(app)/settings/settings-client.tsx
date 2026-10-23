@@ -243,7 +243,7 @@ export function PrinterSettings() {
               aria-label="Үйлдвэр"
               value={p.factory}
               onChange={(e) => setPrinter(i, { factory: e.target.value })}
-              className="h-11 min-w-40 flex-1 rounded-md border bg-background px-3 text-sm"
+              className="h-11 min-w-40 flex-1 rounded-lg border border-input bg-card px-3 text-base"
             >
               <option value="" disabled>
                 Үйлдвэр сонгох

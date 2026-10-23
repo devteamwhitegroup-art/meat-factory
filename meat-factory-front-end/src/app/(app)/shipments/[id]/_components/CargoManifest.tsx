@@ -101,7 +101,7 @@ export function CargoManifest({
               <div key={g.productLabel} className="rounded-md border">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
                   <div className="text-sm font-semibold">{g.productLabel}</div>
-                  <Badge className="border bg-background text-foreground tabular-nums">
+                  <Badge className="border bg-card text-foreground tabular-nums">
                     Нийт {g.pieceSubtotal}ш / {formatNumber(g.weightSubtotal)}{" "}
                     кг
                   </Badge>

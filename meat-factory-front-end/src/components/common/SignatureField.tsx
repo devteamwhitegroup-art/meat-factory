@@ -29,14 +29,14 @@ export function SignatureField({
 
   return (
     <div className="space-y-2">
-      <div className="text-base font-medium">{label}</div>
+      <div className="text-base font-semibold">{label}</div>
       <button
         type="button"
         onClick={() => setOpen(true)}
         className={`flex h-28 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed text-base transition-colors ${
           done
-            ? "border-primary bg-primary/5 text-primary"
-            : "border-input bg-muted/30 text-muted-foreground hover:bg-muted/60"
+            ? "border-emerald-500 bg-emerald-500/8 font-semibold text-emerald-700 dark:text-emerald-400"
+            : "border-input bg-card text-muted-foreground hover:border-primary/50 hover:bg-primary/5"
         }`}
       >
         {done ? (
@@ -47,7 +47,7 @@ export function SignatureField({
         ) : (
           <>
             <PencilIcon className="size-7" />
-            Зурах
+            Энд дарж зурна
           </>
         )}
       </button>

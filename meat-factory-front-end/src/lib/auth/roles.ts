@@ -108,8 +108,9 @@ const NAV: NavEntry[] = [
   },
 ];
 
-// Staff at a byproduct-kind site never touch livestock: those items drop and
-// their own work (Дайвар) leads the menu.
+// Everyone lands on Нүүр (the "what is waiting for me" board), so it heads
+// every menu. Staff at a byproduct-kind site never touch livestock: those
+// items drop and their own work (Дайвар) comes right after it.
 export function navItemsFor(
   perms: readonly string[] | null | undefined,
   factoryKind: string | null | undefined,
@@ -122,28 +123,13 @@ export function navItemsFor(
     items.sort((a, b) =>
       a.href === "/byproduct" ? -1 : b.href === "/byproduct" ? 1 : 0,
     );
-  return items;
-}
-
-// Where `/` sends an account: its first menu item.
-export function landingFor(
-  perms: readonly string[] | null | undefined,
-  factoryKind: string | null | undefined,
-): string {
-  return navItemsFor(perms, factoryKind)[0]?.href ?? "/registrations";
-}
-
-// ponytail: a menu of at most two destinations gets the single-purpose kiosk
-// shell (slim top bar, no sidebar) — today that is эмч. Make it a role flag if
-// the heuristic ever misfires.
-export function isKioskNav(items: NavItem[]): boolean {
-  return items.length <= 2;
+  return [{ href: "/", label: "Нүүр", group: G.main }, ...items];
 }
 
 // The single active nav link: among items whose path matches (exact or
 // sub-route) AND whose query params all match the URL, the most specific
 // (longest href) wins — so /registrations/new lights only "Шинэ бүртгэл", not
-// every /registrations?stage=… link. Shared by Topbar and Sidebar.
+// every /registrations?stage=… link. Shared by the Shell and sub-page tabs.
 export function activeNavHref(
   items: NavItem[],
   pathname: string,

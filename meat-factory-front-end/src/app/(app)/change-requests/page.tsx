@@ -16,6 +16,8 @@ import { getFactories } from "@/lib/factory/server";
 import { factoryName } from "@/lib/factory/factories";
 import type { Change_Request_Status } from "@/lib/gql/graphql";
 import { ReviewActions } from "./_components/ReviewActions";
+import { chipCls } from "@/components/ui/segmented";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type Props = { searchParams: Promise<{ status?: string }> };
 
@@ -68,13 +70,10 @@ export default async function ChangeRequestsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Засварын хүсэлт</h1>
-        <p className="text-sm text-muted-foreground">
-          Бүртгэсэн өдөр өнгөрсний дараах засварыг энд шийдвэрлэнэ. Зөвшөөрөхөд
-          бүртгэл шууд засагдана.
-        </p>
-      </div>
+      <PageHeader
+        title="Засварын хүсэлт"
+        description="Бүртгэсэн өдөр өнгөрсний дараах засварыг энд шийдвэрлэнэ. Зөвшөөрөхөд бүртгэл шууд засагдана."
+      />
 
       <div className="flex flex-wrap gap-2">
         {STATUSES.map((s) => (
@@ -85,12 +84,7 @@ export default async function ChangeRequestsPage({ searchParams }: Props) {
                 ? `/change-requests?status=${s.value}`
                 : "/change-requests"
             }
-            className={
-              "rounded-full border px-3 py-1 text-xs transition-colors " +
-              (current.value === s.value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background hover:bg-muted")
-            }
+            className={chipCls(current.value === s.value)}
           >
             {s.label}
           </Link>

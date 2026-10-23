@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { buttonVariants } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { formatNumber, formatMNT } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const STATUS_TABS = [
   { value: "", label: "Бүгд" },
@@ -145,35 +147,37 @@ export async function ShipmentListView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-2xl font-semibold">Ачилт</h1>
-          <div className={SEGMENTED}>
-            {categories.map((c) => (
+      <PageHeader
+        title="Ачилт"
+        description="Харилцагч руу гарсан ачилт болон үйлдвэр хоорондын шилжүүлэг."
+        actions={
+          <>
+            <DateRangeFilter />
+            {canCreate ? (
               <Link
-                key={c}
-                href={tabHref(c)}
-                className={segmentCls(c === category)}
+                href={`/shipments/${category.toLowerCase()}/new`}
+                className={buttonVariants()}
               >
-                {CATEGORY_TAB[c]}
+                <Plus />
+                {NEW_LABEL[category]}
               </Link>
-            ))}
-            <Link href="/shipments/transfers" className={segmentCls(false)}>
-              Үйлдвэр хооронд
-            </Link>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter />
-          {canCreate ? (
-            <Link
-              href={`/shipments/${category.toLowerCase()}/new`}
-              className={buttonVariants()}
-            >
-              {NEW_LABEL[category]}
-            </Link>
-          ) : null}
-        </div>
+            ) : null}
+          </>
+        }
+      />
+      <div className={SEGMENTED}>
+        {categories.map((c) => (
+          <Link
+            key={c}
+            href={tabHref(c)}
+            className={segmentCls(c === category)}
+          >
+            {CATEGORY_TAB[c]}
+          </Link>
+        ))}
+        <Link href="/shipments/transfers" className={segmentCls(false)}>
+          Үйлдвэр хооронд
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">

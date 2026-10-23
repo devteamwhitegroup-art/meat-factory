@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth/server";
 import type { NavItem } from "@/lib/auth/roles";
 import { ByproductTabs } from "./_components/ByproductTabs";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // One section for byproducts: disassembly batches and their
 // expected-vs-actual analytics. The norm catalogue (categories / prices) is
@@ -22,7 +23,10 @@ export default async function ByproductLayout({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h1 className="text-2xl font-semibold">Дайвар</h1>
+        <PageHeader
+          title="Дайвар"
+          description="Гэдэс, дайврын задлалт ба хүлээгдэж буй, бодит гарцын харьцуулалт."
+        />
         <ByproductTabs tabs={tabs} />
       </div>
       {children}

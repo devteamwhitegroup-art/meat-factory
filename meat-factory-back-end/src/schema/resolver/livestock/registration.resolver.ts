@@ -4,6 +4,7 @@ import { ByproductBundleController } from "../../../controller/livestock/byprodu
 import { MedicalNumberController } from "../../../controller/livestock/medical-number.controller";
 import { VerificationController } from "../../../controller/livestock/verification.controller";
 import { SettlementController } from "../../../controller/livestock/settlement.controller";
+import { EbarimtController } from "../../../controller/livestock/ebarimt.controller";
 import { RegistrationChangeController } from "../../../controller/livestock/registration-change.controller";
 import { HerderModel } from "../../../models/livestock/herder.model";
 import { AnimalModel } from "../../../models/livestock/animal.model";
@@ -236,6 +237,43 @@ export default {
           ctx,
         ),
       "Signature saved",
+    ),
+    setSettlementEbarimtCheck: wrapOne(
+      "settlement",
+      (
+        {
+          registrationId,
+          taken,
+          imageFileId,
+          note,
+        }: {
+          registrationId: string;
+          taken: boolean;
+          imageFileId?: string | null;
+          note?: string | null;
+        },
+        ctx,
+      ) =>
+        SettlementController.setEbarimtCheck(
+          registrationId,
+          taken,
+          imageFileId ?? null,
+          note ?? null,
+          ctx,
+        ),
+      "И-баримт хадгалагдлаа",
+    ),
+    issueSettlementEbarimt: wrapOne(
+      "settlement",
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        EbarimtController.issue(registrationId, ctx),
+      "И-Баримт үүслээ",
+    ),
+    voidSettlementEbarimt: wrapOne(
+      "settlement",
+      ({ registrationId }: { registrationId: string }, ctx) =>
+        EbarimtController.void(registrationId, ctx),
+      "И-Баримт цуцлагдлаа",
     ),
     cancelRegistration: wrapOne(
       "registration",

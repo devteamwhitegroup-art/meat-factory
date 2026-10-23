@@ -49,11 +49,13 @@ const SETTLEMENT_INCLUDE = [
     ],
   },
   { model: FileModel, as: "storekeeperSignature" },
+  { model: FileModel, as: "ebarimtImage" },
 ];
 
 export class SettlementController {
-  // Re-fetch a settlement with the full include after a mutation.
-  private static _reload(id: string): Promise<SettlementModel> {
+  // Re-fetch a settlement with the full include after a mutation (also used
+  // by EbarimtController).
+  static reload(id: string): Promise<SettlementModel> {
     return findOrThrow(SettlementModel, id, "Settlement not found", {
       include: SETTLEMENT_INCLUDE,
     });
@@ -264,7 +266,7 @@ export class SettlementController {
       return s;
     });
 
-    return this._reload(settlement.id);
+    return this.reload(settlement.id);
   }
 
   // First (and possibly partial) payout. `heldAmount` is withheld pending
@@ -327,7 +329,7 @@ export class SettlementController {
         : REGISTRATION_STATUS.PARTIALLY_SETTLED,
     });
 
-    return this._reload(settlement.id);
+    return this.reload(settlement.id);
   }
 
   // Release the withheld portion once the medical number is approved. Pays the
@@ -364,7 +366,7 @@ export class SettlementController {
     });
     await reg.update({ status: REGISTRATION_STATUS.SETTLED });
 
-    return this._reload(settlement.id);
+    return this.reload(settlement.id);
   }
 
   // Money-flow statement: attach an already-uploaded image (bank transfer
@@ -431,7 +433,34 @@ export class SettlementController {
 
     if (fileId) await FileController.findIdCheck(fileId);
     await settlement.update({ storekeeperSignatureFileId: fileId ?? null });
-    return this._reload(settlement.id);
+    return this.reload(settlement.id);
+  }
+
+  // Manual eBarimt record while the PosAPI flow (EbarimtController) is
+  // parked: was the herder's receipt taken, its photo, a note. Every save
+  // overwrites all three; allowed at any status once the settlement exists.
+  static async setEbarimtCheck(
+    registrationId: string,
+    taken: boolean,
+    imageFileId: string | null,
+    note: string | null,
+    context: TContext,
+  ): Promise<SettlementModel> {
+    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
+    await RegistrationController.findIdCheck(registrationId, context);
+
+    const settlement = await SettlementModel.findOne({
+      where: { registrationId },
+    });
+    if (!settlement) throw new Error("Settlement not found");
+
+    if (imageFileId) await FileController.findIdCheck(imageFileId);
+    await settlement.update({
+      ebarimtTaken: taken,
+      ebarimtImageFileId: imageFileId,
+      ebarimtNote: note?.trim() || null,
+    });
+    return this.reload(settlement.id);
   }
 
   static async removePaymentProof(

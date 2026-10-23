@@ -71,7 +71,7 @@ export default async function HerderDetailPage({
       <div className="flex items-center gap-6">
         <BackButton href="/herders" />
         <div>
-          <h1 className="text-2xl font-semibold">{h.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{h.name}</h1>
           <div className="text-sm text-muted-foreground">
             {h.registrationNo} · {h.phone ?? "—"}
             {h.address ? ` · ${h.address}` : ""}

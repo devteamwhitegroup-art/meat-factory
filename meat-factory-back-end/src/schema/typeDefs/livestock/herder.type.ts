@@ -5,6 +5,9 @@ export default `#graphql
         id: ID
         name: String
         registrationNo: String
+        # Татвар төлөгчийн дугаар (ТТД, 11-14 digits) — seller on the eBarimt
+        # the factory issues on the herder's behalf.
+        tin: String
         phone: String
         # Bank fields — for settlement payouts.
         bankAccount: String
@@ -76,6 +79,7 @@ export default `#graphql
         createHerder(
             name: String!
             registrationNo: String!
+            tin: String
             phone: String
             bankAccount: String
             bankName: String
@@ -89,6 +93,7 @@ export default `#graphql
             id: ID!
             name: String
             registrationNo: String
+            tin: String
             phone: String
             bankAccount: String
             bankName: String

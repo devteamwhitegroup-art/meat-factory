@@ -1,5 +1,6 @@
 import { NavTabs, type NavTab } from "@/components/common/NavTabs";
 import { getSession } from "@/lib/auth/server";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // Each tab is its own page gated by requireCap; the layout only hides the
 // tabs this account can't open.
@@ -34,7 +35,10 @@ export default async function SettingsLayout({
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Систем тохиргоо</h1>
+        <PageHeader
+          title="Систем тохиргоо"
+          description="Ажилтан, эрх, үйлдвэр, мал, дайврын тохиргоо. Өөрчлөлт бүх хэрэглэгчид шууд хүчинтэй."
+        />
         <NavTabs tabs={tabs} />
       </div>
       {children}

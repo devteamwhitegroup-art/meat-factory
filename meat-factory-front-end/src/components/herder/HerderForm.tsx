@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/form";
 import { HerderAddressListDoc } from "@/lib/queries/herder-address";
 import { compact } from "@/lib/compact";
+import { EBARIMT_POSAPI } from "@/lib/ebarimt";
 
 // Shared herder create/edit form: schema, defaults, mutation vars, and the
 // field list. Used by the /herders CRUD sheet and the registration
@@ -32,6 +33,12 @@ import { compact } from "@/lib/compact";
 const herderFields = z.object({
   name: z.string().min(1, "Нэр шаардлагатай"),
   registrationNo: z.string().min(1, "Регистрийн дугаар шаардлагатай"),
+  // ТТД — seller on the eBarimt the factory issues on the herder's behalf.
+  // Empty is fine: the BE looks it up from the register number on first use.
+  tin: z
+    .string()
+    .regex(/^(\d{11,14})?$/, "ТТД 11-14 оронтой тоо")
+    .optional(),
   phone: z.string().optional(),
   bankAccount: z.string().optional(),
   bankName: z.string().optional(),
@@ -61,6 +68,7 @@ export type HerderFormValues = z.infer<typeof herderSchema>;
 export const herderFormDefaults: HerderFormValues = {
   name: "",
   registrationNo: "",
+  tin: "",
   phone: "",
   bankAccount: "",
   bankName: "",
@@ -75,6 +83,9 @@ export function herderMutationVars(values: HerderFormValues) {
   return {
     name: values.name.trim(),
     registrationNo: values.registrationNo.trim(),
+    // Parked with eBarimt: not sent, so saving a herder never touches a
+    // stored ТТД.
+    ...(EBARIMT_POSAPI ? { tin: values.tin?.trim() || null } : {}),
     phone: values.phone?.trim() || null,
     bankAccount: values.bankAccount?.trim() || null,
     bankName: values.bankName?.trim() || null,
@@ -142,6 +153,25 @@ export function HerderFormFields({
       />
       {quick ? null : (
         <>
+          {EBARIMT_POSAPI ? (
+            <FormField
+              control={form.control}
+              name="tin"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ТТД (татвар төлөгчийн дугаар)</FormLabel>
+                  <FormControl>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="И-Баримтад — хоосон бол регистрээр хайна"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
           <FormField
             control={form.control}
             name="bankAccount"

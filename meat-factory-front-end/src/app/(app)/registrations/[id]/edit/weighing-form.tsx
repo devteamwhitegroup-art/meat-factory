@@ -163,7 +163,7 @@ export function WeighingForm({
               <select
                 value={a.animalType}
                 onChange={(ev) => setNew(i, { animalType: ev.target.value })}
-                className="h-10 rounded-md border bg-background px-2 text-sm"
+                className="h-11 rounded-lg border border-input bg-card px-3 text-base"
               >
                 {animalTypes.map((t) => (
                   <option key={t} value={t}>

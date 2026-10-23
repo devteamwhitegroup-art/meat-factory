@@ -90,6 +90,7 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           name
           registrationNo
+          tin
           phone
           bankAccount
           bankName
@@ -188,6 +189,17 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           }
           storekeeperSignatureFileId
           storekeeperSignature {
+            id
+            url
+          }
+          ebarimtId
+          ebarimtDate
+          ebarimtIssuedAt
+          ebarimtVoidedAt
+          ebarimtError
+          ebarimtTaken
+          ebarimtNote
+          ebarimtImage {
             id
             url
           }
@@ -650,6 +662,70 @@ export const RegistrationChangeRequestsDoc = graphql(/* GraphQL */ `
             animalType
             count
           }
+        }
+      }
+    }
+  }
+`);
+
+// eBarimt on the herder's behalf (BE EbarimtController).
+export const IssueSettlementEbarimtDoc = graphql(/* GraphQL */ `
+  mutation IssueSettlementEbarimt($registrationId: ID!) {
+    issueSettlementEbarimt(registrationId: $registrationId) {
+      success
+      message
+      settlement {
+        id
+        ebarimtId
+        ebarimtDate
+        ebarimtIssuedAt
+        ebarimtVoidedAt
+        ebarimtError
+      }
+    }
+  }
+`);
+
+export const VoidSettlementEbarimtDoc = graphql(/* GraphQL */ `
+  mutation VoidSettlementEbarimt($registrationId: ID!) {
+    voidSettlementEbarimt(registrationId: $registrationId) {
+      success
+      message
+      settlement {
+        id
+        ebarimtId
+        ebarimtDate
+        ebarimtIssuedAt
+        ebarimtVoidedAt
+        ebarimtError
+      }
+    }
+  }
+`);
+
+// Manual eBarimt check while the PosAPI flow is parked (EBARIMT_POSAPI).
+export const SetSettlementEbarimtCheckDoc = graphql(/* GraphQL */ `
+  mutation SetSettlementEbarimtCheck(
+    $registrationId: ID!
+    $taken: Boolean!
+    $imageFileId: ID
+    $note: String
+  ) {
+    setSettlementEbarimtCheck(
+      registrationId: $registrationId
+      taken: $taken
+      imageFileId: $imageFileId
+      note: $note
+    ) {
+      success
+      message
+      settlement {
+        id
+        ebarimtTaken
+        ebarimtNote
+        ebarimtImage {
+          id
+          url
         }
       }
     }

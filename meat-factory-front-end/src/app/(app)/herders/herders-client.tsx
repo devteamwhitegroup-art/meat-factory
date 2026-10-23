@@ -48,6 +48,7 @@ type EditTarget = {
   id?: string | null;
   name?: string | null;
   registrationNo?: string | null;
+  tin?: string | null;
   phone?: string | null;
   bankAccount?: string | null;
   bankName?: string | null;
@@ -90,6 +91,7 @@ export function HerdersClient() {
     form.reset({
       name: h.name ?? "",
       registrationNo: h.registrationNo ?? "",
+      tin: h.tin ?? "",
       phone: h.phone ?? "",
       bankAccount: h.bankAccount ?? "",
       bankName: h.bankName ?? "",

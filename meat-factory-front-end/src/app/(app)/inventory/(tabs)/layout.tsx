@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // Shared header for the Нөөц / Хөдөлгөөн / Тохируулга tabs: title, tabs and
 // (cross-factory roles) the factory filter that all three read from
@@ -14,7 +15,10 @@ export default async function InventoryTabsLayout({
   const session = await getSession();
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Нөөц</h1>
+      <PageHeader
+        title="Нөөц"
+        description="Агуулахад байгаа мах, дайвар — орлого, зарлага, тохируулга."
+      />
       <div className="flex flex-wrap items-center gap-3">
         <InventoryTabs />
         {session.crossFactory ? <FactoryFilter /> : null}

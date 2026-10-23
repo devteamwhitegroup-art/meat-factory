@@ -35,6 +35,19 @@ export class SettlementModel extends Model implements TSettlement {
   // reused on every subsequent print (same pattern as the herder's
   // agreementSignature on Registration).
   public storekeeperSignatureFileId!: string | null;
+  // eBarimt issued on the herder's behalf (EbarimtController). ebarimtId =
+  // ДДТД; ebarimtDate = PosAPI's "yyyy-MM-dd HH:mm:ss" (needed verbatim to
+  // void). A voided receipt keeps its id for history; re-issue overwrites.
+  public ebarimtId!: string | null;
+  public ebarimtDate!: string | null;
+  public ebarimtIssuedAt!: Date | null;
+  public ebarimtVoidedAt!: Date | null;
+  public ebarimtError!: string | null;
+  // Manual eBarimt check while the PosAPI flow above is parked: was the
+  // herder's receipt taken, a photo of it, and a note.
+  public ebarimtTaken!: boolean;
+  public ebarimtImageFileId!: string | null;
+  public ebarimtNote!: string | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -44,6 +57,7 @@ export class SettlementModel extends Model implements TSettlement {
   public settledBy?: AdminModel;
   public photo?: FileModel;
   public storekeeperSignature?: FileModel;
+  public ebarimtImage?: FileModel;
 
   static associate(): void {
     this.belongsTo(RegistrationModel, {
@@ -61,6 +75,10 @@ export class SettlementModel extends Model implements TSettlement {
     this.belongsTo(FileModel, {
       as: "storekeeperSignature",
       foreignKey: { name: "storekeeperSignatureFileId", allowNull: true },
+    });
+    this.belongsTo(FileModel, {
+      as: "ebarimtImage",
+      foreignKey: { name: "ebarimtImageFileId", allowNull: true },
     });
     this.hasMany(SettlementLineModel, {
       as: "lines",
@@ -145,6 +163,35 @@ export const createSettlementModel = (sequelize: Sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
         defaultValue: null,
+      },
+      ebarimtId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      ebarimtDate: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
+      ebarimtIssuedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      ebarimtVoidedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      ebarimtError: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      ebarimtTaken: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      ebarimtNote: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
     },
     {

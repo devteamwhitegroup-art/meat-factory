@@ -17,6 +17,7 @@ import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { pageAndRange } from "@/lib/date/range";
+import { chipCls } from "@/components/ui/segmented";
 
 const TABS = [
   { value: "", label: "Бүгд" },
@@ -68,12 +69,7 @@ export async function CustomerSalesTab({
               <Link
                 key={t.value}
                 href={tabHref(t.value)}
-                className={
-                  "rounded-full border px-3 py-1 text-xs transition-colors " +
-                  (active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background hover:bg-muted")
-                }
+                className={chipCls(active)}
               >
                 {t.label}
               </Link>

@@ -53,18 +53,31 @@ export function DateRangeFilter() {
   const selected: DateRange | undefined = fromD
     ? { from: fromD, to: toD }
     : undefined;
-  const label = from === to ? from : `${from} – ${to}`;
+  const dates = from === to ? from : `${from} – ${to}`;
+  // "Энэ сар" reads faster than two dates; the dates still show beside it.
+  const named = SHORTCUTS.find((s) => {
+    const r = s.range();
+    return r.from === from && r.to === to;
+  })?.label;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          buttonVariants({ variant: "outline", size: "lg" }), // h-9, like SEGMENTED
-          "h-9 gap-2 font-normal",
+          buttonVariants({ variant: "outline" }), // h-11, like SEGMENTED
+          "gap-2",
         )}
       >
-        <CalendarIcon className="h-4 w-4" />
-        <span className="tabular-nums">{label}</span>
+        <CalendarIcon />
+        {named ? <span>{named}</span> : null}
+        <span
+          className={cn(
+            "tabular-nums",
+            named && "hidden font-normal text-muted-foreground sm:inline",
+          )}
+        >
+          {dates}
+        </span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-2">
         <div className="mb-2 grid grid-cols-2 gap-1.5">
@@ -76,7 +89,7 @@ export function DateRangeFilter() {
                 key={s.key}
                 size="sm"
                 variant={active ? "default" : "outline"}
-                className="w-full font-normal"
+                className="w-full"
                 onClick={() => apply(r.from, r.to)}
               >
                 {s.label}

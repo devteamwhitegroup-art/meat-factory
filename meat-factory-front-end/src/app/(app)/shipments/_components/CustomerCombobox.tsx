@@ -46,10 +46,7 @@ function KindBadge({ kind }: { kind?: string | null }) {
   if (!kind) return null;
   return (
     <Badge
-      className={cn(
-        "text-[10px]",
-        CUSTOMER_KIND_COLOR[kind] ?? "border-0 bg-muted",
-      )}
+      className={CUSTOMER_KIND_COLOR[kind] ?? "border-0 bg-muted"}
     >
       {CUSTOMER_KIND_MN[kind] ?? kind}
     </Badge>

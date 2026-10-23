@@ -21,6 +21,10 @@ import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { parseRange, thisMonth } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
+import { PageHeader } from "@/components/common/PageHeader";
+import { ErrorNotice } from "@/components/common/ListState";
+import { STATUS_STYLE } from "@/components/registration/StatusBadge";
+import { cn } from "@/lib/utils";
 
 import { requireCap } from "@/lib/auth/server";
 
@@ -40,11 +44,7 @@ export default async function DashboardPage({
   });
   const wrap = data?.dashboard;
   if (!wrap?.success || !wrap.dashboard) {
-    return (
-      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">
-        {wrap?.message ?? "Тайлан ачаалж чадсангүй"}
-      </div>
-    );
+    return <ErrorNotice message={wrap?.message ?? "Тайлан ачаалж чадсангүй"} />;
   }
   const d = wrap.dashboard;
   const animalSlices = compact(d.animalBreakdown).map((a) => ({
@@ -61,64 +61,67 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Тайлан</h1>
-        <DateRangeFilter />
-      </div>
+      <PageHeader
+        title="Тайлан"
+        description="Сонгосон хугацааны орлого, төлбөр, борлуулалтын тойм."
+        actions={<DateRangeFilter />}
+      />
 
-      {/* Pipeline tile — clickable shortcuts into the matching /registrations
-          stage chips. Adds at-a-glance pipeline visibility to the dashboard. */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Бүртгэлийн урсгал</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Pipeline — each tile opens the matching /registrations filter. */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Бүртгэлийн урсгал</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            {
+              label: "Бүртгэгдсэн",
+              value: pipe?.registered,
+              href: "/registrations?stage=registered",
+              style: STATUS_STYLE.REGISTERED,
+            },
+            {
+              label: "Дүн тооцоолж буй",
+              value: pipe?.inProcess,
+              href: "/registrations?stage=in_process",
+              style: STATUS_STYLE.WEIGHED,
+            },
+            {
+              label: "Төлбөр хүлээгдэж буй",
+              value: pipe?.paymentPending,
+              href: "/registrations?stage=payment_pending",
+              style: STATUS_STYLE.PAYMENT_PENDING,
+            },
+            {
+              label: "Төлбөр хийгдсэн",
+              value: pipe?.paid,
+              href: "/registrations?stage=settled",
+              style: STATUS_STYLE.SETTLED,
+            },
+          ].map((t) => (
             <Link
-              href="/registrations?stage=registered"
-              className="rounded-md border bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:bg-slate-900/40"
+              key={t.href}
+              href={t.href}
+              className="group flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition hover:border-primary/50 hover:shadow-md"
             >
-              <div className="text-xs text-muted-foreground">Бүртгэгдсэн</div>
-              <div className="text-2xl font-semibold tabular-nums">
-                {pipe?.registered ?? 0}
-              </div>
+              <span
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                  t.style.cls,
+                )}
+              >
+                <t.style.icon className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-3xl font-bold tabular-nums">
+                  {t.value ?? 0}
+                </span>
+                <span className="block truncate text-sm text-muted-foreground">
+                  {t.label}
+                </span>
+              </span>
             </Link>
-            <Link
-              href="/registrations?stage=in_process"
-              className="rounded-md border bg-blue-50 p-3 transition-colors hover:bg-blue-100 dark:bg-blue-950/30"
-            >
-              <div className="text-xs text-muted-foreground">
-                Дүн тооцоолж буй
-              </div>
-              <div className="text-2xl font-semibold tabular-nums">
-                {pipe?.inProcess ?? 0}
-              </div>
-            </Link>
-            <Link
-              href="/registrations?stage=payment_pending"
-              className="rounded-md border bg-amber-50 p-3 transition-colors hover:bg-amber-100 dark:bg-amber-950/30"
-            >
-              <div className="text-xs text-muted-foreground">
-                Төлбөр хүлээгдэж буй
-              </div>
-              <div className="text-2xl font-semibold tabular-nums">
-                {pipe?.paymentPending ?? 0}
-              </div>
-            </Link>
-            <Link
-              href="/registrations?stage=paid"
-              className="rounded-md border bg-emerald-50 p-3 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/30"
-            >
-              <div className="text-xs text-muted-foreground">
-                Төлбөр хийгдсэн
-              </div>
-              <div className="text-2xl font-semibold tabular-nums">
-                {pipe?.paid ?? 0}
-              </div>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard

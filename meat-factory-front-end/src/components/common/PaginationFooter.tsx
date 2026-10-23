@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 
-// "Нийт N / ← Хуудас P →" footer for client-side paginated lists. There's no
+const FOOTER =
+  "flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground";
+
+// "Нийт N / ‹ Өмнөх · Хуудас P · Дараах ›" footer for client-side paginated lists. There's no
 // server page count — "next" stays enabled while a full page came back.
 type Props = {
   page: number;
@@ -22,25 +26,27 @@ export function PaginationFooter({
   count,
 }: Props) {
   return (
-    <div className="flex items-center justify-between text-xs text-muted-foreground">
-      <span>Нийт: {total}</span>
-      <div className="space-x-2">
+    <div className={FOOTER}>
+      <span>
+        Нийт: <b className="text-foreground">{total}</b>
+      </span>
+      <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          size="sm"
           disabled={page <= 1}
           onClick={() => onPageChange(Math.max(1, page - 1))}
         >
-          ←
+          <ChevronLeft />
+          Өмнөх
         </Button>
-        <span>Хуудас {page}</span>
+        <span className="px-1">Хуудас {page}</span>
         <Button
           variant="outline"
-          size="sm"
           disabled={count < pageSize}
           onClick={() => onPageChange(page + 1)}
         >
-          →
+          Дараах
+          <ChevronRight />
         </Button>
       </div>
     </div>
@@ -60,20 +66,24 @@ export function LinkPaginationFooter({
   prevHref: string | null;
   nextHref: string | null;
 }) {
-  const cls = buttonVariants({ variant: "outline", size: "sm" });
+  const cls = buttonVariants({ variant: "outline" });
   return (
-    <div className="flex items-center justify-between text-xs text-muted-foreground">
-      <span>Нийт: {total}</span>
+    <div className={FOOTER}>
+      <span>
+        Нийт: <b className="text-foreground">{total}</b>
+      </span>
       <div className="flex items-center gap-2">
         {prevHref ? (
           <Link href={prevHref} className={cls}>
-            ←
+            <ChevronLeft />
+            Өмнөх
           </Link>
         ) : null}
-        <span>Хуудас {page}</span>
+        <span className="px-1">Хуудас {page}</span>
         {nextHref ? (
           <Link href={nextHref} className={cls}>
-            →
+            Дараах
+            <ChevronRight />
           </Link>
         ) : null}
       </div>

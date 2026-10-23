@@ -22,6 +22,7 @@ type Herder = {
   id: string;
   name?: string | null;
   registrationNo?: string | null;
+  tin?: string | null;
   phone?: string | null;
   bankAccount?: string | null;
   bankName?: string | null;
@@ -34,6 +35,7 @@ function valuesFromHerder(h: Herder | null): HerderFormValues {
   return {
     name: h?.name ?? "",
     registrationNo: h?.registrationNo ?? "",
+    tin: h?.tin ?? "",
     phone: h?.phone ?? "",
     bankAccount: h?.bankAccount ?? "",
     bankName: h?.bankName ?? "",

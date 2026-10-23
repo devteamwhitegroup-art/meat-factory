@@ -21,6 +21,8 @@ import {
   MarkSettlementPaidDoc,
   ReleaseSettlementHoldDoc,
   SetSettlementStorekeeperSignatureDoc,
+  IssueSettlementEbarimtDoc,
+  VoidSettlementEbarimtDoc,
   RegistrationDetailDoc,
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
@@ -29,6 +31,9 @@ import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
+import { EbarimtCard } from "./_components/EbarimtCard";
+import { EbarimtCheckCard } from "./_components/EbarimtCheckCard";
+import { EBARIMT_POSAPI } from "@/lib/ebarimt";
 import { can, readPermsCookie } from "@/lib/auth/roles";
 
 export function SettlementClient({ id }: { id: string }) {
@@ -46,6 +51,8 @@ export function SettlementClient({ id }: { id: string }) {
   const [setStorekeeperSignature] = useMutation(
     SetSettlementStorekeeperSignatureDoc,
   );
+  const [issueEbarimt] = useMutation(IssueSettlementEbarimtDoc);
+  const [voidEbarimt] = useMutation(VoidSettlementEbarimtDoc);
 
   // Client-readable permission cookie gates the actions. Read post-mount to
   // avoid hydration skew.
@@ -238,6 +245,32 @@ export function SettlementClient({ id }: { id: string }) {
     setBusy(false);
   }
 
+  async function onIssueEbarimt() {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (await issueEbarimt({ variables: { registrationId: id } })).data
+          ?.issueSettlementEbarimt,
+      {
+        success: (d) =>
+          `И-Баримт үүслээ — ДДТД ${d.settlement?.ebarimtId ?? ""}`,
+        onSuccess: refetch,
+      },
+    );
+    setBusy(false);
+  }
+
+  async function onVoidEbarimt() {
+    setBusy(true);
+    await runMutation(
+      async () =>
+        (await voidEbarimt({ variables: { registrationId: id } })).data
+          ?.voidSettlementEbarimt,
+      { success: "И-Баримт цуцлагдлаа", onSuccess: refetch },
+    );
+    setBusy(false);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -310,6 +343,32 @@ export function SettlementClient({ id }: { id: string }) {
             onReleaseHold={onReleaseHold}
             onSetStorekeeperSignature={onSetStorekeeperSignature}
           />
+
+          <EbarimtCheckCard
+            registrationId={id}
+            taken={!!existing.ebarimtTaken}
+            imageFileId={existing.ebarimtImage?.id ?? null}
+            imageUrl={existing.ebarimtImage?.url ?? null}
+            note={existing.ebarimtNote ?? null}
+            canEdit={canPay}
+            onSaved={refetch}
+          />
+
+          {/* PosAPI issue/void — parked, see EBARIMT_POSAPI. */}
+          {EBARIMT_POSAPI ? (
+            <EbarimtCard
+              ebarimtId={existing.ebarimtId ?? null}
+              ebarimtDate={existing.ebarimtDate ?? null}
+              ebarimtIssuedAt={existing.ebarimtIssuedAt ?? null}
+              ebarimtVoidedAt={existing.ebarimtVoidedAt ?? null}
+              ebarimtError={existing.ebarimtError ?? null}
+              herderTin={reg.herder?.tin ?? null}
+              canPay={canPay}
+              busy={busy}
+              onIssue={onIssueEbarimt}
+              onVoid={onVoidEbarimt}
+            />
+          ) : null}
 
           {/* Money-flow statements — appear once a payout has happened. */}
           {Number(existing.paidAmount ?? 0) > 0 ? (

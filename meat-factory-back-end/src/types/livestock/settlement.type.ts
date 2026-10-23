@@ -56,6 +56,17 @@ export type TSettlement = {
   notes: string | null;
   photoFileId: string | null;
   storekeeperSignatureFileId: string | null;
+  // eBarimt (ДДТД + PosAPI date) issued on the herder's behalf; see
+  // EbarimtController. ebarimtError = last failed attempt's message.
+  ebarimtId: string | null;
+  ebarimtDate: string | null;
+  ebarimtIssuedAt: Date | null;
+  ebarimtVoidedAt: Date | null;
+  ebarimtError: string | null;
+  // Manual eBarimt check while PosAPI is parked: taken?, photo, note.
+  ebarimtTaken: boolean;
+  ebarimtImageFileId: string | null;
+  ebarimtNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

@@ -94,7 +94,7 @@ export function StockSplit({
             className={segmentCls(tab === t.key)}
           >
             {t.label}{" "}
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs opacity-75">
               {countOnly && "pieces" in t
                 ? `(${t.pieces} ш)`
                 : `(${formatNumber(t.total)} кг${

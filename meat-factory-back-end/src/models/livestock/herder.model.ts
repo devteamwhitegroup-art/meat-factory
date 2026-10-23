@@ -7,6 +7,10 @@ export class HerderModel extends Model implements THerder {
   public id!: string;
   public name!: string;
   public registrationNo!: string;
+  // Татвар төлөгчийн дугаар (ТТД). The herder is the seller (sub-receipt
+  // merchantTin) on the eBarimt the factory issues on their behalf. Looked up
+  // from registrationNo on first use when empty.
+  public tin!: string | null;
   public phone!: string | null;
   public bankAccount!: string | null;
   public bankName!: string | null;
@@ -49,6 +53,10 @@ export const createHerderModel = (sequelize: Sequelize) => {
       registrationNo: {
         type: DataTypes.STRING,
         allowNull: false,
+      },
+      tin: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
       phone: {
         type: DataTypes.STRING,

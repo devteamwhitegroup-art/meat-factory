@@ -4,6 +4,7 @@ import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { requireCap } from "@/lib/auth/server";
 import { CustomerSalesTab } from "./_components/CustomerSalesTab";
 import { HerderSettlementsTab } from "./_components/HerderSettlementsTab";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type Props = {
   searchParams: Promise<{
@@ -34,10 +35,11 @@ export default async function SalesPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Гүйлгээнүүд</h1>
-        <DateRangeFilter />
-      </div>
+      <PageHeader
+        title="Гүйлгээ"
+        description="Харилцагчид хийсэн борлуулалт болон малчдад олгосон төлбөр."
+        actions={<DateRangeFilter />}
+      />
 
       <div className={SEGMENTED}>
         <Link

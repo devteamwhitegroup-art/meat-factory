@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,8 @@ export function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
+  // Typing blind is the #1 login failure for new users; let them look.
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -63,7 +66,7 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="param"
@@ -71,7 +74,12 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Хэрэглэгчийн нэр / И-мэйл</FormLabel>
               <FormControl>
-                <Input autoComplete="username" {...field} />
+                <Input
+                  autoComplete="username"
+                  autoFocus
+                  className="h-12 text-lg"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -84,17 +92,37 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Нууц үг</FormLabel>
               <FormControl>
-                <Input
-                  type="password"
-                  autoComplete="current-password"
-                  {...field}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    className="h-12 pr-14 text-lg"
+                    {...field}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-0.5 right-0.5"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Нууц үг нуух" : "Нууц үг харах"}
+                    title={showPassword ? "Нууц үг нуух" : "Нууц үг харах"}
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={submitting}>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 w-full text-lg"
+          disabled={submitting}
+        >
+          <LogIn />
           {submitting ? "Нэвтэрч байна…" : "Нэвтрэх"}
         </Button>
       </form>

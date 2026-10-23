@@ -35,6 +35,8 @@ import {
 } from "@/lib/format/enum";
 import type { Medical_Number_Status } from "@/lib/gql/graphql";
 import { CopyNumber } from "./_components/CopyNumber";
+import { chipCls } from "@/components/ui/segmented";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type Props = {
   searchParams: Promise<{
@@ -137,26 +139,23 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Мал эмнэлгийн дугаар</h1>
-          <p className="text-sm text-muted-foreground">
-            Дугаарыг улсын системээс шалгаад төлөвийг тэмдэглэнэ. Бүх дугаар нь
-            баталгаажсан бүртгэлийн суутгалыг олгох боломжтой болно.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DateRangeFilter />
-          {/* Plain <a>, not <Link>: a file download, not a page navigation. */}
-          <a
-            href={`/medical-numbers/export?${exportParams}`}
-            className={buttonVariants({ variant: "outline", size: "lg" })}
-          >
-            <DownloadIcon />
-            Excel татах
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        title="Мал эмнэлгийн дугаар"
+        description="Дугаарыг улсын системээс шалгаад төлөвийг тэмдэглэнэ. Бүх дугаар нь баталгаажсан бүртгэлийн суутгалыг олгох боломжтой болно."
+        actions={
+          <>
+            <DateRangeFilter />
+            {/* Plain <a>, not <Link>: a file download, not a page navigation. */}
+            <a
+              href={`/medical-numbers/export?${exportParams}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <DownloadIcon />
+              Excel татах
+            </a>
+          </>
+        }
+      />
 
       {crossFactory ? <FactoryFilter /> : null}
 
@@ -184,12 +183,7 @@ export default async function MedicalNumbersPage({ searchParams }: Props) {
             <Link
               key={s.value}
               href={href({ status: s.value || null })}
-              className={
-                "rounded-full border px-3 py-1 text-xs transition-colors " +
-                (current.value === s.value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-muted")
-              }
+              className={chipCls(current.value === s.value)}
             >
               {s.label}
             </Link>

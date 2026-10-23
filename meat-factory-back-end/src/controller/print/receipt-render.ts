@@ -290,6 +290,9 @@ async function settlementLines(id: string): Promise<RLine[]> {
   if (Number(st.heldAmount ?? 0) > 0)
     out.push(row("Хойшлуулсан", mnt(st.heldAmount)));
   out.push(row("Төлөв:", st.isPaid ? "ТӨЛСӨН" : "ХҮЛЭЭГДЭЖ БУЙ"));
+  // eBarimt ДДТД (B2B: no lottery, no QR to print).
+  if (st.ebarimtId && !st.ebarimtVoidedAt)
+    out.push(L("И-БАРИМТ ДДТД:"), L(st.ebarimtId));
   out.push(...weighingLog(st.registration?.weighingEntries ?? []));
   out.push(RULE);
   // No herder signature: they've long left when the money is sent (they

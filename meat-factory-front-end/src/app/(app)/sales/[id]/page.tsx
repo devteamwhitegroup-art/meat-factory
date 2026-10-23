@@ -71,7 +71,7 @@ export default async function SalesDetailPage({ params }: Props) {
           <BackButton href="/sales" />
           <div>
             <div className="text-sm text-muted-foreground">Гүйлгээний код</div>
-            <h1 className="font-mono text-2xl font-semibold">
+            <h1 className="font-mono text-2xl font-bold tracking-tight md:text-3xl">
               {t.transactionCode}
             </h1>
           </div>

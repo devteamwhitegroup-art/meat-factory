@@ -1,15 +1,16 @@
 import { NewSaleForm } from "./new-sale-form";
-import { BackButton } from "@/components/common/BackButton";
 import { requireCap } from "@/lib/auth/server";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export default async function NewSalePage() {
   await requireCap("SALES_MANAGE");
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <BackButton href="/sales" />
-        <h1 className="text-2xl font-semibold">Шинэ гүйлгээ</h1>
-      </div>
+      <PageHeader
+        back="/sales"
+        title="Шинэ гүйлгээ"
+        description="Харилцагч, бараа, тоо хэмжээ, үнийг оруулаад хадгална."
+      />
       <NewSaleForm />
     </div>
   );

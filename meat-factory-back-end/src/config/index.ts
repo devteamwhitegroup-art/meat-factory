@@ -38,4 +38,19 @@ export default {
   // `ESC t n` code-page slot. 6 = CP866 (Cyrillic). If Mongolian Ө/Ү print
   // wrong, run enqueueCodepageSampler and set the slot that renders them.
   ESCPOS_CODEPAGE: Number(process.env.ESCPOS_CODEPAGE ?? 6),
+
+  // eBarimt PosAPI 3.0 (src/controller/livestock/ebarimt.controller.ts).
+  // Base URL of the PosAPI service, e.g. http://192.168.1.20:7080 - must be
+  // reachable from this server. Empty = feature disabled (mutation errors).
+  EBARIMT_POSAPI_URL: process.env.EBARIMT_POSAPI_URL || "",
+  // The factory company's TIN (11 digits): issuer AND buyer of every receipt.
+  EBARIMT_MERCHANT_TIN: process.env.EBARIMT_MERCHANT_TIN || "",
+  // Internal POS number registered in Operator-eBarimt.
+  EBARIMT_POS_NO: process.env.EBARIMT_POS_NO || "",
+  // Branch number (3 digits) and aimag/soum districtCode (4 digits, from
+  // api.ebarimt.mn/api/info/check/getBranchInfo).
+  EBARIMT_BRANCH_NO: process.env.EBARIMT_BRANCH_NO || "001",
+  EBARIMT_DISTRICT_CODE: process.env.EBARIMT_DISTRICT_CODE || "",
+  // VAT_FREE taxProductCode for meat bought from herders.
+  EBARIMT_TAX_PRODUCT_CODE: process.env.EBARIMT_TAX_PRODUCT_CODE || "487",
 };

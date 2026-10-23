@@ -55,7 +55,7 @@ export function IntakeWeighRows({
             value={r.animalType}
             onChange={(e) => set(i, { animalType: e.target.value })}
             aria-label="Мах"
-            className="col-span-2 h-12 rounded-md border bg-background px-3 text-base sm:col-span-1"
+            className="col-span-2 h-12 rounded-lg border border-input bg-card px-3 text-base sm:col-span-1"
           >
             <option value="">Мах сонгох</option>
             {animalTypes.map((t) => (
