@@ -63,10 +63,6 @@ export type TSettlement = {
   ebarimtIssuedAt: Date | null;
   ebarimtVoidedAt: Date | null;
   ebarimtError: string | null;
-  // Manual eBarimt check while PosAPI is parked: taken?, photo, note.
-  ebarimtTaken: boolean;
-  ebarimtImageFileId: string | null;
-  ebarimtNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

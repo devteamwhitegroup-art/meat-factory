@@ -171,6 +171,31 @@ export default {
       (doc: TVerifyInput, ctx) => VerificationController.verify(doc, ctx),
       "Verification recorded",
     ),
+    setRegistrationEbarimtCheck: wrapOne(
+      "registration",
+      (
+        {
+          registrationId,
+          taken,
+          imageFileId,
+          note,
+        }: {
+          registrationId: string;
+          taken: boolean;
+          imageFileId?: string | null;
+          note?: string | null;
+        },
+        ctx,
+      ) =>
+        VerificationController.setEbarimtCheck(
+          registrationId,
+          taken,
+          imageFileId ?? null,
+          note ?? null,
+          ctx,
+        ),
+      "И-баримт хадгалагдлаа",
+    ),
     createSettlement: wrapOne(
       "settlement",
       (doc: TCreateSettlement, ctx) =>
@@ -237,31 +262,6 @@ export default {
           ctx,
         ),
       "Signature saved",
-    ),
-    setSettlementEbarimtCheck: wrapOne(
-      "settlement",
-      (
-        {
-          registrationId,
-          taken,
-          imageFileId,
-          note,
-        }: {
-          registrationId: string;
-          taken: boolean;
-          imageFileId?: string | null;
-          note?: string | null;
-        },
-        ctx,
-      ) =>
-        SettlementController.setEbarimtCheck(
-          registrationId,
-          taken,
-          imageFileId ?? null,
-          note ?? null,
-          ctx,
-        ),
-      "И-баримт хадгалагдлаа",
     ),
     issueSettlementEbarimt: wrapOne(
       "settlement",

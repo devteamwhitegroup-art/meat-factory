@@ -376,6 +376,27 @@ export default async function RegistrationDetailPage({ params }: Props) {
                 "—"
               )}
             </div>
+            {/* Entered on the verify page (optional). */}
+            <div className="text-muted-foreground">И-баримт</div>
+            <div className="space-y-1">
+              <div>
+                {r.ebarimtTaken ? "Шивсэн" : "Шивээгүй"}
+                {r.ebarimtImage?.url ? (
+                  <>
+                    {" · "}
+                    <ImagePreviewLink
+                      url={r.ebarimtImage.url}
+                      title={`Бүртгэл ${r.registrationCode ?? ""} — И-баримт`}
+                    />
+                  </>
+                ) : null}
+              </div>
+              {r.ebarimtNote ? (
+                <div className="text-sm text-muted-foreground">
+                  {r.ebarimtNote}
+                </div>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -49,7 +49,6 @@ const SETTLEMENT_INCLUDE = [
     ],
   },
   { model: FileModel, as: "storekeeperSignature" },
-  { model: FileModel, as: "ebarimtImage" },
 ];
 
 export class SettlementController {
@@ -433,33 +432,6 @@ export class SettlementController {
 
     if (fileId) await FileController.findIdCheck(fileId);
     await settlement.update({ storekeeperSignatureFileId: fileId ?? null });
-    return this.reload(settlement.id);
-  }
-
-  // Manual eBarimt record while the PosAPI flow (EbarimtController) is
-  // parked: was the herder's receipt taken, its photo, a note. Every save
-  // overwrites all three; allowed at any status once the settlement exists.
-  static async setEbarimtCheck(
-    registrationId: string,
-    taken: boolean,
-    imageFileId: string | null,
-    note: string | null,
-    context: TContext,
-  ): Promise<SettlementModel> {
-    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
-    await RegistrationController.findIdCheck(registrationId, context);
-
-    const settlement = await SettlementModel.findOne({
-      where: { registrationId },
-    });
-    if (!settlement) throw new Error("Settlement not found");
-
-    if (imageFileId) await FileController.findIdCheck(imageFileId);
-    await settlement.update({
-      ebarimtTaken: taken,
-      ebarimtImageFileId: imageFileId,
-      ebarimtNote: note?.trim() || null,
-    });
     return this.reload(settlement.id);
   }
 

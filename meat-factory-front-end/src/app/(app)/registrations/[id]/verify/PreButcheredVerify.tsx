@@ -16,6 +16,7 @@ import {
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 import { WeighSlip } from "../_components/WeighSlip";
+import { EbarimtCheckCard } from "../_components/EbarimtCheckCard";
 import {
   ByproductIntakeEditor,
   intakeInputs,
@@ -142,6 +143,17 @@ export function PreButcheredVerify({
           await saveIntake();
           setBusy(false);
         }}
+      />
+
+      {/* Before confirming: the herder's eBarimt, if they allow it. */}
+      <EbarimtCheckCard
+        registrationId={id}
+        taken={!!reg.ebarimtTaken}
+        imageFileId={reg.ebarimtImage?.id ?? null}
+        imageUrl={reg.ebarimtImage?.url ?? null}
+        note={reg.ebarimtNote ?? null}
+        canEdit={reg.status !== "CANCELLED"}
+        onSaved={onDone}
       />
 
       {open ? (

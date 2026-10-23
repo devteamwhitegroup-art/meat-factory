@@ -34,6 +34,12 @@ export class RegistrationModel extends Model implements TRegistration {
   // after they accept the price/cost, before VERIFIED. Distinct from the
   // intake signatureFileId.
   public agreementSignatureFileId!: string | null;
+  // Manual eBarimt check while the PosAPI flow is parked: at verification the
+  // нярав enters the receipt on the herder's phone (optional — not every
+  // herder agrees) and records it here with a photo and a note.
+  public ebarimtTaken!: boolean;
+  public ebarimtImageFileId!: string | null;
+  public ebarimtNote!: string | null;
   public intakeDate!: Date;
   public guardId!: string;
   public status!: REGISTRATION_STATUS;
@@ -47,6 +53,7 @@ export class RegistrationModel extends Model implements TRegistration {
   public signature?: FileModel;
   public stampImage?: FileModel;
   public agreementSignature?: FileModel;
+  public ebarimtImage?: FileModel;
   public guard?: AdminModel;
   public animalLines?: RegistrationAnimalLineModel[];
   public weighingEntries?: WeighingEntryModel[];
@@ -75,6 +82,10 @@ export class RegistrationModel extends Model implements TRegistration {
     this.belongsTo(FileModel, {
       as: "agreementSignature",
       foreignKey: { name: "agreementSignatureFileId", allowNull: true },
+    });
+    this.belongsTo(FileModel, {
+      as: "ebarimtImage",
+      foreignKey: { name: "ebarimtImageFileId", allowNull: true },
     });
     this.belongsTo(AdminModel, {
       as: "guard",
@@ -139,6 +150,15 @@ export const createRegistrationModel = (sequelize: Sequelize) => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
+      },
+      ebarimtTaken: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      ebarimtNote: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       intakeDate: {
         type: DataTypes.DATE,

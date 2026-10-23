@@ -32,7 +32,6 @@ import { compact } from "@/lib/compact";
 import { SettlementReceipt } from "./_components/SettlementReceipt";
 import { PaymentProofGallery } from "./_components/PaymentProofGallery";
 import { EbarimtCard } from "./_components/EbarimtCard";
-import { EbarimtCheckCard } from "./_components/EbarimtCheckCard";
 import { EBARIMT_POSAPI } from "@/lib/ebarimt";
 import { can, readPermsCookie } from "@/lib/auth/roles";
 
@@ -344,17 +343,8 @@ export function SettlementClient({ id }: { id: string }) {
             onSetStorekeeperSignature={onSetStorekeeperSignature}
           />
 
-          <EbarimtCheckCard
-            registrationId={id}
-            taken={!!existing.ebarimtTaken}
-            imageFileId={existing.ebarimtImage?.id ?? null}
-            imageUrl={existing.ebarimtImage?.url ?? null}
-            note={existing.ebarimtNote ?? null}
-            canEdit={canPay}
-            onSaved={refetch}
-          />
-
-          {/* PosAPI issue/void — parked, see EBARIMT_POSAPI. */}
+          {/* PosAPI issue/void — parked, see EBARIMT_POSAPI. The manual
+              eBarimt check is on the verify page. */}
           {EBARIMT_POSAPI ? (
             <EbarimtCard
               ebarimtId={existing.ebarimtId ?? null}

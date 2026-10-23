@@ -5,17 +5,20 @@ import { useMutation } from "@apollo/client/react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { ImagePreviewLink } from "@/components/common/ImagePreviewLink";
-import { SetSettlementEbarimtCheckDoc } from "@/lib/queries/registration";
+import { SetRegistrationEbarimtCheckDoc } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { cn } from "@/lib/utils";
 
-// Manual eBarimt record while the PosAPI flow is parked (EBARIMT_POSAPI): the
-// accountant ticks whether the herder's receipt was taken, adds a photo of it
-// and a note, then saves. Everyone else sees it read-only.
+type Check = { taken: boolean; image: string | null; note: string };
+
+// Manual eBarimt record on the verify page while the PosAPI flow is parked
+// (EBARIMT_POSAPI): the нярав enters the receipt on the herder's phone —
+// optional, not every herder agrees — then ticks it here with a photo and a
+// note. Every change saves at once, so nothing is lost when «Баталгаажуулах»
+// is pressed next. Bordered like the verify card's other sections.
 export function EbarimtCheckCard({
   registrationId,
   taken,
@@ -31,36 +34,46 @@ export function EbarimtCheckCard({
   imageUrl: string | null;
   note: string | null;
   canEdit: boolean;
-  onSaved: () => void;
+  onSaved: () => unknown;
 }) {
   const [draftTaken, setDraftTaken] = useState(taken);
   const [draftImage, setDraftImage] = useState(imageFileId);
   const [draftNote, setDraftNote] = useState(note ?? "");
   const [busy, setBusy] = useState(false);
-  const [save] = useMutation(SetSettlementEbarimtCheckDoc);
-  const dirty =
-    draftTaken !== taken ||
-    draftImage !== imageFileId ||
-    draftNote.trim() !== (note ?? "");
+  const [save] = useMutation(SetRegistrationEbarimtCheckDoc);
 
-  async function onSave() {
+  async function persist(next: Check) {
+    if (
+      next.taken === taken &&
+      next.image === imageFileId &&
+      next.note.trim() === (note ?? "")
+    )
+      return;
     setBusy(true);
-    await runMutation(
+    const ok = await runMutation(
       async () =>
         (
           await save({
             variables: {
               registrationId,
-              taken: draftTaken,
-              imageFileId: draftImage,
-              note: draftNote.trim() || null,
+              taken: next.taken,
+              imageFileId: next.image,
+              note: next.note.trim() || null,
             },
           })
-        ).data?.setSettlementEbarimtCheck,
+        ).data?.setRegistrationEbarimtCheck,
       { success: "И-баримт хадгалагдлаа", onSuccess: onSaved },
     );
+    // Failed: show what the server still has.
+    if (!ok) {
+      setDraftTaken(taken);
+      setDraftImage(imageFileId);
+      setDraftNote(note ?? "");
+    }
     setBusy(false);
   }
+
+  const current: Check = { taken: draftTaken, image: draftImage, note: draftNote };
 
   // The saved photo; a newly picked one previews inside PhotoUpload.
   const savedImage = imageUrl ? (
@@ -80,9 +93,15 @@ export function EbarimtCheckCard({
   ) : null;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>И-баримт</CardTitle>
+    <section className="overflow-hidden rounded-md border bg-card">
+      <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2">
+        <div>
+          <div className="text-sm font-semibold">И-баримт (заавал биш)</div>
+          <div className="text-xs text-muted-foreground">
+            Малчин зөвшөөрвөл түүний утаснаас И-баримт шивээд, зургийг нь
+            хавсаргана.
+          </div>
+        </div>
         <Badge
           className={
             taken
@@ -92,8 +111,9 @@ export function EbarimtCheckCard({
         >
           {taken ? "Шивсэн" : "Шивээгүй"}
         </Badge>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </div>
+
+      <div className="space-y-4 p-4">
         {canEdit ? (
           <>
             {/* Whole row toggles, not just the box. */}
@@ -108,7 +128,11 @@ export function EbarimtCheckCard({
               <input
                 type="checkbox"
                 checked={draftTaken}
-                onChange={(e) => setDraftTaken(e.target.checked)}
+                disabled={busy}
+                onChange={(e) => {
+                  setDraftTaken(e.target.checked);
+                  persist({ ...current, taken: e.target.checked });
+                }}
                 className="size-6 cursor-pointer accent-primary"
               />
               <span className="flex-1">
@@ -128,7 +152,10 @@ export function EbarimtCheckCard({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setDraftImage(null)}
+                    onClick={() => {
+                      setDraftImage(null);
+                      persist({ ...current, image: null });
+                    }}
                   >
                     Арилгах
                   </Button>
@@ -137,22 +164,26 @@ export function EbarimtCheckCard({
             ) : (
               <PhotoUpload
                 value={draftImage}
-                onChange={setDraftImage}
-                type="settlement"
+                onChange={(fid) => {
+                  setDraftImage(fid);
+                  persist({ ...current, image: fid });
+                }}
+                type="verify"
                 label="И-баримтын зураг (заавал биш)"
               />
             )}
 
+            {/* Saved when the field is left. */}
             <Textarea
               value={draftNote}
               onChange={(e) => setDraftNote(e.target.value)}
+              onBlur={() => persist(current)}
               placeholder="Тэмдэглэл (заавал биш)"
               rows={2}
             />
-
-            <Button onClick={onSave} disabled={busy || !dirty}>
-              {busy ? "Хадгалж байна…" : "Хадгалах"}
-            </Button>
+            {busy ? (
+              <p className="text-xs text-muted-foreground">Хадгалж байна…</p>
+            ) : null}
           </>
         ) : (
           <div className="space-y-3 text-base">
@@ -163,7 +194,7 @@ export function EbarimtCheckCard({
             ) : null}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

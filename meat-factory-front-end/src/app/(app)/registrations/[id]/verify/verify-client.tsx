@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { WeighSlip } from "../_components/WeighSlip";
+import { EbarimtCheckCard } from "../_components/EbarimtCheckCard";
 import { PreButcheredVerify } from "./PreButcheredVerify";
 import { fmtDateTime } from "@/lib/format/date";
 import { formatMNT, formatNumber } from "@/lib/format/money";
@@ -412,6 +413,17 @@ export function VerifyClient({
               </>
             );
           })()}
+
+          {/* Before confirming: the herder's eBarimt, if they allow it. */}
+          <EbarimtCheckCard
+            registrationId={id}
+            taken={!!reg.ebarimtTaken}
+            imageFileId={reg.ebarimtImage?.id ?? null}
+            imageUrl={reg.ebarimtImage?.url ?? null}
+            note={reg.ebarimtNote ?? null}
+            canEdit={reg.status !== "CANCELLED"}
+            onSaved={refetch}
+          />
 
           <div className="rounded-md border p-4 text-sm">
             <div className="text-muted-foreground">Баталгаажуулсан</div>

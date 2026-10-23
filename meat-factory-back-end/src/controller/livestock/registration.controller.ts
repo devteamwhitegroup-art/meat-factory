@@ -50,6 +50,7 @@ const REGISTRATION_FULL_INCLUDE = [
   { model: FileModel, as: "signature" },
   { model: FileModel, as: "stampImage" },
   { model: FileModel, as: "agreementSignature" },
+  { model: FileModel, as: "ebarimtImage" },
   { model: AdminModel, as: "guard" },
   {
     model: RegistrationAnimalLineModel,
@@ -98,7 +99,6 @@ const REGISTRATION_FULL_INCLUDE = [
       { model: AdminModel, as: "settledBy" },
       { model: FileModel, as: "photo" },
       { model: FileModel, as: "storekeeperSignature" },
-      { model: FileModel, as: "ebarimtImage" },
     ],
   },
 ];

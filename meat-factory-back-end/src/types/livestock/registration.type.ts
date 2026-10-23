@@ -33,6 +33,10 @@ export type TRegistration = {
   stampFileId: string | null;
   // Herder's drawn agreement signature on the weighed slip (pre-VERIFIED).
   agreementSignatureFileId: string | null;
+  // Manual eBarimt check at verification (PosAPI parked): entered?, photo, note.
+  ebarimtTaken: boolean;
+  ebarimtImageFileId: string | null;
+  ebarimtNote: string | null;
   intakeDate: Date;
   guardId: string;
   status: REGISTRATION_STATUS;

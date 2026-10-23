@@ -160,12 +160,6 @@ export default `#graphql
         ebarimtIssuedAt: Date
         ebarimtVoidedAt: Date
         ebarimtError: String
-        # Manual eBarimt check while PosAPI is parked: whether the herder's
-        # receipt was taken, a photo of it and a note.
-        ebarimtTaken: Boolean
-        ebarimtImageFileId: ID
-        ebarimtImage: File
-        ebarimtNote: String
         lines: [SettlementLine]
         # Money-flow statement images (bank receipts) attached after payout.
         paymentProofs: [SettlementPaymentProof]
@@ -216,6 +210,12 @@ export default `#graphql
         # Herder's drawn agreement signature on the weighed slip (pre-VERIFIED).
         agreementSignatureFileId: ID
         agreementSignature: File
+        # Manual eBarimt check (PosAPI parked): the нярав enters the receipt
+        # on the herder's phone at verification — optional.
+        ebarimtTaken: Boolean
+        ebarimtImageFileId: ID
+        ebarimtImage: File
+        ebarimtNote: String
         intakeDate: Date
         guardId: ID
         guard: Admin
@@ -486,6 +486,15 @@ export default `#graphql
             photoFileId: ID
         ): VerificationResponse @auth(permissions: [REGISTRATION_VERIFY])
 
+        # Manual eBarimt check on the verify page (entered + photo + note);
+        # every save overwrites all three.
+        setRegistrationEbarimtCheck(
+            registrationId: ID!
+            taken: Boolean!
+            imageFileId: ID
+            note: String
+        ): RegistrationResponse @auth(permissions: [REGISTRATION_VERIFY])
+
         createSettlement(
             registrationId: ID!
             lines: [SettlementLineInput!]!
@@ -527,15 +536,6 @@ export default `#graphql
         setSettlementStorekeeperSignature(
             registrationId: ID!
             fileId: ID
-        ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
-
-        # Manual eBarimt check (taken + photo + note); every save overwrites
-        # all three.
-        setSettlementEbarimtCheck(
-            registrationId: ID!
-            taken: Boolean!
-            imageFileId: ID
-            note: String
         ): SettlementResponse @auth(permissions: [SETTLEMENT_PAY])
 
         # Issue the herder's eBarimt for this settlement: factory = issuer and

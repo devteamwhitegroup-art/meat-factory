@@ -71,6 +71,12 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           id
           url
         }
+        ebarimtTaken
+        ebarimtNote
+        ebarimtImage {
+          id
+          url
+        }
         photoFileId
         photo {
           id
@@ -197,12 +203,6 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           ebarimtIssuedAt
           ebarimtVoidedAt
           ebarimtError
-          ebarimtTaken
-          ebarimtNote
-          ebarimtImage {
-            id
-            url
-          }
           lines {
             id
             animalType
@@ -703,15 +703,16 @@ export const VoidSettlementEbarimtDoc = graphql(/* GraphQL */ `
   }
 `);
 
-// Manual eBarimt check while the PosAPI flow is parked (EBARIMT_POSAPI).
-export const SetSettlementEbarimtCheckDoc = graphql(/* GraphQL */ `
-  mutation SetSettlementEbarimtCheck(
+// Manual eBarimt check on the verify page while the PosAPI flow is parked
+// (EBARIMT_POSAPI).
+export const SetRegistrationEbarimtCheckDoc = graphql(/* GraphQL */ `
+  mutation SetRegistrationEbarimtCheck(
     $registrationId: ID!
     $taken: Boolean!
     $imageFileId: ID
     $note: String
   ) {
-    setSettlementEbarimtCheck(
+    setRegistrationEbarimtCheck(
       registrationId: $registrationId
       taken: $taken
       imageFileId: $imageFileId
@@ -719,7 +720,7 @@ export const SetSettlementEbarimtCheckDoc = graphql(/* GraphQL */ `
     ) {
       success
       message
-      settlement {
+      registration {
         id
         ebarimtTaken
         ebarimtNote
