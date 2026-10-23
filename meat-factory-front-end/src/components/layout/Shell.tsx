@@ -140,7 +140,7 @@ function SidebarNav({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-20 shrink-0 items-center gap-3 border-b border-sidebar-border px-5">
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-5">
         <Image
           src="/brand/mark-dark.png"
           alt=""
@@ -159,15 +159,17 @@ function SidebarNav({
         </div>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+      {/* Spacing sized so the full admin menu fits a 1080p screen; shorter
+          screens still scroll (wheel / touch), just without a scrollbar. */}
+      <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {groups.map((g) => (
           <div key={g.label}>
             {g.label ? (
-              <div className="px-3 pb-2 text-xs font-semibold text-sidebar-foreground/55">
+              <div className="px-3 pb-1 text-xs font-semibold text-sidebar-foreground/55">
                 {g.label}
               </div>
             ) : null}
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {g.items.map((i) => {
                 const Icon = ICONS[i.href.split("?")[0]];
                 const active = i.href === activeHref;
