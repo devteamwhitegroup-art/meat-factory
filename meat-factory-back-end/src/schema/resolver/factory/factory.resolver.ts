@@ -5,6 +5,9 @@ import {
   TUpdateFactory,
 } from "../../../types/factory/factory.type";
 import { wrapItems, wrapOne, wrapVoid } from "../../../utils";
+import { AdminController } from "../../../controller/user/admin.controller";
+import { PERMISSION } from "../../../types/user/permission.type";
+import { TContext } from "../../../types/global/global.type";
 
 export default {
   Query: {
@@ -13,10 +16,14 @@ export default {
       async (doc: { includeInactive?: boolean | null }) =>
         FactoryController.all(!!doc.includeInactive),
     ),
+    // Settings reads any site; intake staff (REGISTRATION_WEIGH) only their own.
     factoryByproducts: wrapItems(
       "factoryByproducts",
-      ({ factory }: { factory: string }) =>
-        FactoryController.byproducts(factory),
+      async ({ factory }: { factory: string }, context: TContext) => {
+        if (!AdminController.hasPermission(context, PERMISSION.SETTINGS_MANAGE))
+          AdminController.assertFactory(context, factory);
+        return FactoryController.byproducts(factory);
+      },
     ),
   },
   Mutation: {

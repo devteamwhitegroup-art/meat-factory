@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,10 +36,19 @@ import { SignatureField } from "@/components/common/SignatureField";
 import { MedicalNumberAdder } from "@/components/registration/MedicalNumberAdder";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
 import { useDraft } from "@/lib/hooks/useDraft";
-import { CreateRegistrationDoc } from "@/lib/queries/registration";
+import {
+  CreateRegistrationDoc,
+  SetRegistrationByproductsDoc,
+} from "@/lib/queries/registration";
+import { FactoryByproductsDoc } from "@/lib/queries/factory";
 import { unwrap } from "@/lib/unwrap";
+import { compact } from "@/lib/compact";
 import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { FACTORY_KIND_HINT } from "@/lib/factory/factories";
+import {
+  ByproductIntakeEditor,
+  intakeInputs,
+} from "../[id]/weigh/_components/ByproductIntakeEditor";
 
 // 4 digits + 2–3 Cyrillic letters ("8901 ДОУ"); BE normalises the spacing.
 // Shared with the edit form.
@@ -67,6 +76,12 @@ const schema = z.object({
       weightKg: z.string(),
       pricePerKg: z.string(),
     }),
+  ),
+  // Хойд үйлдвэр: byproduct count / price edits keyed by price-list item
+  // (IntakeEdits).
+  byproducts: z.record(
+    z.string(),
+    z.object({ count: z.string().optional(), price: z.string().optional() }),
   ),
 });
 type Values = z.infer<typeof schema>;
@@ -139,6 +154,7 @@ export function IntakeForm({
   const router = useRouter();
   const { intake, isPreButchered } = useFactories();
   const [createRegistration] = useMutation(CreateRegistrationDoc);
+  const [saveByproducts] = useMutation(SetRegistrationByproductsDoc);
   const [submitting, setSubmitting] = useState(false);
   const [herder, setHerder] = useState<PickedHerder | null>(null);
 
@@ -156,6 +172,7 @@ export function IntakeForm({
       factory: factory ?? "",
       counts: {},
       weighings: [EMPTY_WEIGH_ROW],
+      byproducts: {},
     },
   });
 
@@ -174,6 +191,21 @@ export function IntakeForm({
 
   const picked = useWatch({ control: form.control, name: "factory" });
   const pre = isPreButchered(picked);
+  // The site's byproduct price list (Систем тохиргоо › Үйлдвэр) → count rows.
+  const { data: priceList } = useQuery(FactoryByproductsDoc, {
+    variables: { factory: picked ?? "" },
+    skip: !pre,
+  });
+  const byproductRows = pre
+    ? compact(priceList?.factoryByproducts?.factoryByproducts).map((p) => ({
+        wrapperId: p.wrapperId,
+        constantId: p.constantId,
+        name: p.name,
+        animalType: p.animalType,
+        count: 0,
+        unitPrice: p.price,
+      }))
+    : [];
   const counts = useWatch({ control: form.control, name: "counts" });
   const stampRequired = !pre && (counts?.[STAMPED_ANIMAL] ?? 0) > 0;
 
@@ -254,6 +286,22 @@ export function IntakeForm({
       });
       const reg = unwrap(r.data?.createRegistration).registration;
       if (!reg?.id) throw new Error("Хариу буцаасангүй");
+      // Every row is saved so the verify step keeps the full list. A failure
+      // doesn't undo the intake — byproducts stay editable on verify.
+      const bundles = intakeInputs(byproductRows, values.byproducts ?? {});
+      if (bundles.some((b) => b.count > 0)) {
+        try {
+          unwrap(
+            (
+              await saveByproducts({
+                variables: { registrationId: reg.id, bundles },
+              })
+            ).data?.setRegistrationByproducts,
+          );
+        } catch (e) {
+          toast.error(`Дайвар хадгалагдсангүй: ${(e as Error).message}`);
+        }
+      }
       clearDraft();
       toast.success(`Бүртгэл ${reg.registrationCode ?? ""} үүсгэгдлээ`);
       router.push(`/registrations/${reg.id}`);
@@ -399,6 +447,24 @@ export function IntakeForm({
             />
           )}
         </FormSection>
+
+        {/* Хойд үйлдвэр: byproducts delivered with (or without matching)
+            meat; rows come from the site's price list. */}
+        {pre ? (
+          <Controller
+            control={form.control}
+            name="byproducts"
+            render={({ field }) => (
+              <ByproductIntakeEditor
+                bundles={byproductRows}
+                edits={field.value ?? {}}
+                editable
+                busy={submitting}
+                onChange={(v) => field.onChange(v)}
+              />
+            )}
+          />
+        ) : null}
 
         <FormSection
           n={++step}

@@ -82,10 +82,14 @@ export class ByproductBundleController {
     const reg = await RegistrationModel.findByPk(registrationId, {
       attributes: ["factory"],
     });
-    const list = await this._priceList(reg?.factory ?? "");
+    const factory = reg?.factory ?? "";
+    // PRE_BUTCHERED byproducts arrive independently of the meat: the whole
+    // site list, count 0.
+    const pre = FactoryController.isPreButchered(factory);
+    const list = await this._priceList(factory);
     return list.flatMap((p) => {
       const { name, wrapper } = describe(p);
-      if (!wrapper || !heads.has(wrapper.animalId)) return [];
+      if (!wrapper || (!pre && !heads.has(wrapper.animalId))) return [];
       return [
         {
           id: null,
@@ -168,7 +172,7 @@ export class ByproductBundleController {
         : [REGISTRATION_STATUS.WEIGHED, REGISTRATION_STATUS.VERIFIED],
     );
 
-    const rows = await this._validateBundles(
+    const { rows, newAnimalIds } = await this._validateBundles(
       registrationId,
       reg.factory,
       bundles,
@@ -180,6 +184,19 @@ export class ByproductBundleController {
         transaction: t,
       });
       await ByproductBundleModel.bulkCreate(rows, { transaction: t });
+      // PRE_BUTCHERED: a byproduct of an animal with no meat line gets a
+      // 0-head line — settlement lines (and their byproduct credit) are per
+      // animal line. ponytail: never removed if its count drops back to 0;
+      // it just settles at 0₮.
+      await RegistrationAnimalLineModel.bulkCreate(
+        newAnimalIds.map((animalId) => ({
+          registrationId,
+          animalId,
+          count: 0,
+          slaughterCost: 0,
+        })),
+        { transaction: t },
+      );
     });
   }
 
@@ -198,11 +215,12 @@ export class ByproductBundleController {
     const list = await this._priceList(factory);
     const byKey = new Map(list.map((p) => [p.constantId ?? p.wrapperId, p]));
     const seen = new Set<string>();
-    return bundles.map((b) => {
+    const newAnimalIds = new Set<string>();
+    const rows = bundles.map((b) => {
       const key = b.constantId ?? b.wrapperId ?? "";
       const p = byKey.get(key);
       const { name, wrapper } = p ? describe(p) : { name: "", wrapper: null };
-      if (!p || !wrapper || !heads.has(wrapper.animalId))
+      if (!p || !wrapper || (!pre && !heads.has(wrapper.animalId)))
         throw new Error(
           "Дайвар энэ үйлдвэрийн жагсаалт эсвэл бүртгэлийн малд хамаарахгүй байна",
         );
@@ -227,6 +245,8 @@ export class ByproductBundleController {
         pre && b.unitPrice != null ? Number(b.unitPrice) : Number(p.price);
       if (!Number.isFinite(unitPrice) || unitPrice < 0)
         throw new Error(`${name}: үнэ сөрөг байж болохгүй`);
+      if (count > 0 && !heads.has(wrapper.animalId))
+        newAnimalIds.add(wrapper.animalId);
       return {
         registrationId,
         wrapperId: p.wrapperId,
@@ -236,5 +256,6 @@ export class ByproductBundleController {
         unitPrice: Number(unitPrice.toFixed(2)),
       };
     });
+    return { rows, newAnimalIds: [...newAnimalIds] };
   }
 }

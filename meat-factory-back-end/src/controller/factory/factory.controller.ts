@@ -142,6 +142,13 @@ export class FactoryController {
       include: FACTORY_BYPRODUCT_INCLUDE,
     });
     return rows
+      // Deactivated catalogue rows drop out — registrations can't use them
+      // (ByproductBundleController._priceList); they return on reactivation.
+      .filter(
+        (r) =>
+          (r.wrapper ?? r.constant?.wrapper)?.isActive &&
+          (r.constant?.isActive ?? true),
+      )
       .map((r) => {
         const w = r.wrapper ?? r.constant?.wrapper;
         return {

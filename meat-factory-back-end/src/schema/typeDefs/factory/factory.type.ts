@@ -48,7 +48,7 @@ export default `#graphql
 
     extend type Query {
         factories(includeInactive: Boolean): FactoriesResponse @authLogin
-        factoryByproducts(factory: String!): FactoryByproductsResponse @auth(permissions: [SETTINGS_MANAGE])
+        factoryByproducts(factory: String!): FactoryByproductsResponse @auth(permissions: [SETTINGS_MANAGE, REGISTRATION_WEIGH])
     }
 
     extend type Mutation {

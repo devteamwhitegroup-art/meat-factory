@@ -52,7 +52,8 @@ export function ByproductIntakeEditor({
   editable: boolean;
   busy: boolean;
   onChange: (edits: IntakeEdits) => void;
-  onSave: () => void;
+  // Omitted on the intake form, which saves with the registration.
+  onSave?: () => void;
 }) {
   if (bundles.length === 0) return null;
   const dirty = Object.keys(edits).length > 0;
@@ -115,17 +116,21 @@ export function ByproductIntakeEditor({
           <span>Дайварын дүн</span>
           <span className="tabular-nums">{formatMNT(total)}</span>
         </div>
-        {editable ? (
-          <div className="flex justify-end">
-            <Button onClick={onSave} disabled={busy || !dirty}>
-              Дайвар хадгалах
-            </Button>
-          </div>
-        ) : (
+        {!editable ? (
           <p className="text-xs text-muted-foreground">
             Жин бүртгэл дууссан тул дайврын тоо, үнийг өөрчлөх боломжгүй.
           </p>
-        )}
+        ) : onSave ? (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={busy || !dirty}
+            >
+              Дайвар хадгалах
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
