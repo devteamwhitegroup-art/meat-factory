@@ -36,10 +36,7 @@ import { SignatureField } from "@/components/common/SignatureField";
 import { MedicalNumberAdder } from "@/components/registration/MedicalNumberAdder";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
 import { useDraft } from "@/lib/hooks/useDraft";
-import {
-  CreateRegistrationDoc,
-  SetRegistrationByproductsDoc,
-} from "@/lib/queries/registration";
+import { CreateRegistrationDoc } from "@/lib/queries/registration";
 import { FactoryByproductsDoc } from "@/lib/queries/factory";
 import { unwrap } from "@/lib/unwrap";
 import { compact } from "@/lib/compact";
@@ -154,7 +151,6 @@ export function IntakeForm({
   const router = useRouter();
   const { intake, isPreButchered } = useFactories();
   const [createRegistration] = useMutation(CreateRegistrationDoc);
-  const [saveByproducts] = useMutation(SetRegistrationByproductsDoc);
   const [submitting, setSubmitting] = useState(false);
   const [herder, setHerder] = useState<PickedHerder | null>(null);
 
@@ -261,6 +257,8 @@ export function IntakeForm({
       toast.error("Гарын үсэг зурна уу");
       return;
     }
+    // Every row is sent so the record keeps the full list; all-zero = none.
+    const bundles = intakeInputs(byproductRows, values.byproducts ?? {});
     setSubmitting(true);
     try {
       const r = await createRegistration({
@@ -282,26 +280,12 @@ export function IntakeForm({
                 pricePerKg: Number(w.pricePerKg),
               }))
             : null,
+          byproducts:
+            pre && bundles.some((b) => b.count > 0) ? bundles : null,
         },
       });
       const reg = unwrap(r.data?.createRegistration).registration;
       if (!reg?.id) throw new Error("Хариу буцаасангүй");
-      // Every row is saved so the verify step keeps the full list. A failure
-      // doesn't undo the intake — byproducts stay editable on verify.
-      const bundles = intakeInputs(byproductRows, values.byproducts ?? {});
-      if (bundles.some((b) => b.count > 0)) {
-        try {
-          unwrap(
-            (
-              await saveByproducts({
-                variables: { registrationId: reg.id, bundles },
-              })
-            ).data?.setRegistrationByproducts,
-          );
-        } catch (e) {
-          toast.error(`Дайвар хадгалагдсангүй: ${(e as Error).message}`);
-        }
-      }
       clearDraft();
       toast.success(`Бүртгэл ${reg.registrationCode ?? ""} үүсгэгдлээ`);
       router.push(`/registrations/${reg.id}`);

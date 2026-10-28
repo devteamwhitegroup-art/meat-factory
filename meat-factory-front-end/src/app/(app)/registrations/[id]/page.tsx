@@ -190,10 +190,10 @@ export default async function RegistrationDetailPage({ params }: Props) {
     more.push(step("Жин засах", "weigh", Scale));
   if (status === "VERIFIED" && !pre && session.can("REGISTRATION_WEIGH"))
     more.push(step("Гэдэс", "byproduct", Package));
+  // Хойд intake is created WEIGHED, so this is where its eBarimt check lives.
   if (
     status !== "REGISTERED" &&
     status !== "CANCELLED" &&
-    !pre &&
     session.can("REGISTRATION_VERIFY")
   )
     more.push(step("Баталгаажуулалт", "verify", ShieldCheck));

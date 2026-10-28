@@ -417,8 +417,11 @@ export default `#graphql
             # Owner/admin must pick; factory staff are stamped with their own.
             factory: String
             animalLines: [RegistrationAnimalLineInput!]!
-            # Хойд үйлдвэр only — weighing entries created with the intake.
+            # Хойд үйлдвэр only — weighing entries created with the intake;
+            # with any, the registration is created WEIGHED and stocked.
             weighings: [IntakeWeighingInput!]
+            # Хойд үйлдвэр only — byproducts from the site price list.
+            byproducts: [ByproductBundleInput!]
         ): RegistrationResponse @auth(permissions: [REGISTRATION_CREATE])
 
         # Direct intake fix — admin, or the registering person on the same day.

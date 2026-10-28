@@ -4,6 +4,7 @@ import {
   FACTORY_BYPRODUCT_INCLUDE,
   FactoryController,
 } from "../factory/factory.controller";
+import { Transaction } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
@@ -40,12 +41,15 @@ export class ByproductBundleController {
   // Saved bundle rows, or — before the first save — one default row per
   // price-list entry of each animal on the registration (count = head count
   // × items per head, factory keeps all, list price).
+  // `t`: read inside a caller's uncommitted transaction (intake).
   static async bundlesFor(
     registrationId: string,
+    t?: Transaction,
   ): Promise<TByproductBundleView[]> {
     const saved = await ByproductBundleModel.findAll({
       where: { registrationId },
       include: FACTORY_BYPRODUCT_INCLUDE,
+      transaction: t,
     });
     const rows: TByproductBundleView[] =
       saved.length > 0
@@ -63,7 +67,7 @@ export class ByproductBundleController {
               unitPrice: Number(b.unitPrice),
             };
           })
-        : await this._defaultBundles(registrationId);
+        : await this._defaultBundles(registrationId, t);
     return rows.sort(
       (a, b) =>
         a.animalType.localeCompare(b.animalType) ||
@@ -73,20 +77,23 @@ export class ByproductBundleController {
 
   private static async _defaultBundles(
     registrationId: string,
+    t?: Transaction,
   ): Promise<TByproductBundleView[]> {
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
+      transaction: t,
     });
     const heads = new Map(lines.map((l) => [l.animalId, l.count]));
     if (heads.size === 0) return [];
     const reg = await RegistrationModel.findByPk(registrationId, {
       attributes: ["factory"],
+      transaction: t,
     });
     const factory = reg?.factory ?? "";
     // PRE_BUTCHERED byproducts arrive independently of the meat: the whole
     // site list, count 0.
     const pre = FactoryController.isPreButchered(factory);
-    const list = await this._priceList(factory);
+    const list = await this._priceList(factory, t);
     return list.flatMap((p) => {
       const { name, wrapper } = describe(p);
       if (!wrapper || (!pre && !heads.has(wrapper.animalId))) return [];
@@ -111,10 +118,12 @@ export class ByproductBundleController {
   // The site's price-list entries whose catalogue rows are still active.
   private static async _priceList(
     factory: string,
+    t?: Transaction,
   ): Promise<FactoryByproductModel[]> {
     const rows = await FactoryByproductModel.findAll({
       where: { factory },
       include: FACTORY_BYPRODUCT_INCLUDE,
+      transaction: t,
     });
     return rows.filter(
       (r) => describe(r).wrapper?.isActive && (r.constant?.isActive ?? true),
@@ -136,8 +145,9 @@ export class ByproductBundleController {
   static async bundleStockLines(
     registrationId: string,
     factory: string,
+    t?: Transaction,
   ): Promise<TStockLine[]> {
-    const bundles = await this.bundlesFor(registrationId);
+    const bundles = await this.bundlesFor(registrationId, t);
     return bundles.map((b) => ({
       factory,
       productType: PRODUCT_TYPE.BYPRODUCT,
@@ -152,8 +162,9 @@ export class ByproductBundleController {
   //   LIVE_SLAUGHTER — at verify (WEIGHED: the herder decides, per priced
   //     wrapper, how many to take) and correctable after VERIFIED, until the
   //     settlement locks the amounts (the herder's take decides the credit).
-  //   PRE_BUTCHERED — while REGISTERED (receiving); the herder never takes
-  //     any back. finishWeighing stocks what's recorded.
+  //   PRE_BUTCHERED — on the intake form (createRegistration), or while
+  //     REGISTERED for an intake without weighings; the herder never takes
+  //     any back. Stocked when weighing finishes.
   static async setBundles(
     registrationId: string,
     bundles: TByproductBundleInput[],
@@ -172,32 +183,44 @@ export class ByproductBundleController {
         : [REGISTRATION_STATUS.WEIGHED, REGISTRATION_STATUS.VERIFIED],
     );
 
+    await sequelize.transaction((t) =>
+      this.writeBundles(registrationId, reg.factory, bundles, pre, t),
+    );
+  }
+
+  // Validate + replace in the caller's transaction (setBundles, intake).
+  static async writeBundles(
+    registrationId: string,
+    factory: string,
+    bundles: TByproductBundleInput[],
+    pre: boolean,
+    t: Transaction,
+  ): Promise<void> {
     const { rows, newAnimalIds } = await this._validateBundles(
       registrationId,
-      reg.factory,
+      factory,
       bundles,
       pre,
+      t,
     );
-    await sequelize.transaction(async (t) => {
-      await ByproductBundleModel.destroy({
-        where: { registrationId },
-        transaction: t,
-      });
-      await ByproductBundleModel.bulkCreate(rows, { transaction: t });
-      // PRE_BUTCHERED: a byproduct of an animal with no meat line gets a
-      // 0-head line — settlement lines (and their byproduct credit) are per
-      // animal line. ponytail: never removed if its count drops back to 0;
-      // it just settles at 0₮.
-      await RegistrationAnimalLineModel.bulkCreate(
-        newAnimalIds.map((animalId) => ({
-          registrationId,
-          animalId,
-          count: 0,
-          slaughterCost: 0,
-        })),
-        { transaction: t },
-      );
+    await ByproductBundleModel.destroy({
+      where: { registrationId },
+      transaction: t,
     });
+    await ByproductBundleModel.bulkCreate(rows, { transaction: t });
+    // PRE_BUTCHERED: a byproduct of an animal with no meat line gets a
+    // 0-head line — settlement lines (and their byproduct credit) are per
+    // animal line. ponytail: never removed if its count drops back to 0;
+    // it just settles at 0₮.
+    await RegistrationAnimalLineModel.bulkCreate(
+      newAnimalIds.map((animalId) => ({
+        registrationId,
+        animalId,
+        count: 0,
+        slaughterCost: 0,
+      })),
+      { transaction: t },
+    );
   }
 
   private static async _validateBundles(
@@ -205,14 +228,16 @@ export class ByproductBundleController {
     factory: string,
     bundles: TByproductBundleInput[],
     pre: boolean,
+    t: Transaction,
   ) {
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
+      transaction: t,
     });
     // One bundle per slaughtered head at most (LIVE_SLAUGHTER).
     const heads = new Map(lines.map((l) => [l.animalId, l.count]));
     // Only what the site's price list holds (wrapper or item rows).
-    const list = await this._priceList(factory);
+    const list = await this._priceList(factory, t);
     const byKey = new Map(list.map((p) => [p.constantId ?? p.wrapperId, p]));
     const seen = new Set<string>();
     const newAnimalIds = new Set<string>();

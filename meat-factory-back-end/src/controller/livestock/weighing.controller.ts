@@ -35,9 +35,11 @@ export class WeighingController {
   static async meatStockLines(
     registrationId: string,
     factory: string,
+    t?: Transaction,
   ): Promise<TStockLine[]> {
     const entries = await WeighingEntryModel.findAll({
       where: { registrationId },
+      transaction: t,
     });
     const byAnimal: Record<string, number> = {};
     for (const w of entries)
@@ -158,32 +160,40 @@ export class WeighingController {
       return RegistrationController.getById(registrationId);
     }
 
-    // FACTORY_2: no verify step — received meat + гэдэс become stock now;
-    // finance settles with the herder later.
-    const meatLines = await this.meatStockLines(registrationId, reg.factory);
-    const bundleLines = await ByproductBundleController.bundleStockLines(
-      registrationId,
-      reg.factory,
-    );
     await sequelize.transaction(async (t) => {
       await reg.update(
         { status: REGISTRATION_STATUS.WEIGHED },
         { transaction: t },
       );
-      await InventoryController.ingestFromRegistration(
-        registrationId,
-        MOVEMENT_SOURCE.WEIGHING,
-        meatLines,
-        t,
-      );
-      await InventoryController.ingestFromRegistration(
-        registrationId,
-        MOVEMENT_SOURCE.BYPRODUCT,
-        bundleLines,
-        t,
-      );
+      await this.stockPreButchered(registrationId, reg.factory, t);
     });
     return RegistrationController.getById(registrationId);
+  }
+
+  // FACTORY_2: no verify step — received meat + byproducts become stock when
+  // weighing finishes (here, or on the intake form when it carries weighings);
+  // finance settles with the herder later.
+  static async stockPreButchered(
+    registrationId: string,
+    factory: string,
+    t: Transaction,
+  ): Promise<void> {
+    await InventoryController.ingestFromRegistration(
+      registrationId,
+      MOVEMENT_SOURCE.WEIGHING,
+      await this.meatStockLines(registrationId, factory, t),
+      t,
+    );
+    await InventoryController.ingestFromRegistration(
+      registrationId,
+      MOVEMENT_SOURCE.BYPRODUCT,
+      await ByproductBundleController.bundleStockLines(
+        registrationId,
+        factory,
+        t,
+      ),
+      t,
+    );
   }
 
   // Adding/editing/removing a weighing entry. While weighing is in progress

@@ -27,6 +27,7 @@ import {
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { HerderController } from "./herder.controller";
 import { WeighingController } from "./weighing.controller";
+import { ByproductBundleController } from "./byproduct-bundle.controller";
 import { FileController } from "../global/file.controller";
 import {
   dateRangeWhere,
@@ -223,6 +224,13 @@ export class RegistrationController {
           throw new Error("Үнэ сөрөг байж болохгүй");
       }
     }
+    const byproducts = doc.byproducts?.length ? doc.byproducts : [];
+    if (byproducts.length > 0 && !pre)
+      throw new Error("Дайврыг бүртгэлтэй хамт зөвхөн задалсан мах хүлээн авах үйлдвэрт оруулна");
+    // FACTORY_2 weighed on the form → weighing is done: WEIGHED + stocked now
+    // (no separate finish step). Without weighings it stays REGISTERED and
+    // goes through the weigh page.
+    const finished = pre && weighings.length > 0;
     const medicalNumbers = MedicalNumberController.parseList(
       doc.medicalNumbers,
     );
@@ -267,7 +275,9 @@ export class RegistrationController {
               stampFileId: pre ? null : (stampFileId ?? null),
               intakeDate: intakeDate ?? new Date(),
               guardId: context.id,
-              status: REGISTRATION_STATUS.REGISTERED,
+              status: finished
+                ? REGISTRATION_STATUS.WEIGHED
+                : REGISTRATION_STATUS.REGISTERED,
               factory,
             },
             { transaction: t },
@@ -296,6 +306,17 @@ export class RegistrationController {
               context.id,
               t,
             );
+
+          if (byproducts.length > 0)
+            await ByproductBundleController.writeBundles(
+              reg.id,
+              factory,
+              byproducts,
+              true,
+              t,
+            );
+          if (finished)
+            await WeighingController.stockPreButchered(reg.id, factory, t);
 
           await MedicalNumberModel.bulkCreate(
             medicalNumbers.map((number) => ({

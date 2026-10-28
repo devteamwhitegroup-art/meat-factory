@@ -1,4 +1,5 @@
 import { TDateRange, TPagination } from "../global/global.type";
+import { TByproductBundleInput } from "./byproduct-bundle.type";
 
 export enum REGISTRATION_STATUS {
   REGISTERED = "REGISTERED", // intake created by guard (weighing happens in-place)
@@ -59,9 +60,11 @@ export type TCreateRegistration = {
   factory?: string | null;
   animalLines: TRegistrationAnimalLineInput[];
   // FACTORY_2 only: meat weighed right on the intake form (type, kg, ₮/kg) —
-  // stored as weighing entries; the registration stays REGISTERED so гэдэс
-  // and "finish" still happen on the weigh page.
+  // stored as weighing entries; with any, the registration is created
+  // WEIGHED and stocked (no finish step).
   weighings?: TIntakeWeighing[] | null;
+  // FACTORY_2 only: byproducts counted on the intake form (site price list).
+  byproducts?: TByproductBundleInput[] | null;
 };
 
 export type TIntakeWeighing = {

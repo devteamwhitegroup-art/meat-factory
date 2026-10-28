@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { Op, ValidationError } from 'sequelize';
 import type {
   FindAndCountOptions,
   FindOptions,
@@ -88,8 +88,14 @@ export function activeSearchWhere(doc: {
 
 // Narrow an `unknown` caught value (TS `useUnknownInCatchVariables`) to a
 // human-readable message. Use in every resolver/controller catch block.
+// Sequelize unique/validation errors say only "Validation error"; their
+// per-field messages name what failed (e.g. "sku must be unique").
 export const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Unknown error';
+  error instanceof ValidationError && error.errors.length > 0
+    ? error.errors.map((e) => e.message).join('; ')
+    : error instanceof Error
+      ? error.message
+      : 'Unknown error';
 
 // ---- Human-readable daily codes (REG-YYYYMMDD-N, SHIP-YYYYMMDD-N) ----------
 // Date stamp (YYYYMMDD) in Mongolia time (UTC+8), independent of server tz so
