@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
@@ -39,29 +39,6 @@ import {
   intakeInputs,
   type IntakeEdits,
 } from "./_components/ByproductIntakeEditor";
-import { can, readPermsCookie } from "@/lib/auth/roles";
-
-// Mirrors the back-end rule (WeighingController._assertWeighingEditable):
-// while weighing is in progress (REGISTERED) the scale operator may
-// add/edit/remove; once "fully uploaded" (WEIGHED / VERIFIED /
-// PAYMENT_PENDING — a Settlement may already exist, just not paid yet) only
-// manager/admin may, and it's logged; once money has actually moved
-// (SETTLED / PARTIALLY_SETTLED) or the registration is CANCELLED, nobody may.
-function canEditEntries(status: string, perms: string[] | null): boolean {
-  if (
-    status === "SETTLED" ||
-    status === "PARTIALLY_SETTLED" ||
-    status === "CANCELLED"
-  )
-    return false;
-  if (
-    status === "WEIGHED" ||
-    status === "VERIFIED" ||
-    status === "PAYMENT_PENDING"
-  )
-    return can(perms, "REGISTRATION_WEIGH_FIX");
-  return can(perms, "REGISTRATION_WEIGH");
-}
 
 export function WeighClient({ id }: { id: string }) {
   const router = useRouter();
@@ -82,11 +59,6 @@ export function WeighClient({ id }: { id: string }) {
   // keep the BE value).
   const [intake, setIntake] = useState<IntakeEdits>({});
 
-  const [perms, setPerms] = useState<string[] | null>(null);
-  // permissions come from a client-only cookie; defer to post-mount to avoid
-  // an SSR/client hydration mismatch (client-only-after-mount pattern).
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setPerms(readPermsCookie()), []);
   const { isPreButchered } = useFactories();
 
   const [editing, setEditing] = useState<{ id: string; seq: number } | null>(
@@ -269,7 +241,9 @@ export function WeighClient({ id }: { id: string }) {
     entriesByType[t].push(w);
   }
 
-  const editable = canEditEntries(reg.status ?? "", perms);
+  // Backend rule: open while REGISTERED, a privileged logged fix until the
+  // payout, then frozen.
+  const editable = !!reg.can?.weigh;
 
   // Display numbering restarts at 1 per animal type (capture order), so it
   // stays contiguous even after a middle entry is removed.
@@ -397,7 +371,7 @@ export function WeighClient({ id }: { id: string }) {
         <ByproductIntakeEditor
           bundles={compact(reg.byproductBundles)}
           edits={intake}
-          editable={reg.status === "REGISTERED" && editable}
+          editable={!!reg.can?.editByproducts}
           busy={busy}
           onChange={setIntake}
           onSave={async () => {

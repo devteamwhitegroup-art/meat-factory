@@ -2,10 +2,9 @@ import { ByproductProcessingController } from "../../../controller/inventory/byp
 import {
   TCreateByproductProcessing,
   TGetByproductProcessings,
-  TTransferByproducts,
 } from "../../../types/inventory/byproduct-processing.type";
 import { TDateRange } from "../../../types/global/global.type";
-import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { wrapItems, wrapList, wrapOne } from "../../../utils";
 
 export default {
   Query: {
@@ -31,11 +30,6 @@ export default {
       (doc: TCreateByproductProcessing, ctx) =>
         ByproductProcessingController.create(doc, ctx),
       "Задлалт хадгалагдлаа",
-    ),
-    transferByproducts: wrapVoid(
-      "Дайврын үйлдвэр рүү илгээлээ",
-      (doc: TTransferByproducts, ctx) =>
-        ByproductProcessingController.transfer(doc, ctx),
     ),
   },
 };

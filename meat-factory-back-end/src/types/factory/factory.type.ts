@@ -12,6 +12,40 @@ export enum FACTORY_KIND {
   BYPRODUCT = "BYPRODUCT",
 }
 
+// Every rule that differs by kind, in one table. Controllers read these
+// flags (FactoryController.rules(code)) — never compare kinds inline.
+export type TKindRules = {
+  // Takes herder intake (registrations). The byproduct site only receives
+  // counted гэдэс from the other sites.
+  takesIntake: boolean;
+  // Live animals: head counts, stamp, бой зардал, a verify step that stocks
+  // the meat, and гэдэс counted per head of which the herder may take some
+  // back. Otherwise pre-butchered meat: weighed + priced on intake, stocked
+  // when weighing finishes, гэдэс at the receiver's price, settled from
+  // WEIGHED.
+  liveAnimals: boolean;
+  // Disassembles гэдэс in processing batches; accepts byproducts only.
+  processesByproducts: boolean;
+};
+
+export const KIND_RULES: Record<FACTORY_KIND, TKindRules> = {
+  [FACTORY_KIND.LIVE_SLAUGHTER]: {
+    takesIntake: true,
+    liveAnimals: true,
+    processesByproducts: false,
+  },
+  [FACTORY_KIND.PRE_BUTCHERED]: {
+    takesIntake: true,
+    liveAnimals: false,
+    processesByproducts: false,
+  },
+  [FACTORY_KIND.BYPRODUCT]: {
+    takesIntake: false,
+    liveAnimals: false,
+    processesByproducts: true,
+  },
+};
+
 // `code` is the primary key and what every `factory` column stores
 // (ASCII identifier, e.g. FACTORY_1). Display name is admin-editable.
 export type TFactory = {

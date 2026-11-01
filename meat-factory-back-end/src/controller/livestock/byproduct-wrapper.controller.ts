@@ -1,4 +1,5 @@
 import { IncludeOptions, Op, WhereOptions } from "sequelize";
+import sequelize from "../../config/db-connection";
 import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
 import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
@@ -107,8 +108,11 @@ export class ByproductWrapperController {
 
   static async remove(id: string): Promise<void> {
     const row = await this.findIdCheck(id);
-    // Remove the wrapper and its items together.
-    await ByproductConstantModel.destroy({ where: { wrapperId: id } });
-    await row.destroy();
+    // Wrapper and items go together — or not at all, when a counted bundle
+    // still references it (FK RESTRICT rolls the item delete back too).
+    await sequelize.transaction(async (t) => {
+      await ByproductConstantModel.destroy({ where: { wrapperId: id }, transaction: t });
+      await row.destroy({ transaction: t });
+    });
   }
 }

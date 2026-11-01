@@ -1,4 +1,4 @@
-import { fn, col, Op } from "sequelize";
+import { fn, col, literal, Op } from "sequelize";
 import { MonthlyBudgetModel } from "../../models/dashboard/monthly-budget.model";
 import { SalesTransactionModel } from "../../models/sales/sales-transaction.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
@@ -16,6 +16,16 @@ const MAX_MONTHS_BACK = 36;
 // AND the dashboard monthly-overview aggregation (budget vs herder cost vs
 // income). Bundled here so the chart's data shape stays close to where the
 // budget rows live.
+
+// "YYYY-M" month of a timestamp in Mongolia time, built in SQL — keying by
+// the Node process's timezone shifted every bar a month on a UTC host.
+const monthKey = (column: string) =>
+  fn(
+    "to_char",
+    literal(`${column} AT TIME ZONE 'Asia/Ulaanbaatar'`),
+    "YYYY-FMMM",
+  );
+
 export class MonthlyBudgetController {
   static async list(): Promise<TMonthlyBudget[]> {
     return await MonthlyBudgetModel.findAll({
@@ -94,7 +104,7 @@ export class MonthlyBudgetController {
     // Income — sum of PAID sales transactions by month.
     const incomeRows = (await SalesTransactionModel.findAll({
       attributes: [
-        [fn("date_trunc", "month", col("transaction_date")), "bucket"],
+        [monthKey("transaction_date"), "bucket"],
         [fn("SUM", col("amount")), "total"],
       ],
       where: {
@@ -103,21 +113,15 @@ export class MonthlyBudgetController {
       },
       group: ["bucket"],
       raw: true,
-    })) as unknown as { bucket: string | Date; total: string | null }[];
+    })) as unknown as { bucket: string; total: string | null }[];
     const incomeMap = new Map<string, number>();
-    for (const r of incomeRows) {
-      const d = new Date(r.bucket);
-      incomeMap.set(
-        `${d.getFullYear()}-${d.getMonth() + 1}`,
-        Number(r.total ?? 0),
-      );
-    }
+    for (const r of incomeRows) incomeMap.set(r.bucket, Number(r.total ?? 0));
 
     // Herder cost — sum of net payable on PAID settlements (paidAt is set)
     // bucketed by paidAt month.
     const settlementRows = (await SettlementModel.findAll({
       attributes: [
-        [fn("date_trunc", "month", col("paid_at")), "bucket"],
+        [monthKey("paid_at"), "bucket"],
         [fn("SUM", col("net_payable")), "total"],
       ],
       where: {
@@ -125,15 +129,9 @@ export class MonthlyBudgetController {
       },
       group: ["bucket"],
       raw: true,
-    })) as unknown as { bucket: string | Date; total: string | null }[];
+    })) as unknown as { bucket: string; total: string | null }[];
     const costMap = new Map<string, number>();
-    for (const r of settlementRows) {
-      const d = new Date(r.bucket);
-      costMap.set(
-        `${d.getFullYear()}-${d.getMonth() + 1}`,
-        Number(r.total ?? 0),
-      );
-    }
+    for (const r of settlementRows) costMap.set(r.bucket, Number(r.total ?? 0));
 
     const out: TMonthlyOverviewRow[] = [];
     for (let i = 0; i < n; i++) {

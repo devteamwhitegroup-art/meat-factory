@@ -20,8 +20,7 @@ import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { AdminController } from "../user/admin.controller";
 import { FactoryController } from "../factory/factory.controller";
-import { InventoryController } from "./inventory.controller";
-import { ShipmentController } from "../shipment/shipment.controller";
+import { InventoryController, stockKey, stockLabel } from "./inventory.controller";
 import {
   dateStampUTC8,
   findOrThrow,
@@ -44,17 +43,8 @@ type TLineQty = Pick<
   "productType" | "animalId" | "byproductName" | "quantityKg" | "quantityCount"
 >;
 
-const label = (i: {
-  productType: PRODUCT_TYPE;
-  animal?: AnimalModel | null;
-  byproductName: string | null;
-}) =>
-  [
-    i.animal?.name,
-    i.productType === PRODUCT_TYPE.MEAT ? "мах" : i.byproductName,
-  ]
-    .filter(Boolean)
-    .join(" ");
+const label = (i: InventoryItemModel) =>
+  stockLabel({ ...i.get(), animalName: i.animal?.name });
 
 // Factory → factory shipment, no customer or invoice. The sender's stock
 // leaves when it's sent (IN_TRANSIT); the receiver confirms what arrived and
@@ -66,9 +56,12 @@ export class FactoryTransferController {
     context: TContext,
   ): Promise<FactoryTransferModel> {
     const from = AdminController.writeFactory(context, doc.fromFactory);
-    if (!doc.toFactory) throw new Error("Хүлээн авах үйлдвэр сонгоно уу");
-    const to = FactoryController.assertActive(doc.toFactory).code;
+    // Receiver: the byproduct site unless the sender names another.
+    const to = doc.toFactory
+      ? FactoryController.assertActive(doc.toFactory).code
+      : FactoryController.defaultByproductFactory().code;
     if (to === from) throw new Error("Өөр үйлдвэр сонгоно уу");
+    const byproductsOnly = FactoryController.rules(to).processesByproducts;
     if (!doc.lines?.length) throw new Error("Илгээх бараа сонгоно уу");
 
     const items = await InventoryItemModel.findAll({
@@ -80,26 +73,21 @@ export class FactoryTransferController {
     });
     const byId = new Map(items.map((i) => [i.id, i]));
     // kg already on an open shipment's cargo can't leave too.
-    const stock = await ShipmentController.stockByGroup(from);
+    const stock = await InventoryController.available(from);
     const seen = new Set<string>();
     const lines: TLineQty[] = doc.lines.map((l) => {
       const item = byId.get(l.inventoryItemId);
       if (!item) throw new Error("Нөөцийн мөр олдсонгүй");
       const name = label(item);
       if (seen.has(item.id)) throw new Error(`Давхардсан мөр: ${name}`);
+      if (byproductsOnly && item.productType !== PRODUCT_TYPE.BYPRODUCT)
+        throw new Error(`${name}: дайврын үйлдвэрт зөвхөн дайвар илгээнэ`);
       seen.add(item.id);
       const kg = Number(Number(l.quantityKg ?? 0).toFixed(2));
       const count = Math.floor(Number(l.quantityCount ?? 0));
       if (!(kg >= 0) || !(count >= 0) || (kg === 0 && count === 0))
         throw new Error(`${name}: жин эсвэл тоо оруулна уу`);
-      const free =
-        stock.get(
-          ShipmentController.groupKey(
-            item.productType,
-            item.animal?.name ?? null,
-            item.byproductName,
-          ),
-        )?.availableKg ?? 0;
+      const free = stock.get(stockKey(item))?.availableKg ?? 0;
       if (kg > free)
         throw new Error(
           `${name}: ${Math.max(0, free)} кг илгээх боломжтой (үлдсэн нь ачилтад ачигдсан)`,

@@ -61,22 +61,23 @@ export default `#graphql
             status: FACTORY_TRANSFER_STATUS
             factory: String
             ${PaginationSchema}
-        ): FactoryTransfersResponse @auth(permissions: [SHIPMENT_VIEW])
+        ): FactoryTransfersResponse @auth(permissions: [SHIPMENT_VIEW, BYPRODUCT_TRANSFER, BYPRODUCT_PROCESS])
     }
 
     extend type Mutation {
-        # Sends now: the lines leave the sender's stock.
+        # Sends now: the lines leave the sender's stock. toFactory defaults to
+        # the byproduct site, which accepts byproducts only.
         createFactoryTransfer(
             fromFactory: String
-            toFactory: String!
+            toFactory: String
             lines: [FactoryTransferLineInput!]!
             notes: String
-        ): FactoryTransferResponse @auth(permissions: [SHIPMENT_MANAGE])
+        ): FactoryTransferResponse @auth(permissions: [SHIPMENT_MANAGE, BYPRODUCT_TRANSFER])
 
         # Receiving factory confirms → into its stock.
-        receiveFactoryTransfer(id: ID!): Response @auth(permissions: [SHIPMENT_MANAGE])
+        receiveFactoryTransfer(id: ID!): Response @auth(permissions: [SHIPMENT_MANAGE, BYPRODUCT_TRANSFER, BYPRODUCT_PROCESS])
 
         # Sending factory, while in transit → back into its stock.
-        cancelFactoryTransfer(id: ID!): Response @auth(permissions: [SHIPMENT_MANAGE])
+        cancelFactoryTransfer(id: ID!): Response @auth(permissions: [SHIPMENT_MANAGE, BYPRODUCT_TRANSFER])
     }
 `;

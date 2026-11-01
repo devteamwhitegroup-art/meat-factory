@@ -3,9 +3,14 @@ import {
   TCreateSalesTransaction,
   TGetSalesTransactions,
 } from "../../../types/sales/sales-transaction.type";
+import { AnimalController } from "../../../controller/livestock/animal.controller";
+import { SalesLineItemModel } from "../../../models/sales/sales-line-item.model";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
+  SalesLineItem: {
+    animalType: (row: SalesLineItemModel) => AnimalController.nameOf(row),
+  },
   Query: {
     salesTransactions: wrapList(
       "salesTransactions",
@@ -24,7 +29,8 @@ export default {
     ),
     markSalesTransactionPaid: wrapOne(
       "salesTransaction",
-      ({ id }: { id: string }) => SalesTransactionController.markPaid(id),
+      ({ id }: { id: string }, ctx) =>
+        SalesTransactionController.markPaid(id, ctx),
       "Sales transaction marked paid",
     ),
     setSalesLineItemPrice: wrapOne(

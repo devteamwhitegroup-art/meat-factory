@@ -19,8 +19,9 @@ import {
   SHIPMENT_STATUS_MN,
   SHIPMENT_CATEGORY_MN,
   DOMESTIC_MARKET_MN,
-  PAYMENT_STATUS_MN,
+  DOMESTIC_MARKET_COLOR,
 } from "@/lib/format/enum";
+import { PaymentBadge } from "@/components/common/PaymentBadge";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { cn } from "@/lib/utils";
@@ -39,11 +40,8 @@ const CATEGORY_COLOR: Record<string, string> = {
   DOMESTIC: "border-0 bg-teal-100 text-teal-800",
 };
 
-const STEPS: { value: string; label: string }[] = [
-  { value: "PENDING", label: "Хүлээгдэж буй" },
-  { value: "LOADED", label: "Ачигдсан" },
-  { value: "DELIVERED", label: "Хүргэгдсэн" },
-];
+// PENDING → LOADED → DELIVERED (the map's key order).
+const STEPS = Object.keys(SHIPMENT_STATUS_MN);
 
 const NEXT: Record<string, string | null> = {
   PENDING: "LOADED",
@@ -93,7 +91,7 @@ export function ShipmentDetailClient({
   const s = data?.shipment?.shipment;
   if (!s) return <div className="text-muted-foreground">Олдсонгүй</div>;
 
-  const stepIdx = STEPS.findIndex((x) => x.value === s.status);
+  const stepIdx = STEPS.indexOf(s.status ?? "");
   const nextStatus = NEXT[s.status ?? ""] ?? null;
   // Master switch: a shipment is only editable while PENDING. Once LOADED the
   // manifest, prices and driver info freeze (the back-end enforces this too —
@@ -162,7 +160,11 @@ export function ShipmentDetailClient({
             </Badge>
           ) : null}
           {category === "DOMESTIC" && s.domesticMarket ? (
-            <Badge className="border-0 bg-sky-500/12 text-sky-700 dark:text-sky-400">
+            <Badge
+              className={
+                DOMESTIC_MARKET_COLOR[s.domesticMarket] ?? "border-0 bg-muted"
+              }
+            >
               {DOMESTIC_MARKET_MN[s.domesticMarket] ?? s.domesticMarket}
             </Badge>
           ) : null}
@@ -188,7 +190,7 @@ export function ShipmentDetailClient({
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             {STEPS.map((step, i) => (
-              <div key={step.value} className="flex flex-1 items-center gap-3">
+              <div key={step} className="flex flex-1 items-center gap-3">
                 <div
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium",
@@ -199,7 +201,7 @@ export function ShipmentDetailClient({
                 >
                   {i + 1}
                 </div>
-                <div className="text-sm">{step.label}</div>
+                <div className="text-sm">{SHIPMENT_STATUS_MN[step]}</div>
                 {i < STEPS.length - 1 ? (
                   <div
                     className={cn(
@@ -337,16 +339,7 @@ export function ShipmentDetailClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base">Нэхэмжлэх</CardTitle>
-            <Badge
-              className={
-                s.salesTransaction.paymentStatus === "PAID"
-                  ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                  : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
-              }
-            >
-              {PAYMENT_STATUS_MN[s.salesTransaction.paymentStatus ?? ""] ??
-                s.salesTransaction.paymentStatus}
-            </Badge>
+            <PaymentBadge status={s.salesTransaction.paymentStatus} />
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-2">
             <div>

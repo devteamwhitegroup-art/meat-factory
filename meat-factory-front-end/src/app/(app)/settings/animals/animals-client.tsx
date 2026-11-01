@@ -23,6 +23,7 @@ type Animal = NonNullable<
 type Form = {
   name: string;
   isExport: boolean;
+  requiresStamp: boolean;
   price: string;
   yield: string;
   isActive: boolean;
@@ -31,6 +32,7 @@ type Form = {
 const EMPTY: Form = {
   name: "",
   isExport: false,
+  requiresStamp: false,
   price: "0",
   yield: "",
   isActive: true,
@@ -40,6 +42,7 @@ function fromAnimal(a: Animal): Form {
   return {
     name: a.name ?? "",
     isExport: !!a.isExport,
+    requiresStamp: !!a.requiresStamp,
     price: String(a.pricePerAnimal ?? 0),
     yield: a.yieldPercent != null ? String(a.yieldPercent) : "",
     isActive: a.isActive ?? true,
@@ -84,6 +87,7 @@ export function AnimalsClient() {
               id,
               name,
               isExport: f.isExport,
+              requiresStamp: f.requiresStamp,
               pricePerAnimal: price,
               yieldPercent,
               isActive: f.isActive,
@@ -198,6 +202,13 @@ function AnimalCard({
             onCheckedChange={(c) => onChange({ isExport: !!c })}
           />
           <span>Экспортын мал</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={form.requiresStamp}
+            onCheckedChange={(c) => onChange({ requiresStamp: !!c })}
+          />
+          <span>Хүлээн авахад тамга шаардлагатай</span>
         </label>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox

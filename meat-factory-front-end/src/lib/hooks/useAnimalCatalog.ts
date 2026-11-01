@@ -22,5 +22,11 @@ export function useAnimalCatalog() {
     [animals],
   );
 
-  return { animals, animalTypes, loading, error, refetch };
+  // The first counted animal whose live intake needs a brand mark (catalogue
+  // flag `requiresStamp`, enforced by the backend too) — null when none.
+  const stampAnimal = (counts: Record<string, number> | undefined) =>
+    animals.find((a) => a.requiresStamp && (counts?.[a.name ?? ""] ?? 0) > 0)
+      ?.name ?? null;
+
+  return { animals, animalTypes, stampAnimal, loading, error, refetch };
 }

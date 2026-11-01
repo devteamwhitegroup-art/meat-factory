@@ -16,6 +16,7 @@ import {
 import { runMutation } from "@/lib/runMutation";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatNumber, formatMNT } from "@/lib/format/money";
+import { productLabel } from "@/lib/format/product";
 import type { SaleLineRow } from "./sale-line-rows";
 
 // ─── Salesman's sales report ─────────────────────────────────────────
@@ -28,10 +29,10 @@ import type { SaleLineRow } from "./sale-line-rows";
 // Loaded − sold = хорогдол (meat lost on the way / at the dealer). Shown on
 // the shipment page and on its sale (sales/[id]).
 function lineLabel(r: SaleLineRow): string {
-  if (r.productType === "MEAT") {
-    return r.animalType ? r.animalType : PRODUCT_TYPE_MN.MEAT;
-  }
-  return r.byproductName ?? PRODUCT_TYPE_MN.BYPRODUCT;
+  return (
+    productLabel(r.productType, r.animalType, r.byproductName) ||
+    (PRODUCT_TYPE_MN[r.productType ?? ""] ?? "—")
+  );
 }
 
 export function SalesReportPanel({

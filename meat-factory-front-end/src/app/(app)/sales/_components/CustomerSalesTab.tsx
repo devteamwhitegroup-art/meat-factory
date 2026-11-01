@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,18 +12,14 @@ import {
 import { getClient } from "@/lib/apollo/server";
 import { SalesListDoc } from "@/lib/queries/sales";
 import { compact } from "@/lib/compact";
-import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
+import { PAYMENT_STATUS_MN, tabsOf } from "@/lib/format/enum";
+import { PaymentBadge } from "@/components/common/PaymentBadge";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { pageAndRange } from "@/lib/date/range";
 import { chipCls } from "@/components/ui/segmented";
 
-const TABS = [
-  { value: "", label: "Бүгд" },
-  { value: "PAID", label: "Төлбөр хийсэн" },
-  { value: "PARTIALLY_PAID", label: "Хэсэгчлэн төлсөн" },
-  { value: "PENDING", label: "Хүлээгдэж буй" },
-];
+const TABS = tabsOf(PAYMENT_STATUS_MN);
 
 export async function CustomerSalesTab({
   searchParams: sp,
@@ -112,16 +107,7 @@ export async function CustomerSalesTab({
                   <TableCell>{formatMNT(r.amount)}</TableCell>
                   <TableCell>{fmtDate(r.transactionDate)}</TableCell>
                   <TableCell>
-                    <Badge
-                      className={
-                        r.paymentStatus === "PAID"
-                          ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                          : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
-                      }
-                    >
-                      {PAYMENT_STATUS_MN[r.paymentStatus ?? ""] ??
-                        r.paymentStatus}
-                    </Badge>
+                    <PaymentBadge status={r.paymentStatus} />
                   </TableCell>
                   <TableCell>
                     <Link

@@ -1,11 +1,13 @@
-import { Op, ValidationError } from 'sequelize';
+import { Op, UniqueConstraintError, ValidationError } from 'sequelize';
 import type {
   FindAndCountOptions,
   FindOptions,
   Model,
   ModelStatic,
+  Transaction,
   WhereOptions
 } from 'sequelize';
+import sequelize from '../config/db-connection';
 import type {
   TContext,
   TDateRange,
@@ -130,6 +132,36 @@ export async function nextDailyCounter<M extends Model>(
   }
   return max + 1;
 }
+
+// Insert a row under a generated unique code (daily counters, random codes).
+// A UNIQUE collision — two creators in the same instant — retries with the
+// next attempt number. Each attempt is its own (sub)transaction: inside a
+// caller's transaction that is a SAVEPOINT, because Postgres aborts the whole
+// transaction on the first error otherwise and a plain retry can't succeed.
+export async function createWithUniqueCode<T>(
+  insert: (attempt: number, t: Transaction) => Promise<T>,
+  parent?: Transaction,
+  tries = 5
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await sequelize.transaction({ transaction: parent }, (t) =>
+        insert(attempt, t)
+      );
+    } catch (err) {
+      if (!(err instanceof UniqueConstraintError) || attempt >= tries - 1)
+        throw err;
+    }
+  }
+}
+
+// ---- Money / weight rounding ----------------------------------------------
+// Two decimals, half-up. EPSILON keeps 1.005 → 1.01 (toFixed gives 1.00).
+export const round2 = (n: number): number =>
+  Math.round((n + Number.EPSILON) * 100) / 100;
+
+// Tolerance for comparing summed kg / ₮ (sums of 2-decimal values drift).
+export const EPS = 0.005;
 
 // ---- Resolver envelope helpers -------------------------------------------
 // Every resolver field returns a `{ success, message, <data> }` envelope and

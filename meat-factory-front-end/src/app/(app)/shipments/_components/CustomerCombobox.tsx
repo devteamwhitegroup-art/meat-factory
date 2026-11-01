@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
@@ -30,7 +30,12 @@ import {
 import { CustomerListDoc, CreateCustomerDoc } from "@/lib/queries/customer";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
-import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from "@/lib/format/enum";
+import {
+  CUSTOMER_KINDS,
+  CUSTOMER_KIND_MN,
+  CUSTOMER_KIND_COLOR,
+} from "@/lib/format/enum";
+import { useDebounced } from "@/lib/hooks/useDebounced";
 import { cn } from "@/lib/utils";
 
 export type CustomerLite = {
@@ -39,8 +44,6 @@ export type CustomerLite = {
   kind?: string | null;
   contactPhone?: string | null;
 };
-
-const KIND_VALUES = ["LOCAL_BROKER", "ULAANBAATAR_BROKER", "FACTORY"] as const;
 
 function KindBadge({ kind }: { kind?: string | null }) {
   if (!kind) return null;
@@ -80,7 +83,6 @@ export function CustomerCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   // Remember the chosen customer so the trigger can show it even when it's not
   // part of the current (filtered) result page.
@@ -88,10 +90,7 @@ export function CustomerCombobox({
     initialSelected ?? null,
   );
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 250);
-    return () => clearTimeout(t);
-  }, [search]);
+  const debounced = useDebounced(search.trim(), 250);
 
   const { data, refetch } = useQuery(CustomerListDoc, {
     variables: {
@@ -337,7 +336,7 @@ function NewCustomerForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {KIND_VALUES.map((k) => (
+              {CUSTOMER_KINDS.map((k) => (
                 <SelectItem key={k} value={k}>
                   {CUSTOMER_KIND_MN[k]}
                 </SelectItem>

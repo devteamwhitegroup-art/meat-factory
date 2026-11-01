@@ -19,7 +19,9 @@ export type TShipmentCargoEntry = {
   productType: PRODUCT_TYPE;
   // MEAT line: the meat type. EXPORT is locked to HORSE; DOMESTIC allows any.
   // Null on BYPRODUCT lines (and on legacy rows).
-  animalType: string | null;
+  // Animals.id (MEAT meat type; BYPRODUCT the wrapper's animal). GraphQL
+  // `animalType` = its name.
+  animalId: string | null;
   // BYPRODUCT line: free-form byproduct name (the inventory key). Null on meat.
   byproductName: string | null;
   // Optional traceability link to the byproduct catalogue entry the FE picked

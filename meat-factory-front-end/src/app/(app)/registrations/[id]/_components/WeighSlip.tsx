@@ -1,91 +1,17 @@
 "use client";
 
-import type { ResultOf } from "@graphql-typed-document-node/core";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { RegistrationDetailDoc } from "@/lib/queries/registration";
-import { formatNumber } from "@/lib/format/money";
-import { useFactories } from "@/lib/factory/FactoriesProvider";
+import type { RegistrationDetail } from "@/lib/queries/registration";
+import { SettlementBreakdown } from "@/components/registration/SettlementBreakdown";
 import { fmtDate } from "@/lib/format/date";
-import { compact } from "@/lib/compact";
 import { PrintButton } from "@/components/common/PrintButton";
 
-type Reg = NonNullable<
-  NonNullable<
-    ResultOf<typeof RegistrationDetailDoc>["registration"]
-  >["registration"]
->;
-
-// Printable weigh/agreement slip (status WEIGHED, before VERIFIED). Numbers are
-// derived from the same data settlement will use — meat = Σ(weightKg×pricePerKg),
-// бой = animalLines.slaughterCost — so the slip and the final settlement agree.
-// The гэдэс credit is decided after verify and shows on the settlement receipt.
-// FACTORY_2 (pre-butchered) has no бой зардал, so its column is hidden.
-export function WeighSlip({ reg }: { reg: Reg }) {
-  const { isPreButchered } = useFactories();
-  const entries = compact(reg.weighingEntries);
-  const showBoy = !isPreButchered(reg.factory);
-
-  // Meat income per type from per-entry negotiated price.
-  const meatByType: Record<string, { weight: number; meat: number }> = {};
-  for (const e of entries) {
-    const t = e.animalType ?? "";
-    const w = Number(e.weightKg ?? 0);
-    const p = Number(e.pricePerKg ?? 0);
-    if (!meatByType[t]) meatByType[t] = { weight: 0, meat: 0 };
-    meatByType[t].weight += w;
-    meatByType[t].meat += w * p;
-  }
-
-  // Captured бой cost per type.
-  const boyByType: Record<string, number> = {};
-  for (const l of compact(reg.animalLines)) {
-    const t = l.animalType ?? "";
-    boyByType[t] = (boyByType[t] ?? 0) + Number(l.slaughterCost ?? 0);
-  }
-
-  const types = Array.from(
-    new Set([...Object.keys(meatByType), ...Object.keys(boyByType)]),
-  );
-  let gross = 0;
-  let totalBoy = 0;
-  const rows = types.map((t) => {
-    const weight = meatByType[t]?.weight ?? 0;
-    const meat = meatByType[t]?.meat ?? 0;
-    const boy = boyByType[t] ?? 0;
-    gross += meat;
-    totalBoy += boy;
-    return {
-      type: t,
-      weight,
-      pricePerKg: weight > 0 ? meat / weight : 0,
-      meat,
-      boy,
-      net: meat - boy,
-    };
-  });
-  // Хойд үйлдвэр: counted items are all kept and credited at their price —
-  // same as the settlement. (FACTORY_1 decides the herder's take at verify.)
-  const gedes = isPreButchered(reg.factory)
-    ? compact(reg.byproductBundles)
-        .map((b) => ({
-          label: `${b.name} (${b.animalType})`,
-          kept: Number(b.count ?? 0) - Number(b.herderCount ?? 0),
-          price: Number(b.unitPrice ?? 0),
-        }))
-        .filter((b) => b.kept > 0 && b.price > 0)
-    : [];
-  const gedesTotal = gedes.reduce((s, b) => s + b.kept * b.price, 0);
-  const netPayable = gross - totalBoy + gedesTotal;
+// Printable weigh/agreement slip (before the settlement). Its money block is
+// the backend's settlement preview — the same formula the settlement locks
+// in, so the slip and the final settlement always agree. The гэдэс credit
+// appears once the herder's take is recorded.
+export function WeighSlip({ reg }: { reg: RegistrationDetail }) {
   const sig = reg.agreementSignature?.url ?? null;
 
   return (
@@ -98,7 +24,6 @@ export function WeighSlip({ reg }: { reg: Reg }) {
           <CardTitle>Жинлэлт ба үнийн хуудас</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {/* Header */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-1">
             <div className="text-muted-foreground">Малчин</div>
             <div>{reg.herder?.name ?? "—"}</div>
@@ -114,81 +39,9 @@ export function WeighSlip({ reg }: { reg: Reg }) {
 
           <Separator />
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Төрөл</TableHead>
-                <TableHead className="text-right">Жин (кг)</TableHead>
-                <TableHead className="text-right">Үнэ/кг</TableHead>
-                <TableHead className="text-right">Махны дүн</TableHead>
-                {showBoy && (
-                  <TableHead className="text-right">Бой зардал</TableHead>
-                )}
-                <TableHead className="text-right">Цэвэр</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.type}>
-                  <TableCell>{r.type}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(r.weight)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.pricePerKg > 0 ? formatNumber(r.pricePerKg) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(r.meat)}
-                  </TableCell>
-                  {showBoy && (
-                    <TableCell className="text-right tabular-nums">
-                      {formatNumber(r.boy)}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatNumber(r.net)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <Separator />
-
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <div className="text-muted-foreground">Нийт мах</div>
-            <div className="text-right tabular-nums">{formatNumber(gross)}</div>
-            {gedes.map((b) => (
-              <div key={b.label} className="contents">
-                <div className="text-muted-foreground">
-                  {b.label} {b.kept} × {formatNumber(b.price)}
-                </div>
-                <div className="text-right tabular-nums">
-                  +{formatNumber(b.kept * b.price)}
-                </div>
-              </div>
-            ))}
-            {gedes.length > 0 ? (
-              <>
-                <div className="text-muted-foreground">Нийт дайвар</div>
-                <div className="text-right tabular-nums">
-                  {formatNumber(gedesTotal)}
-                </div>
-              </>
-            ) : null}
-            {showBoy && (
-              <>
-                <div className="text-muted-foreground">Нийт бой зардал</div>
-                <div className="text-right tabular-nums">
-                  {formatNumber(totalBoy)}
-                </div>
-              </>
-            )}
-            <div className="text-base font-semibold">Малчинд өгөх дүн</div>
-            <div className="text-right text-base font-semibold tabular-nums">
-              {formatNumber(netPayable)}
-            </div>
-          </div>
+          {reg.settlementPreview ? (
+            <SettlementBreakdown s={reg.settlementPreview} />
+          ) : null}
 
           {/* Agreement signature — printed so the signed slip carries price,
               бой cost, net and the herder's consent signature. */}

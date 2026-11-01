@@ -1,4 +1,8 @@
-import { RegistrationController } from "../../../controller/livestock/registration.controller";
+import {
+  REG_ACTIONS,
+  RegistrationController,
+} from "../../../controller/livestock/registration.controller";
+import { AnimalController } from "../../../controller/livestock/animal.controller";
 import { WeighingController } from "../../../controller/livestock/weighing.controller";
 import { ByproductBundleController } from "../../../controller/livestock/byproduct-bundle.controller";
 import { MedicalNumberController } from "../../../controller/livestock/medical-number.controller";
@@ -34,18 +38,8 @@ import {
 } from "../../../types/livestock/settlement.type";
 import { wrapList, wrapOne, wrapVoid } from "../../../utils";
 
-// animalType is reached via the FK to Animals. The field resolvers keep the
-// existing GraphQL `animalType` field, now returning the animal catalogue
-// NAME (the ANIMAL_TYPE enum was removed) from the joined `animal`.
-async function resolveAnimalType(row: {
-  animal?: AnimalModel;
-  animalId?: string | null;
-}): Promise<string | null> {
-  if (row.animal?.name) return row.animal.name;
-  if (!row.animalId) return null;
-  const a = await AnimalModel.findByPk(row.animalId);
-  return a?.name ?? null;
-}
+// animalType = the joined catalogue animal's name (rows store animalId).
+const resolveAnimalType = AnimalController.nameOf.bind(AnimalController);
 
 export default {
   Registration: {
@@ -56,6 +50,12 @@ export default {
     // Context carries the caller via the field's @authLogin.
     editableByMe: (row: RegistrationModel, _: unknown, ctx: TContext) =>
       RegistrationChangeController.canEditDirect(row, ctx),
+    can: (row: RegistrationModel, _: unknown, ctx: TContext) =>
+      Object.fromEntries(
+        REG_ACTIONS.map((a) => [a, !RegistrationController.blocker(row, ctx, a)]),
+      ),
+    settlementPreview: (row: RegistrationModel) =>
+      SettlementController.compute(row),
   },
   RegistrationIntakeChange: {
     herder: (c: TIntakeChanges) => HerderModel.findByPk(c.herderId),

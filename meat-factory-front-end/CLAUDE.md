@@ -55,6 +55,16 @@ strings. `npm run gen` introspects the **running backend** (`:8086`, see
   Client components: `can(readPermsCookie(), "PERM")` post-mount. Nav/landing
   derive from permissions (`src/lib/auth/roles.ts`). Roles themselves are
   admin-managed on the BE (Систем тохиргоо › Эрх) — never hard-code one.
+- **Business rules live on the BE — render, don't recompute** (2026-11):
+  registration buttons/gates read `reg.can { weigh finishWeighing verify
+  editByproducts createSettlement pay releaseHold cancel editIntake }`; any
+  settlement money (preview or stored) renders through
+  `<SettlementBreakdown s={reg.settlementPreview | reg.settlement}/>`
+  (`components/registration/`). Stamp rule = catalogue `Animal.requiresStamp`
+  (`useAnimalCatalog().stampAnimal(counts)`). Shared: `RegistrationDetail`
+  type (`lib/queries/registration.ts`), `<PaymentBadge>`, `productLabel()`
+  (`lib/format/product.ts`), `useDebounced`, `tabsOf()` + `_MN/_COLOR` maps in
+  `lib/format/enum.ts`.
 - **Factories**: admin-managed catalogue (Систем тохиргоо › Үйлдвэр). Names and
   kind rules come from `useFactories()` (client) / `getFactories()` +
   `factoryName`/`factoryKind`/`isPreButchered` (server, `src/lib/factory/`).

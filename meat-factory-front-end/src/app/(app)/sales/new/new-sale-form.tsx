@@ -19,7 +19,8 @@ import {
 import { CustomerListDoc } from "@/lib/queries/customer";
 import { useDraft } from "@/lib/hooks/useDraft";
 import { CreateSalesTransactionDoc } from "@/lib/queries/sales";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
+import { ymd } from "@/lib/date/range";
 import { compact } from "@/lib/compact";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
@@ -50,7 +51,7 @@ export function NewSaleForm() {
   const customers = compact(data?.customers?.customers);
 
   const [customerId, setCustomerId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => ymd(new Date()));
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineRow[]>([
     {
@@ -140,26 +141,33 @@ export function NewSaleForm() {
       }
     }
     setBusy(true);
-    try {
-      const r = await createSale({
-        variables: {
-          customerId,
-          transactionDate: date || null,
-          notes: notes.trim() || null,
-          amount: null,
-          lineItems,
+    let id: string | null | undefined;
+    await runMutation(
+      async () => {
+        const env = (
+          await createSale({
+            variables: {
+              customerId,
+              transactionDate: date || null,
+              notes: notes.trim() || null,
+              amount: null,
+              lineItems,
+            },
+          })
+        ).data?.createSalesTransaction;
+        id = env?.salesTransaction?.id;
+        return env;
+      },
+      {
+        success: (d) =>
+          `Гүйлгээ ${d.salesTransaction?.transactionCode ?? ""} үүсгэгдлээ`,
+        onSuccess: () => {
+          clearDraft();
+          router.push(id ? `/sales/${id}` : "/sales");
         },
-      });
-      const tx = unwrap(r.data?.createSalesTransaction).salesTransaction;
-      if (!tx?.id) throw new Error("Хариу буцаасангүй");
-      clearDraft();
-      toast.success(`Гүйлгээ ${tx.transactionCode} үүсгэгдлээ`);
-      router.push(`/sales/${tx.id}`);
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
+    setBusy(false);
   }
 
   return (

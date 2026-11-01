@@ -4,14 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
-import type { ResultOf } from "@graphql-typed-document-node/core";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { RegistrationTitle } from "../_components/RegistrationTitle";
 import {
   FinishWeighingDoc,
-  RegistrationDetailDoc,
   SetRegistrationByproductsDoc,
+  type RegistrationDetail,
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
@@ -23,24 +22,15 @@ import {
   type IntakeEdits,
 } from "../weigh/_components/ByproductIntakeEditor";
 
-type Reg = NonNullable<
-  NonNullable<
-    ResultOf<typeof RegistrationDetailDoc>["registration"]
-  >["registration"]
->;
-
 // Хойд үйлдвэр verification. The meat was weighed on the intake form, so
 // this step checks the weighings, records the byproduct items and confirms —
 // which finishes weighing on the server (meat + byproducts into stock), after
 // which Тооцоо opens. Weight fixes before that: Хэмжүүр / Засах.
 export function PreButcheredVerify({
   reg,
-  canConfirm,
   onDone,
 }: {
-  reg: Reg;
-  // нярав / admin (finishing weighing).
-  canConfirm: boolean;
+  reg: RegistrationDetail;
   // Reloads the registration (after a byproduct save / confirm).
   onDone: () => unknown;
 }) {
@@ -50,7 +40,9 @@ export function PreButcheredVerify({
   const [busy, setBusy] = useState(false);
   const [saveBundles] = useMutation(SetRegistrationByproductsDoc);
   const [finish] = useMutation(FinishWeighingDoc);
+  // Confirming = finishing weighing; гэдэс are counted until then.
   const open = reg.status === "REGISTERED";
+  const canConfirm = !!reg.can?.finishWeighing;
   const entries = compact(reg.weighingEntries);
   const bundles = compact(reg.byproductBundles);
 
@@ -135,7 +127,7 @@ export function PreButcheredVerify({
       <ByproductIntakeEditor
         bundles={bundles}
         edits={intake}
-        editable={open && canConfirm}
+        editable={!!reg.can?.editByproducts}
         busy={busy}
         onChange={setIntake}
         onSave={async () => {

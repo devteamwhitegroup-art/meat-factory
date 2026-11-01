@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +23,9 @@ import {
   herderSchema,
   type HerderFormValues,
 } from "@/components/herder/HerderForm";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { useDebounced } from "@/lib/hooks/useDebounced";
 
 export type PickedHerder = {
   id: string;
@@ -60,12 +60,7 @@ export function HerderPicker({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(initialLabel ?? "");
-  const [debounced, setDebounced] = useState("");
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 250);
-    return () => clearTimeout(t);
-  }, [search]);
+  const debounced = useDebounced(search.trim(), 250);
 
   const {
     data,
@@ -104,17 +99,24 @@ export function HerderPicker({
   }
 
   async function onSubmit(values: HerderFormValues) {
-    try {
-      const r = await createHerder({ variables: herderMutationVars(values) });
-      const created = unwrap(r.data?.createHerder).herder;
-      if (!created?.id) throw new Error("Хариу буцаасангүй");
-      toast.success(`Малчин нэмэгдлээ: ${created.name}`);
-      pick(created as PickedHerder);
-      setOpen(false);
-      refetch();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    let created: PickedHerder | null = null;
+    await runMutation(
+      async () => {
+        const env = (
+          await createHerder({ variables: herderMutationVars(values) })
+        ).data?.createHerder;
+        if (env?.herder?.id) created = env.herder as PickedHerder;
+        return env;
+      },
+      {
+        success: (d) => `Малчин нэмэгдлээ: ${d.herder?.name ?? ""}`,
+        onSuccess: () => {
+          if (created) pick(created);
+          setOpen(false);
+          refetch();
+        },
+      },
+    );
   }
 
   // Not found → the add dialog opens with the typed register number filled in.

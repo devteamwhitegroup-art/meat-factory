@@ -1,10 +1,15 @@
-import { Op, Transaction, WhereOptions, fn, col } from "sequelize";
+import { Op, Transaction, WhereOptions, fn, col, literal } from "sequelize";
 import sequelize from "../../config/db-connection";
 import { InventoryItemModel } from "../../models/inventory/inventory-item.model";
 import { InventoryMovementModel } from "../../models/inventory/inventory-movement.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
+import { RegistrationModel } from "../../models/livestock/registration.model";
+import { ShipmentModel } from "../../models/shipment/shipment.model";
+import { ShipmentCargoEntryModel } from "../../models/shipment/shipment-cargo-entry.model";
+import { SHIPMENT_STATUS, TShipmentStockRow } from "../../types/shipment/shipment.type";
 import { SettingsController } from "../settings/settings.controller";
 import { AdminController } from "../user/admin.controller";
+import { AnimalController } from "../livestock/animal.controller";
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
@@ -16,7 +21,7 @@ import {
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
-import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
+import { dateRangeWhere, findOrThrow, listPaginated, round2 } from "../../utils";
 
 type ApplyArgs = {
   movementType: MOVEMENT_TYPE;
@@ -28,55 +33,47 @@ type ApplyArgs = {
   notes?: string | null;
 };
 
+type TProduct = {
+  productType: PRODUCT_TYPE;
+  animalId?: string | null;
+  byproductName?: string | null;
+};
+
+// THE identity of a stocked product, shared by InventoryItem.sku, shipment
+// cargo groups (ShipmentSaleLine.groupKey) and availability:
+//   MEAT:<animalId> | BYPN:<animalId>:<name> | BYPN:<name> (animal-less).
+// Built from ids, never names — renaming an animal can't split its stock.
+// Same-named byproducts of different animals (horse vs cow "Зүрх") stay apart.
+export function stockKey(p: TProduct): string {
+  if (p.productType === PRODUCT_TYPE.MEAT) {
+    if (!p.animalId) throw new Error("Махны мөрөнд малын төрөл шаардлагатай");
+    if (p.byproductName) throw new Error("Махны мөрөнд дайврын нэр байхгүй");
+    return `MEAT:${p.animalId}`;
+  }
+  const name = p.byproductName?.trim();
+  if (!name) throw new Error("Дайврын мөрөнд нэр шаардлагатай");
+  return `BYPN:${p.animalId ? `${p.animalId}:` : ""}${name}`;
+}
+
+// Human label for the same product: "Адуу мах" / "Адуу Зүрх" / "Зүрх".
+export function stockLabel(p: {
+  productType: PRODUCT_TYPE;
+  animalName?: string | null;
+  byproductName?: string | null;
+}): string {
+  return p.productType === PRODUCT_TYPE.MEAT
+    ? `${p.animalName ?? ""} мах`.trim()
+    : [p.animalName, p.byproductName].filter(Boolean).join(" ");
+}
+
 export class InventoryController {
-  static findIdCheck(id: string): Promise<InventoryItemModel> {
-    return findOrThrow(InventoryItemModel, id, "Inventory item not found");
-  }
-
-  // SKU stays human-readable (embeds the animal name), even though identity
-  // is now the FK — resolve the name once via a lookup rather than storing
-  // it, so a catalogue rename can't desync the two.
-  private static async _buildSku(
-    line: TStockLine,
-    t?: Transaction,
-  ): Promise<string> {
-    if (line.productType === PRODUCT_TYPE.MEAT) {
-      if (!line.animalId)
-        throw new Error("Мах inventory line requires an animalId");
-      if (line.byproductName)
-        throw new Error("Мах inventory line cannot have a byproductName");
-      const animal = await findOrThrow(
-        AnimalModel,
-        line.animalId,
-        "Малын төрөл олдсонгүй",
-        t ? { transaction: t } : undefined,
-      );
-      return `Мах:${animal.name}`;
-    }
-    const name = line.byproductName?.trim();
-    if (!name) throw new Error("Дайвар line requires a byproductName");
-    // Animal is optional on a byproduct line (some free-form rows aren't
-    // tied to one, matching ByproductLog.animalId), but when present it
-    // must be part of the SKU — otherwise two different animals' same-named
-    // byproducts (e.g. horse "Зүрх" vs cow "Зүрх") collide into one
-    // inventory line instead of staying separate stock.
-    if (!line.animalId) return `Дайвар:${name}`;
-    const animal = await findOrThrow(
-      AnimalModel,
-      line.animalId,
-      "Малын төрөл олдсонгүй",
-      t ? { transaction: t } : undefined,
-    );
-    return `Дайвар:${animal.name}:${name}`;
-  }
-
   private static async _getOrCreateItem(
     line: TStockLine,
     t: Transaction,
   ): Promise<InventoryItemModel> {
-    const sku = await this._buildSku(line, t);
+    const sku = stockKey(line);
     const where = { factory: line.factory, sku };
-    await InventoryItemModel.findOrCreate({
+    const [item] = await InventoryItemModel.findOrCreate({
       where,
       defaults: {
         factory: line.factory,
@@ -88,14 +85,81 @@ export class InventoryController {
       },
       transaction: t,
     });
-    // Re-read with a row lock to serialize concurrent movements.
-    const locked = await InventoryItemModel.findOne({
-      where,
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
-    if (!locked) throw new Error(`Inventory item ${sku} disappeared`);
-    return locked;
+    // Re-read under a row lock to serialize concurrent movements.
+    return item.reload({ transaction: t, lock: t.LOCK.UPDATE });
+  }
+
+  // Loadable stock per product at a factory: on hand − cargo on every
+  // undelivered shipment (stock only leaves the ledger at DELIVERED). Shipment
+  // cargo and factory transfers check against it.
+  // ponytail: no lock — two loaders racing can both pass; the ledger check at
+  // DELIVERED stays the final guard (and LOADED → PENDING the way back).
+  static async available(
+    factory: string,
+    t?: Transaction,
+  ): Promise<Map<string, TShipmentStockRow>> {
+    type Row = TProduct & { kg: string | number };
+    const [items, cargo] = await Promise.all([
+      InventoryItemModel.findAll({
+        attributes: [
+          "productType",
+          "animalId",
+          "byproductName",
+          [col("quantity_kg"), "kg"],
+        ],
+        where: { factory },
+        raw: true,
+        transaction: t,
+      }) as unknown as Promise<Row[]>,
+      ShipmentCargoEntryModel.findAll({
+        attributes: [
+          "productType",
+          "animalId",
+          "byproductName",
+          // Qualified: the joined Shipments has a weight_kg too.
+          [fn("SUM", col("ShipmentCargoEntryModel.weight_kg")), "kg"],
+        ],
+        include: [
+          {
+            model: ShipmentModel,
+            as: "shipment",
+            attributes: [],
+            required: true,
+            where: { factory, status: { [Op.ne]: SHIPMENT_STATUS.DELIVERED } },
+          },
+        ],
+        group: ["product_type", "animal_id", "byproduct_name"],
+        raw: true,
+        transaction: t,
+      }) as unknown as Promise<Row[]>,
+    ]);
+    const names = await AnimalController.namesById(
+      [...items, ...cargo].map((r) => r.animalId),
+    );
+    const rows = new Map<string, TShipmentStockRow>();
+    const row = (p: TProduct) => {
+      const groupKey = stockKey(p);
+      const r = rows.get(groupKey) ?? {
+        groupKey,
+        productType: p.productType,
+        animalId: p.animalId ?? null,
+        animalType: p.animalId ? (names.get(p.animalId) ?? null) : null,
+        byproductName: p.byproductName ?? null,
+        onHandKg: 0,
+        reservedKg: 0,
+        availableKg: 0,
+      };
+      rows.set(groupKey, r);
+      return r;
+    };
+    for (const i of items) row(i).onHandKg += Number(i.kg);
+    for (const c of cargo) row(c).reservedKg += Number(c.kg);
+    for (const r of rows.values()) {
+      r.onHandKg = round2(r.onHandKg);
+      r.reservedKg = round2(r.reservedKg);
+      r.availableKg = round2(r.onHandKg - r.reservedKg);
+    }
+    return rows;
   }
 
   // Single stock primitive: one IN/OUT on one SKU under a row lock, kg and/or
@@ -114,7 +178,7 @@ export class InventoryController {
     const sign = args.movementType === MOVEMENT_TYPE.OUT ? -1 : 1;
     const current = Number(item.quantityKg);
     const currentCount = Number(item.quantityCount);
-    const newBalance = Number((current + sign * qty).toFixed(2));
+    const newBalance = round2(current + sign * qty);
     const newCount = currentCount + sign * cnt;
 
     if (newBalance < 0)
@@ -169,32 +233,28 @@ export class InventoryController {
     });
     if (already) return; // idempotent
 
-    const meatIds = Array.from(
-      new Set(
-        lines
-          .filter((l) => l.productType === PRODUCT_TYPE.MEAT && l.animalId)
-          .map((l) => l.animalId as string),
-      ),
+    const meatIds = lines
+      .filter((l) => l.productType === PRODUCT_TYPE.MEAT && l.animalId)
+      .map((l) => l.animalId as string);
+    const yieldById = new Map(
+      meatIds.length
+        ? (
+            await AnimalModel.findAll({
+              where: { id: { [Op.in]: meatIds } },
+              transaction: t,
+            })
+          ).map((r) => [r.id, Number(r.yieldPercent)])
+        : [],
     );
-    const yieldById: Record<string, number> = {};
-    if (meatIds.length > 0) {
-      const rows = await AnimalModel.findAll({
-        where: { id: { [Op.in]: meatIds } },
-        transaction: t,
-      });
-      for (const r of rows) yieldById[r.id] = Number(r.yieldPercent);
-    }
 
     for (const l of lines) {
       if (!(l.quantityKg > 0) && !((l.quantityCount ?? 0) > 0)) continue;
       const yieldPct =
         l.productType === PRODUCT_TYPE.MEAT && l.animalId
-          ? (yieldById[l.animalId] ?? 100)
+          ? (yieldById.get(l.animalId) ?? 100)
           : 100;
       const quantityKg =
-        yieldPct === 100
-          ? l.quantityKg
-          : Number(((l.quantityKg * yieldPct) / 100).toFixed(2));
+        yieldPct === 100 ? l.quantityKg : round2((l.quantityKg * yieldPct) / 100);
       const yieldNote =
         yieldPct !== 100
           ? ` (yield ${yieldPct}% from ${l.quantityKg} carcass kg)`
@@ -212,42 +272,42 @@ export class InventoryController {
     }
   }
 
-  // Total kg currently in stock for a product type. Used by the analytics
-  // tile + the alert hook.
-  static async totalKg(
-    productType: PRODUCT_TYPE,
-    factory: string | null,
-  ): Promise<number> {
-    const row = (await InventoryItemModel.findOne({
-      attributes: [[fn("SUM", col("quantity_kg")), "total"]],
-      where: factory ? { productType, factory } : { productType },
+  // kg on hand per product type, plus the export-eligible meat — the full
+  // physical total of export-flagged animals (not reduced by what's on a
+  // truck), so admin can call an export cargo once it crosses the threshold.
+  // Domestic shipments accept ANY meat, so domestic-available = all meat.
+  // One scan: SUM … GROUP BY product_type.
+  private static async _totals(factory: string | null) {
+    const rows = (await InventoryItemModel.findAll({
+      attributes: [
+        "productType",
+        [fn("SUM", col("quantity_kg")), "kg"],
+        [
+          fn(
+            "SUM",
+            literal(
+              `CASE WHEN "animal"."is_export" THEN "InventoryItemModel"."quantity_kg" ELSE 0 END`,
+            ),
+          ),
+          "exportKg",
+        ],
+      ],
+      where: factory ? { factory } : {},
+      include: [{ model: AnimalModel, as: "animal", attributes: [] }],
+      group: ["product_type"],
       raw: true,
-    })) as unknown as { total: string | null } | null;
-    return Number(row?.total ?? 0);
-  }
-
-  // Meat kg eligible for an EXPORT shipment — the full physical total (not
-  // reduced by what's already loaded on a truck), so admin sees "of
-  // everything in storage, how much could go export?" and can call a cargo
-  // once it crosses the export threshold. Export shipments only accept
-  // export-flagged animals (ShipmentController.addCargoEntry); domestic
-  // shipments accept ANY meat, so there is no separate "domestic-only"
-  // split — the domestic-available figure is just the full meat total.
-  private static async _exportEligibleMeatKg(
-    factory: string | null,
-  ): Promise<number> {
-    const rows = await InventoryItemModel.findAll({
-      attributes: ["quantityKg"],
-      where: factory
-        ? { productType: PRODUCT_TYPE.MEAT, factory }
-        : { productType: PRODUCT_TYPE.MEAT },
-      include: [{ model: AnimalModel, as: "animal", attributes: ["isExport"] }],
-    });
-    let exportEligible = 0;
-    for (const r of rows) {
-      if (r.animal?.isExport) exportEligible += Number(r.quantityKg);
-    }
-    return Number(exportEligible.toFixed(2));
+    })) as unknown as {
+      productType: PRODUCT_TYPE;
+      kg: string;
+      exportKg: string;
+    }[];
+    const of = (p: PRODUCT_TYPE) => rows.find((r) => r.productType === p);
+    const meat = of(PRODUCT_TYPE.MEAT);
+    return {
+      meat: round2(Number(meat?.kg ?? 0)),
+      byproduct: round2(Number(of(PRODUCT_TYPE.BYPRODUCT)?.kg ?? 0)),
+      exportEligible: round2(Number(meat?.exportKg ?? 0)),
+    };
   }
 
   // Inventory summary for the FE analytics block. Bundles totals + settings
@@ -269,17 +329,16 @@ export class InventoryController {
     domesticAlertActive: boolean;
   }> {
     const factory = AdminController.readFactory(context, requested);
-    const [meat, byprod, settings, exportEligibleMeatKg] = await Promise.all([
-      this.totalKg(PRODUCT_TYPE.MEAT, factory),
-      this.totalKg(PRODUCT_TYPE.BYPRODUCT, factory),
+    const [totals, settings] = await Promise.all([
+      this._totals(factory),
       SettingsController.get(),
-      this._exportEligibleMeatKg(factory),
     ]);
+    const { meat, exportEligible: exportEligibleMeatKg } = totals;
     const exportThr = Number(settings.exportAlertThresholdKg);
     const domesticThr = Number(settings.domesticAlertThresholdKg);
     return {
       meatStockKg: meat,
-      byproductStockKg: byprod,
+      byproductStockKg: totals.byproduct,
       meatCapacityKg: Number(settings.meatCapacityKg),
       exportEligibleMeatKg,
       // Domestic shipments accept any meat (export-eligible or not), so the
@@ -335,10 +394,8 @@ export class InventoryController {
       quantityKg: Number(input.quantityKg ?? 0),
       quantityCount: Number(input.quantityCount ?? 0),
     };
-    const sku = await this._buildSku(line);
-
-    await sequelize.transaction(async (t) => {
-      await this.applyMovement(
+    const movement = await sequelize.transaction((t) =>
+      this.applyMovement(
         {
           movementType:
             input.direction === MOVEMENT_TYPE.OUT
@@ -350,12 +407,11 @@ export class InventoryController {
           notes: input.notes ?? null,
         },
         t,
-      );
+      ),
+    );
+    return findOrThrow(InventoryItemModel, movement.inventoryItemId, "Олдсонгүй", {
+      include: [{ model: AnimalModel, as: "animal" }],
     });
-
-    return (await InventoryItemModel.findOne({
-      where: { factory, sku },
-    })) as InventoryItemModel;
   }
 
   // Stock-on-hand is a bounded reference set (one row per SKU), so it is
@@ -409,6 +465,13 @@ export class InventoryController {
           required: !!factory || !!doc.productType,
           include: [{ model: AnimalModel, as: "animal" }],
         },
+        // Source links for the log (was one lookup per row per field).
+        {
+          model: RegistrationModel,
+          as: "registration",
+          attributes: ["registrationCode"],
+        },
+        { model: ShipmentModel, as: "shipment", attributes: ["shipmentCode"] },
       ],
       order: [["createdAt", "DESC"]],
       distinct: true,

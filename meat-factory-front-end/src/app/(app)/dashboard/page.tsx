@@ -16,7 +16,8 @@ import { MonthlyOverviewChart } from "@/components/dashboard/MonthlyOverviewChar
 import { getClient } from "@/lib/apollo/server";
 import { DashboardDoc } from "@/lib/queries/dashboard";
 import { compact } from "@/lib/compact";
-import { PAYMENT_STATUS_MN, SHIPMENT_STATUS_MN } from "@/lib/format/enum";
+import { SHIPMENT_STATUS_MN } from "@/lib/format/enum";
+import { PaymentBadge } from "@/components/common/PaymentBadge";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { parseRange, thisMonth } from "@/lib/date/range";
@@ -214,17 +215,7 @@ export default async function DashboardPage({
                     <span className="ml-3 text-right">
                       {formatMNT(t.amount)}
                     </span>
-                    <Badge
-                      className={
-                        "ml-3 border-0 " +
-                        (t.paymentStatus === "PAID"
-                          ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                          : "bg-amber-500/12 text-amber-700 dark:text-amber-400")
-                      }
-                    >
-                      {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ??
-                        t.paymentStatus}
-                    </Badge>
+                    <PaymentBadge status={t.paymentStatus} className="ml-3" />
                   </li>
                 ))}
               </ul>

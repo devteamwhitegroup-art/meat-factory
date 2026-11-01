@@ -18,7 +18,8 @@ import {
 } from "@/lib/queries/registration";
 import { runMutation } from "@/lib/runMutation";
 import { useDraft } from "@/lib/hooks/useDraft";
-import { PLATE_HINT, PLATE_RE, STAMPED_ANIMAL } from "../../new/intake-form";
+import { PLATE_HINT, PLATE_RE } from "../../new/intake-form";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 
 type Initial = {
   herderId: string;
@@ -64,6 +65,7 @@ export function EditForm({
       setPickerKey((k) => k + 1); // remount → shows the restored herder
     },
   );
+  const { stampAnimal } = useAnimalCatalog();
   const [update, { loading: saving }] = useMutation(UpdateRegistrationDoc);
   const [request, { loading: sending }] = useMutation(
     RequestRegistrationChangeDoc,
@@ -81,8 +83,9 @@ export function EditForm({
     if (!PLATE_RE.test(vehicleNumber.trim())) return toast.error(PLATE_HINT);
     if (animalLines.length === 0)
       return toast.error("Дор хаяж нэг малын төрөл оруулна уу");
-    if (!pre && (counts[STAMPED_ANIMAL] ?? 0) > 0 && !stamp.trim())
-      return toast.error("Адуунд таних тэмдэг шаардлагатай");
+    const stamped = pre ? null : stampAnimal(counts);
+    if (stamped && !stamp.trim())
+      return toast.error(`${stamped}: таних тэмдэг шаардлагатай`);
     if (!direct && !reason.trim())
       return toast.error("Засварын шалтгаан бичнэ үү");
 

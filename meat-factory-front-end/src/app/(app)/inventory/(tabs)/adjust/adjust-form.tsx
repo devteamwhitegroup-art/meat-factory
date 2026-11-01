@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AdjustInventoryDoc } from "@/lib/queries/inventory";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { MOVEMENT_TYPE_MN, PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import { ByproductNamePicker } from "@/components/common/ByproductNamePicker";
@@ -98,35 +98,39 @@ export function AdjustForm({
       return;
     }
     setBusy(true);
-    try {
-      const r = await adjust({
-        variables: {
-          factory: crossFactory ? (factory as never) : null,
-          productType: productType as never,
-          animalId:
-            productType === "MEAT"
-              ? animalId
-              : (animals.find((a) => a.name === byproductAnimal)?.id ?? null),
-          byproductName: productType === "BYPRODUCT" ? byproductName : null,
-          quantityKg: q > 0 ? q : null,
-          quantityCount: c > 0 ? c : null,
-          direction: direction as never,
-          notes: notes.trim() || null,
+    await runMutation(
+      async () =>
+        (
+          await adjust({
+            variables: {
+              factory: crossFactory ? (factory as never) : null,
+              productType: productType as never,
+              animalId:
+                productType === "MEAT"
+                  ? animalId
+                  : (animals.find((a) => a.name === byproductAnimal)?.id ??
+                    null),
+              byproductName: productType === "BYPRODUCT" ? byproductName : null,
+              quantityKg: q > 0 ? q : null,
+              quantityCount: c > 0 ? c : null,
+              direction: direction as never,
+              notes: notes.trim() || null,
+            },
+          })
+        ).data?.adjustInventory,
+      {
+        success: "Хадгалагдлаа",
+        onSuccess: () => {
+          clearDraft();
+          router.push(
+            factory
+              ? `/inventory/movements?factory=${factory}`
+              : "/inventory/movements",
+          );
         },
-      });
-      unwrap(r.data?.adjustInventory);
-      clearDraft();
-      toast.success("Хадгалагдлаа");
-      router.push(
-        factory
-          ? `/inventory/movements?factory=${factory}`
-          : "/inventory/movements",
-      );
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
+    setBusy(false);
   }
 
   return (

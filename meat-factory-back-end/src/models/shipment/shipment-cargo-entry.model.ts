@@ -1,4 +1,5 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
+import { AnimalModel } from "../livestock/animal.model";
 import { TShipmentCargoEntry } from "../../types/shipment/shipment-cargo-entry.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { ShipmentModel } from "./shipment.model";
@@ -12,7 +13,7 @@ export class ShipmentCargoEntryModel
   public shipmentId!: string;
   public productType!: PRODUCT_TYPE;
   // MEAT line: meat type (EXPORT ⇒ HORSE only). Null on byproduct/legacy rows.
-  public animalType!: string | null;
+  public animalId!: string | null;
   // BYPRODUCT line: free-form byproduct name (inventory key). Null on meat.
   public byproductName!: string | null;
   // Optional traceability link to the byproduct catalogue entry. Soft FK.
@@ -24,6 +25,7 @@ export class ShipmentCargoEntryModel
   public weightKg!: number;
   public sequenceNo!: number;
   public createdById!: string;
+  public animal?: AnimalModel;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -38,6 +40,10 @@ export class ShipmentCargoEntryModel
     this.belongsTo(AdminModel, {
       as: "createdBy",
       foreignKey: { name: "createdById", allowNull: false },
+    });
+    this.belongsTo(AnimalModel, {
+      as: "animal",
+      foreignKey: { name: "animalId", allowNull: true },
     });
   }
 }
@@ -56,8 +62,8 @@ export const createShipmentCargoEntryModel = (sequelize: Sequelize) => {
         allowNull: false,
         defaultValue: PRODUCT_TYPE.MEAT,
       },
-      animalType: {
-        type: DataTypes.STRING,
+      animalId: {
+        type: DataTypes.UUID,
         allowNull: true,
       },
       byproductName: {

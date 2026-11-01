@@ -24,9 +24,6 @@ type Props = {
   searchParams: Promise<{ section?: string }>;
 };
 
-// Mirrors BE EDITABLE_STATUSES — frozen once a settlement exists.
-const EDITABLE = ["REGISTERED", "WEIGHED", "VERIFIED"];
-
 const SECTIONS = [
   {
     value: "intake",
@@ -76,7 +73,10 @@ export default async function EditRegistrationPage({
   const weighHref = `/registrations/${id}/weigh`;
 
   // Why the section can't be edited here (null = show the form).
-  const blocked = !EDITABLE.includes(status)
+  // Backend rules: intake frozen once a settlement exists; weighing fixed
+  // directly by whoever may weigh now.
+  const canWeighNow = !!r.can?.weigh;
+  const blocked = !r.can?.editIntake
     ? "Тооцоо үүссэн бүртгэлийг засах боломжгүй."
     : section === "intake"
       ? !direct && pending
@@ -84,17 +84,12 @@ export default async function EditRegistrationPage({
         : null
       : status === "REGISTERED"
         ? "Жинлэлт дуусаагүй — Хэмжүүр хуудаснаас шууд засна."
-        : session.can("REGISTRATION_WEIGH_FIX")
+        : canWeighNow
           ? "Жин засах эрхтэй — Хэмжүүр хуудаснаас шууд засна."
           : pending
             ? "Хүлээгдэж буй хүсэлт байна — админ шийдвэрлэсний дараа дахин илгээнэ үү."
             : null;
-  const weighLink =
-    section === "weighing" &&
-    EDITABLE.includes(status) &&
-    (status === "REGISTERED"
-      ? session.can("REGISTRATION_WEIGH")
-      : session.can("REGISTRATION_WEIGH_FIX"));
+  const weighLink = section === "weighing" && !!r.can?.editIntake && canWeighNow;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

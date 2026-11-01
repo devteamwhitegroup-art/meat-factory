@@ -130,7 +130,8 @@ export function ByproductClient({ id }: { id: string }) {
     return ok;
   }
 
-  const editable = reg.status === "VERIFIED";
+  // Backend rule: the herder's take stays editable until the settlement.
+  const editable = !!reg.can?.editByproducts;
 
   // "Дараах" always saves first so nobody skips logging byproducts. When the
   // page is read-only (already past VERIFIED) there's nothing to save.

@@ -54,7 +54,7 @@ export const FactoryTransfersDoc = graphql(/* GraphQL */ `
 export const CreateFactoryTransferDoc = graphql(/* GraphQL */ `
   mutation CreateFactoryTransfer(
     $fromFactory: String
-    $toFactory: String!
+    $toFactory: String
     $lines: [FactoryTransferLineInput!]!
     $notes: String
   ) {

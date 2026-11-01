@@ -1,3 +1,4 @@
+import type { ResultOf } from "@graphql-typed-document-node/core";
 import { graphql } from "@/lib/gql/gql";
 
 export const RegistrationListDoc = graphql(/* GraphQL */ `
@@ -105,6 +106,35 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
           address
         }
         editableByMe
+        # What this account may do now — the backend's own rules.
+        can {
+          weigh
+          finishWeighing
+          verify
+          editByproducts
+          createSettlement
+          pay
+          releaseHold
+          cancel
+          editIntake
+        }
+        # The settlement as it would be created now (the backend's formula).
+        settlementPreview {
+          totalMeatAmount
+          totalByproductAmount
+          totalSlaughterCost
+          grossAmount
+          netPayable
+          byproductsPending
+          lines {
+            animalType
+            receivedWeightKg
+            pricePerKg
+            meatAmount
+            byproductAmount
+            slaughterCost
+          }
+        }
         guard {
           id
           param
@@ -231,6 +261,13 @@ export const RegistrationDetailDoc = graphql(/* GraphQL */ `
     }
   }
 `);
+
+// The registration detail as fetched — prop type for its sub-components.
+export type RegistrationDetail = NonNullable<
+  NonNullable<
+    ResultOf<typeof RegistrationDetailDoc>["registration"]
+  >["registration"]
+>;
 
 export const CreateRegistrationDoc = graphql(/* GraphQL */ `
   mutation CreateRegistration(
@@ -396,7 +433,6 @@ export const VerifyRegistrationDoc = graphql(/* GraphQL */ `
 export const CreateSettlementDoc = graphql(/* GraphQL */ `
   mutation CreateSettlement(
     $registrationId: ID!
-    $lines: [SettlementLineInput!]!
     $notes: String
     $photoFileId: ID
     $payoutBankAccount: String
@@ -405,7 +441,6 @@ export const CreateSettlementDoc = graphql(/* GraphQL */ `
   ) {
     createSettlement(
       registrationId: $registrationId
-      lines: $lines
       notes: $notes
       photoFileId: $photoFileId
       payoutBankAccount: $payoutBankAccount

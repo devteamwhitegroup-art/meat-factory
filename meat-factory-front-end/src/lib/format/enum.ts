@@ -47,10 +47,35 @@ export const PAYMENT_STATUS_MN: Record<string, string> = {
   PENDING: "Хүлээгдэж буй",
 };
 
+export const PAYMENT_STATUS_COLOR: Record<string, string> = {
+  PAID: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  PARTIALLY_PAID: "border-0 bg-blue-500/12 text-blue-700 dark:text-blue-400",
+  PENDING: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+};
+
 export const SHIPMENT_STATUS_MN: Record<string, string> = {
   PENDING: "Хүлээгдэж буй",
   LOADED: "Ачигдсан",
   DELIVERED: "Хүргэгдсэн",
+};
+
+export const SHIPMENT_STATUS_COLOR: Record<string, string> = {
+  PENDING: "border-0 bg-slate-500/12 text-slate-700 dark:text-slate-300",
+  LOADED: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  DELIVERED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+};
+
+// Factory → factory transfer (no customer / invoice).
+export const TRANSFER_STATUS_MN: Record<string, string> = {
+  IN_TRANSIT: "Замд",
+  RECEIVED: "Хүлээн авсан",
+  CANCELLED: "Цуцалсан",
+};
+
+export const TRANSFER_STATUS_COLOR: Record<string, string> = {
+  IN_TRANSIT: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  RECEIVED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  CANCELLED: "border-0 bg-slate-200 text-slate-700",
 };
 
 export const SHIPMENT_CATEGORY_MN: Record<string, string> = {
@@ -62,6 +87,18 @@ export const DOMESTIC_MARKET_MN: Record<string, string> = {
   ULAANBAATAR: "Улаанбаатар",
   LOCAL: "Орон нутаг",
 };
+
+export const DOMESTIC_MARKET_COLOR: Record<string, string> = {
+  ULAANBAATAR: "border-0 bg-sky-500/12 text-sky-700 dark:text-sky-400",
+  LOCAL: "border-0 bg-violet-500/12 text-violet-700 dark:text-violet-400",
+};
+
+// Ordered values (pickers, zod enum); labels below.
+export const CUSTOMER_KINDS = [
+  "LOCAL_BROKER",
+  "ULAANBAATAR_BROKER",
+  "FACTORY",
+] as const;
 
 export const CUSTOMER_KIND_MN: Record<string, string> = {
   LOCAL_BROKER: "Орон нутгийн брокер",
@@ -103,3 +140,11 @@ export const WEIGHING_AUDIT_ACTION_MN: Record<string, string> = {
   UPDATE: "Засварласан",
   DELETE: "Устгасан",
 };
+
+// Filter tabs from a label map: "Бүгд" (value "") + one per enum value.
+export function tabsOf(labels: Record<string, string>) {
+  return [
+    { value: "", label: "Бүгд" },
+    ...Object.entries(labels).map(([value, label]) => ({ value, label })),
+  ];
+}

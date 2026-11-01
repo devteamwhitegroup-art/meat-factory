@@ -1,10 +1,8 @@
-import { Op, WhereOptions } from "sequelize";
+import { WhereOptions } from "sequelize";
 import { FactoryController } from "../factory/factory.controller";
-import { FACTORY_KIND } from "../../types/factory/factory.type";
 import sequelize from "../../config/db-connection";
 import { ByproductProcessingModel } from "../../models/inventory/byproduct-processing.model";
 import { ByproductProcessingLineModel } from "../../models/inventory/byproduct-processing-line.model";
-import { InventoryItemModel } from "../../models/inventory/inventory-item.model";
 import { ByproductWrapperModel } from "../../models/livestock/byproduct-wrapper.model";
 import { ByproductConstantModel } from "../../models/livestock/byproduct-constant.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
@@ -15,12 +13,10 @@ import {
   TCreateByproductProcessing,
   TGetByproductProcessings,
   TProcessingSummaryRow,
-  TTransferByproducts,
 } from "../../types/inventory/byproduct-processing.type";
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
-  TStockLine,
 } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import {
@@ -34,9 +30,9 @@ import {
   findOrThrow,
   listPaginated,
   nextDailyCounter,
+  round2,
 } from "../../utils";
 
-const round2 = (n: number): number => Number(n.toFixed(2));
 
 const PROCESSING_INCLUDE = [
   {
@@ -52,64 +48,6 @@ const PROCESSING_INCLUDE = [
 // where batches are disassembled and every organ weighed. Each batch keeps the
 // norm-based expectation next to the weighed actual so the two can be matched.
 export class ByproductProcessingController {
-  // Intake site → byproduct site: counted byproducts leave the sender's stock and
-  // arrive at the byproduct factory in one transaction.
-  static async transfer(
-    doc: TTransferByproducts,
-    context: TContext,
-  ): Promise<void> {
-    const from = AdminController.writeFactory(context, doc.fromFactory);
-    if (FactoryController.isByproduct(from))
-      throw new Error("Дайврын үйлдвэрээс илгээх боломжгүй");
-    // Receiver: the one byproduct site unless the sender names another.
-    const to = doc.toFactory
-      ? FactoryController.assertActive(doc.toFactory).code
-      : FactoryController.defaultByproductFactory().code;
-    FactoryController.assertKind(to, FACTORY_KIND.BYPRODUCT, "Зөвхөн дайврын үйлдвэрт илгээнэ");
-    if (!doc.lines?.length) throw new Error("Илгээх дайвар сонгоно уу");
-
-    const items = await InventoryItemModel.findAll({
-      where: {
-        id: { [Op.in]: doc.lines.map((l) => l.inventoryItemId) },
-        factory: from,
-        productType: PRODUCT_TYPE.BYPRODUCT,
-      },
-    });
-    const byId = new Map(items.map((i) => [i.id, i]));
-    const notes = `${FactoryController.nameOf(from)} → ${FactoryController.nameOf(to)}${doc.notes?.trim() ? `: ${doc.notes.trim()}` : ""}`;
-
-    await sequelize.transaction(async (t) => {
-      for (const l of doc.lines) {
-        const item = byId.get(l.inventoryItemId);
-        if (!item) throw new Error("Нөөцийн мөр олдсонгүй");
-        const count = Math.floor(Number(l.count));
-        if (!(count > 0)) throw new Error("Илгээх тоо эерэг байх ёстой");
-        const line = (factory: string): TStockLine => ({
-          factory,
-          productType: PRODUCT_TYPE.BYPRODUCT,
-          animalId: item.animalId,
-          byproductName: item.byproductName,
-          quantityKg: 0,
-          quantityCount: count,
-        });
-        for (const [movementType, factory] of [
-          [MOVEMENT_TYPE.OUT, from],
-          [MOVEMENT_TYPE.IN, to],
-        ] as const)
-          await InventoryController.applyMovement(
-            {
-              movementType,
-              source: MOVEMENT_SOURCE.TRANSFER,
-              line: line(factory),
-              createdById: context.id,
-              notes,
-            },
-            t,
-          );
-      }
-    });
-  }
-
   // Disassemble N гэдэс of one wrapper and record each organ's weighed kg.
   // Stock: −N гэдэс (pieces), +actual kg per organ.
   static async create(
@@ -117,11 +55,8 @@ export class ByproductProcessingController {
     context: TContext,
   ): Promise<ByproductProcessingModel> {
     const factory = AdminController.writeFactory(context, doc.factory);
-    FactoryController.assertKind(
-      factory,
-      FACTORY_KIND.BYPRODUCT,
-      "Дайвар задлах нь зөвхөн дайврын үйлдвэрт хийгдэнэ",
-    );
+    if (!FactoryController.rules(factory).processesByproducts)
+      throw new Error("Дайвар задлах нь зөвхөн дайврын үйлдвэрт хийгдэнэ");
     const bundleCount = Math.floor(Number(doc.bundleCount));
     if (!(bundleCount > 0)) throw new Error("Задлах гэдэсний тоо эерэг байх ёстой");
 

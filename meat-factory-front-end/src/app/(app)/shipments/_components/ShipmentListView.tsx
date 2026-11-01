@@ -15,7 +15,14 @@ import {
 import { getClient } from "@/lib/apollo/server";
 import { ShipmentListDoc } from "@/lib/queries/shipment";
 import { unwrapList } from "@/lib/unwrap";
-import { SHIPMENT_STATUS_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
+import {
+  SHIPMENT_STATUS_MN,
+  SHIPMENT_STATUS_COLOR,
+  SHIPMENT_CATEGORY_MN,
+  DOMESTIC_MARKET_MN,
+  DOMESTIC_MARKET_COLOR,
+  tabsOf,
+} from "@/lib/format/enum";
 import { getFactories } from "@/lib/factory/server";
 import { factoryName } from "@/lib/factory/factories";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
@@ -25,34 +32,8 @@ import { pageAndRange } from "@/lib/date/range";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 
-const STATUS_TABS = [
-  { value: "", label: "Бүгд" },
-  { value: "PENDING", label: "Хүлээгдэж буй" },
-  { value: "LOADED", label: "Ачигдсан" },
-  { value: "DELIVERED", label: "Хүргэгдсэн" },
-];
-
-const MARKET_TABS = [
-  { value: "", label: "Бүгд" },
-  { value: "ULAANBAATAR", label: "Улаанбаатар" },
-  { value: "LOCAL", label: "Орон нутаг" },
-];
-
-const STATUS_COLOR: Record<string, string> = {
-  PENDING: "border-0 bg-slate-500/12 text-slate-700 dark:text-slate-300",
-  LOADED: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
-  DELIVERED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
-};
-
-const MARKET_COLOR: Record<string, string> = {
-  ULAANBAATAR: "border-0 bg-sky-500/12 text-sky-700 dark:text-sky-400",
-  LOCAL: "border-0 bg-violet-500/12 text-violet-700 dark:text-violet-400",
-};
-
-const CATEGORY_TAB: Record<"EXPORT" | "DOMESTIC", string> = {
-  EXPORT: "Экспорт",
-  DOMESTIC: "Дотоод",
-};
+const STATUS_TABS = tabsOf(SHIPMENT_STATUS_MN);
+const MARKET_TABS = tabsOf(DOMESTIC_MARKET_MN);
 const NEW_LABEL: Record<"EXPORT" | "DOMESTIC", string> = {
   EXPORT: "Шинэ экспортын ачилт",
   DOMESTIC: "Шинэ дотоод ачилт",
@@ -172,7 +153,7 @@ export async function ShipmentListView({
             href={tabHref(c)}
             className={segmentCls(c === category)}
           >
-            {CATEGORY_TAB[c]}
+            {SHIPMENT_CATEGORY_MN[c]}
           </Link>
         ))}
         <Link href="/shipments/transfers" className={segmentCls(false)}>
@@ -252,7 +233,7 @@ export async function ShipmentListView({
                       {s.domesticMarket ? (
                         <Badge
                           className={
-                            MARKET_COLOR[s.domesticMarket] ??
+                            DOMESTIC_MARKET_COLOR[s.domesticMarket] ??
                             "border-0 bg-muted"
                           }
                         >
@@ -272,7 +253,8 @@ export async function ShipmentListView({
                   <TableCell>
                     <Badge
                       className={
-                        STATUS_COLOR[s.status ?? ""] ?? "border-0 bg-muted"
+                        SHIPMENT_STATUS_COLOR[s.status ?? ""] ??
+                        "border-0 bg-muted"
                       }
                     >
                       {SHIPMENT_STATUS_MN[s.status ?? ""] ?? s.status}

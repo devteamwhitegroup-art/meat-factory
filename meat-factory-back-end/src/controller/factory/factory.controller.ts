@@ -6,6 +6,8 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import {
   FACTORY_CODE_RE,
   FACTORY_KIND,
+  KIND_RULES,
+  TKindRules,
   TCreateFactory,
   TFactory,
   TFactoryByproductView,
@@ -76,22 +78,17 @@ export class FactoryController {
     return this.get(code).kind;
   }
 
-  static isPreButchered(code: string): boolean {
-    return this.kindOf(code) === FACTORY_KIND.PRE_BUTCHERED;
-  }
-
-  static isByproduct(code: string): boolean {
-    return this.kindOf(code) === FACTORY_KIND.BYPRODUCT;
-  }
-
-  static assertKind(code: string, kind: FACTORY_KIND, message: string): void {
-    if (this.kindOf(code) !== kind) throw new Error(message);
+  // The site's kind rules (types/factory KIND_RULES).
+  static rules(code: string): TKindRules {
+    return KIND_RULES[this.kindOf(code)];
   }
 
   // Where counted гэдэс goes when the sender doesn't say: the one active
   // byproduct site. With several, the caller must name one.
   static defaultByproductFactory(): TFactory {
-    const sites = this.all().filter((f) => f.kind === FACTORY_KIND.BYPRODUCT);
+    const sites = this.all().filter(
+      (f) => KIND_RULES[f.kind].processesByproducts,
+    );
     if (sites.length === 0) throw new Error("Дайврын үйлдвэр тохируулаагүй байна");
     if (sites.length > 1)
       throw new Error("Хүлээн авах дайврын үйлдвэрийг сонгоно уу");

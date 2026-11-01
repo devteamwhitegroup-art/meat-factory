@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getClient } from "@/lib/apollo/server";
@@ -8,7 +7,6 @@ import { ShipmentDetailDoc } from "@/lib/queries/shipment";
 import { SalesReportPanel } from "@/components/sales/SalesReportPanel";
 import { toSaleLineRows } from "@/components/sales/sale-line-rows";
 import { compact } from "@/lib/compact";
-import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { MarkPaidButton } from "./mark-paid-button";
@@ -17,6 +15,7 @@ import { ExpensesCard } from "./expenses-card";
 import { LineItemsTable } from "./line-items-table";
 import { BackButton } from "@/components/common/BackButton";
 import { PrintButton } from "@/components/common/PrintButton";
+import { PaymentBadge } from "@/components/common/PaymentBadge";
 import { requireCap } from "@/lib/auth/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -78,15 +77,7 @@ export default async function SalesDetailPage({ params }: Props) {
         </div>
         <div className="flex items-center gap-2">
           {t.id ? <PrintButton type="SALES_RECEIPT" id={t.id} /> : null}
-          <Badge
-            className={
-              t.paymentStatus === "PAID"
-                ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
-            }
-          >
-            {PAYMENT_STATUS_MN[t.paymentStatus ?? ""] ?? t.paymentStatus}
-          </Badge>
+          <PaymentBadge status={t.paymentStatus} />
         </div>
       </div>
 
@@ -172,7 +163,7 @@ export default async function SalesDetailPage({ params }: Props) {
         </CardHeader>
         <CardContent>
           <LineItemsTable
-            fromReport={!!shipment}
+            fromReport={!!t.shipmentId}
             lines={lines.map((l) => ({
               id: l.id!,
               productType: l.productType ?? null,
@@ -183,6 +174,12 @@ export default async function SalesDetailPage({ params }: Props) {
               lineAmount: l.lineAmount != null ? Number(l.lineAmount) : null,
             }))}
           />
+          {t.shipmentId ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Үнийг ачилтын борлуулалтын тайланд оруулна (Ачилт › Борлуулалтын
+              тайлан).
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 

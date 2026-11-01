@@ -1,4 +1,4 @@
-import { Transaction, WhereOptions } from "sequelize";
+import { Includeable, Transaction, WhereOptions } from "sequelize";
 import { AdminController } from "../user/admin.controller";
 import { PERMISSION } from "../../types/user/permission.type";
 import { FactoryController } from "../factory/factory.controller";
@@ -10,13 +10,16 @@ import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model"
 import { HerderModel } from "../../models/livestock/herder.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { AdminModel } from "../../models/user/admin.model";
-import { RegistrationController } from "./registration.controller";
+import {
+  EDITABLE_STATUSES,
+  RegistrationController,
+} from "./registration.controller";
+import { ByproductBundleController } from "./byproduct-bundle.controller";
 import { HerderController } from "./herder.controller";
 import { AnimalController } from "./animal.controller";
 import { WeighingController } from "./weighing.controller";
 import {
   CHANGE_REQUEST_STATUS,
-  REGISTRATION_STATUS,
   TGetRegistrationChangeRequests,
   TIntakeChanges,
   TRegistrationChanges,
@@ -26,19 +29,16 @@ import {
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 import { dateStampUTC8, findOrThrow, listPaginated } from "../../utils";
 
-// Once a settlement exists the intake is part of a payout — frozen.
-const EDITABLE_STATUSES = [
-  REGISTRATION_STATUS.REGISTERED,
-  REGISTRATION_STATUS.WEIGHED,
-  REGISTRATION_STATUS.VERIFIED,
-];
 
 const ADMIN_ATTRS = ["id", "param"];
 
-const REQUEST_INCLUDE = [
+// A function: Sequelize mutates include objects. `factory` scopes the
+// review queue to one site (staff bound to a factory see only theirs).
+const REQUEST_INCLUDE = (factory?: string | null): Includeable[] => [
   {
     model: RegistrationModel,
     as: "registration",
+    ...(factory ? { where: { factory }, required: true } : {}),
     include: [
       { model: HerderModel, as: "herder" },
       {
@@ -78,24 +78,34 @@ export class RegistrationChangeController {
     const weights = doc.weights?.length ? doc.weights : null;
     const added = doc.added?.length ? doc.added : null;
     if (!doc.intake && !weights && !added) throw new Error("Өөрчлөлт алга");
-    const badPrice = (p?: number | null) => p != null && p < 0;
 
     let intake: TIntakeChanges | null = null;
+    const { liveAnimals } = FactoryController.rules(reg.factory);
     if (doc.intake) {
       RegistrationController.assertAnimalLines(
         doc.intake.animalLines,
-        FactoryController.isPreButchered(reg.factory),
+        liveAnimals,
       );
       await HerderController.findIdCheck(doc.intake.herderId);
+      if (liveAnimals)
+        RegistrationController.assertStamp(
+          doc.intake.animalLines,
+          await AnimalController.byNames(
+            doc.intake.animalLines.map((l) => l.animalType),
+          ),
+          doc.intake.stamp,
+          null,
+          false,
+        );
       intake = {
         herderId: doc.intake.herderId,
         vehicleNumber: RegistrationController.normalizePlate(
           doc.intake.vehicleNumber,
         ),
-        stamp: FactoryController.isPreButchered(reg.factory) ? null : doc.intake.stamp?.trim() || null,
+        stamp: liveAnimals ? doc.intake.stamp?.trim() || null : null,
         animalLines: doc.intake.animalLines.map((l) => ({
           animalType: l.animalType,
-          count: FactoryController.isPreButchered(reg.factory) ? 0 : l.count,
+          count: liveAnimals ? l.count : 0,
         })),
       };
     }
@@ -123,10 +133,8 @@ export class RegistrationChangeController {
       if (missing)
         throw new Error(`${missing.animalType} энэ бүртгэлийн малд алга`);
     }
-    for (const w of [...(weights ?? []), ...(added ?? [])]) {
-      if (!(w.weightKg > 0)) throw new Error("Жин 0-ээс их байх ёстой");
-      if (badPrice(w.pricePerKg)) throw new Error("Үнэ сөрөг байж болохгүй");
-    }
+    for (const w of [...(weights ?? []), ...(added ?? [])])
+      WeighingController.assertValues(w.weightKg, w.pricePerKg);
     return {
       intake,
       weights: weights?.map((w) => ({
@@ -152,10 +160,17 @@ export class RegistrationChangeController {
 
     // ponytail: like a direct admin weight fix, stock already ingested at
     // verify / finishWeighing is not re-synced.
-    for (const w of c.weights ?? []) {
-      const entry = await WeighingEntryModel.findByPk(w.entryId, {
-        transaction: t,
-      });
+    const weights = c.weights ?? [];
+    const entries = new Map(
+      (
+        await WeighingEntryModel.findAll({
+          where: { id: weights.map((w) => w.entryId) },
+          transaction: t,
+        })
+      ).map((e) => [e.id, e]),
+    );
+    for (const w of weights) {
+      const entry = entries.get(w.entryId);
       if (entry)
         await WeighingController.setEntry(
           entry,
@@ -169,18 +184,17 @@ export class RegistrationChangeController {
       const typeToId = await AnimalController.mapNamesToIds(
         c.added.map((a) => a.animalType),
       );
-      for (const a of c.added)
-        await WeighingController.insertEntry(
-          {
-            registrationId: reg.id,
-            animalId: typeToId[a.animalType],
-            weightKg: a.weightKg,
-            pricePerKg: a.pricePerKg ?? null,
-            photoFileId: null,
-          },
-          actorId,
-          t,
-        );
+      await WeighingController.insertEntries(
+        c.added.map((a) => ({
+          registrationId: reg.id,
+          animalId: typeToId[a.animalType.trim()],
+          weightKg: a.weightKg,
+          pricePerKg: a.pricePerKg ?? null,
+          photoFileId: null,
+        })),
+        actorId,
+        t,
+      );
     }
   }
 
@@ -199,15 +213,16 @@ export class RegistrationChangeController {
     const wanted = new Set(Object.values(typeToId));
     const removed = existing.filter((l) => !wanted.has(l.animalId));
     if (removed.length > 0) {
-      const weighed = await WeighingEntryModel.count({
-        where: {
-          registrationId: reg.id,
-          animalId: removed.map((l) => l.animalId),
-        },
-        transaction: t,
-      });
-      if (weighed > 0)
+      const where = {
+        registrationId: reg.id,
+        animalId: removed.map((l) => l.animalId),
+      };
+      if (await WeighingEntryModel.count({ where, transaction: t }))
         throw new Error("Жинлэгдсэн малын төрлийг хасах боломжгүй");
+      // Its counted гэдэс would lose their settlement line (and credit).
+      const bundles = await ByproductBundleController.bundlesFor(reg.id, t);
+      if (bundles.some((b) => b.id && b.count > 0 && where.animalId.includes(b.animalId)))
+        throw new Error("Дайвар тоологдсон малын төрлийг хасах боломжгүй");
       await RegistrationAnimalLineModel.destroy({
         where: { id: removed.map((l) => l.id) },
         transaction: t,
@@ -220,9 +235,9 @@ export class RegistrationChangeController {
       const old = existing.find((e) => e.animalId === typeToId[l.animalType]);
       if (!old || old.count !== l.count) changed[l.animalType] = l.count;
     }
-    const cost = FactoryController.isPreButchered(reg.factory)
-      ? {}
-      : await AnimalController.defaultsForCounts(changed);
+    const cost = FactoryController.rules(reg.factory).liveAnimals
+      ? await AnimalController.defaultsForCounts(changed)
+      : {};
     for (const [type, count] of Object.entries(changed)) {
       const animalId = typeToId[type];
       const slaughterCost = cost[type] ?? 0;
@@ -239,6 +254,8 @@ export class RegistrationChangeController {
       { herderId: c.herderId, vehicleNumber: c.vehicleNumber, stamp: c.stamp },
       { transaction: t },
     );
+    // Counted гэдэс must still fit the new head counts.
+    await ByproductBundleController.revalidate(reg.id, reg.factory, t);
   }
 
   static async update(
@@ -306,8 +323,10 @@ export class RegistrationChangeController {
       throw new Error("Хүсэлт аль хэдийн шийдвэрлэгдсэн");
     await sequelize.transaction(async (t) => {
       if (approve) {
-        const reg = await RegistrationController.findIdCheck(
+        const reg = await RegistrationController.lock(
           req.registrationId,
+          context,
+          t,
         );
         await this._apply(
           reg,
@@ -346,7 +365,7 @@ export class RegistrationChangeController {
     }
     return listPaginated(RegistrationChangeRequestModel, doc, {
       where,
-      include: REQUEST_INCLUDE,
+      include: REQUEST_INCLUDE(AdminController.readFactory(context)),
       order: [["createdAt", "DESC"]],
       distinct: true,
     });
@@ -354,7 +373,7 @@ export class RegistrationChangeController {
 
   private static _get(id: string): Promise<RegistrationChangeRequestModel> {
     return findOrThrow(RegistrationChangeRequestModel, id, "Хүсэлт олдсонгүй", {
-      include: REQUEST_INCLUDE,
+      include: REQUEST_INCLUDE(),
     });
   }
 }

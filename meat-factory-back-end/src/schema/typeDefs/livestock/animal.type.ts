@@ -7,6 +7,8 @@ export default `#graphql
         name: String
         # Meat allowed on export shipments (horse only, for now).
         isExport: Boolean
+        # Live intake of this animal needs the brand mark (тамга) + drawing.
+        requiresStamp: Boolean
         pricePerAnimal: Float
         # Carcass-to-saleable yield (%) applied when meat is ingested into
         # inventory. Horse 70 (bone-out); others 100.
@@ -40,6 +42,7 @@ export default `#graphql
             id: ID
             name: String!
             isExport: Boolean
+            requiresStamp: Boolean
             pricePerAnimal: Float
             yieldPercent: Float
             isActive: Boolean

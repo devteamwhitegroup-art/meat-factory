@@ -21,8 +21,8 @@ export default {
     ),
     previewReceipt: wrapOne(
       "image",
-      ({ type, id }: { type: PRINT_JOB_TYPE; id: string }) =>
-        PrintController.preview(type, id),
+      ({ type, id }: { type: PRINT_JOB_TYPE; id: string }, ctx) =>
+        PrintController.preview(type, id, ctx),
     ),
   },
   Mutation: {

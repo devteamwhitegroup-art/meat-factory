@@ -25,7 +25,7 @@ import { useFactories } from "@/lib/factory/FactoriesProvider";
 import { formatNumber, sanitizeDecimalInput } from "@/lib/format/money";
 import { compact } from "@/lib/compact";
 import { runMutation } from "@/lib/runMutation";
-import { Diff } from "./Diff";
+import { Diff, localDiff } from "./Diff";
 
 // One disassembly batch: N гэдэс of one wrapper → weigh every organ. Expected
 // kg is the norm guess (N × per-animal qty × avg kg/piece); the actual is what
@@ -215,7 +215,7 @@ export function ProcessingForm() {
                       />
                       <div className="w-40 text-right text-sm">
                         {raw ? (
-                          <Diff expected={expectedKg} actual={Number(raw)} />
+                          <Diff {...localDiff(expectedKg, Number(raw))} />
                         ) : null}
                       </div>
                     </li>

@@ -6,6 +6,7 @@ import { SettlementModel } from "../../models/livestock/settlement.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { ByproductProcessingLineModel } from "../../models/inventory/byproduct-processing-line.model";
 import { CustomerModel } from "../../models/customer/customer.model";
+import { AnimalModel } from "../../models/livestock/animal.model";
 import {
   PAYMENT_STATUS,
   PRODUCT_TYPE,
@@ -17,28 +18,10 @@ import {
   TPipelineCounts,
 } from "../../types/dashboard/dashboard.type";
 import { TDateRange } from "../../types/global/global.type";
-import { dateRangeWhere } from "../../utils";
+import { dateRangeWhere, round2 } from "../../utils";
 
 export class DashboardController {
   // ── Sales-side ──────────────────────────────────────────────────────
-
-  private static async _totalMeatIncome(dr?: TDateRange): Promise<number> {
-    const row = (await SalesLineItemModel.findOne({
-      attributes: [[fn("SUM", col("line_amount")), "total"]],
-      where: { productType: PRODUCT_TYPE.MEAT },
-      include: [
-        {
-          model: SalesTransactionModel,
-          as: "salesTransaction",
-          attributes: [],
-          where: dateRangeWhere(dr, "transactionDate"),
-          required: true,
-        },
-      ],
-      raw: true,
-    })) as unknown as { total: string | null } | null;
-    return Number(row?.total ?? 0);
-  }
 
   private static async _transactionCount(dr?: TDateRange): Promise<number> {
     return await SalesTransactionModel.count({
@@ -57,10 +40,11 @@ export class DashboardController {
     });
   }
 
+  // Meat sold per animal in the period (its sum is the meat income).
   private static async _animalBreakdown(dr?: TDateRange) {
     const rows = (await SalesLineItemModel.findAll({
       attributes: [
-        "animalType",
+        [col("animal.name"), "animalType"],
         [fn("SUM", col("quantity_kg")), "totalKg"],
         [fn("SUM", col("line_amount")), "totalAmount"],
       ],
@@ -73,16 +57,17 @@ export class DashboardController {
           where: dateRangeWhere(dr, "transactionDate"),
           required: true,
         },
+        { model: AnimalModel, as: "animal", attributes: [] },
       ],
-      group: ["animal_type"],
+      group: [col("animal.id"), col("animal.name")],
       raw: true,
     })) as unknown as Array<{
-      animalType: string;
+      animalType: string | null;
       totalKg: string;
       totalAmount: string;
     }>;
     return rows.map((r) => ({
-      animalType: r.animalType,
+      animalType: r.animalType ?? "—",
       totalKg: Number(r.totalKg ?? 0),
       totalAmount: Number(r.totalAmount ?? 0),
     }));
@@ -114,12 +99,11 @@ export class DashboardController {
   // Distinct herders with at least one NON-cancelled registration. Drops the
   // pre-refactor behaviour of counting cancelled rows.
   private static async _activeHerderCount(): Promise<number> {
-    const ids = (await RegistrationModel.findAll({
-      attributes: [[fn("DISTINCT", col("herder_id")), "herderId"]],
+    return RegistrationModel.count({
+      distinct: true,
+      col: "herder_id",
       where: { status: { [Op.ne]: REGISTRATION_STATUS.CANCELLED } },
-      raw: true,
-    })) as unknown as Array<{ herderId: string }>;
-    return ids.length;
+    });
   }
 
   // ── Byproduct (handoff, not sales) ──────────────────────────────────
@@ -209,7 +193,6 @@ export class DashboardController {
   static async getDashboard(doc: TGetDashboard): Promise<TDashboard> {
     const dr = doc?.dateRange;
     const [
-      totalMeatIncome,
       totalByproductKg,
       totalHerderIncome,
       pendingPayoutAmount,
@@ -222,7 +205,6 @@ export class DashboardController {
       recentTransactions,
       recentShipments,
     ] = await Promise.all([
-      this._totalMeatIncome(dr),
       this._totalByproductKg(dr),
       this._totalHerderIncome(dr),
       this._pendingPayoutAmount(dr),
@@ -236,6 +218,9 @@ export class DashboardController {
       this._recentShipments(),
     ]);
 
+    const totalMeatIncome = round2(
+      animalBreakdown.reduce((sum, a) => sum + a.totalAmount, 0),
+    );
     return {
       totalMeatIncome,
       totalHerderIncome,

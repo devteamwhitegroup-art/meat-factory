@@ -6,6 +6,7 @@ import {
 } from "../../types/inventory/inventory.type";
 import { InventoryItemModel } from "./inventory-item.model";
 import { ShipmentModel } from "../shipment/shipment.model";
+import { RegistrationModel } from "../livestock/registration.model";
 
 export class InventoryMovementModel
   extends Model
@@ -28,6 +29,7 @@ export class InventoryMovementModel
 
   public item?: InventoryItemModel;
   public shipment?: ShipmentModel;
+  public registration?: RegistrationModel;
 
   static associate(): void {
     this.belongsTo(InventoryItemModel, {
@@ -37,6 +39,12 @@ export class InventoryMovementModel
     this.belongsTo(ShipmentModel, {
       as: "shipment",
       foreignKey: { name: "sourceShipmentId", allowNull: true },
+    });
+    // Read-side join for the movement log's registration link only.
+    this.belongsTo(RegistrationModel, {
+      as: "registration",
+      foreignKey: { name: "sourceRegistrationId", allowNull: true },
+      constraints: false,
     });
   }
 }

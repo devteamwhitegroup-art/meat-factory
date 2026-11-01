@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddSalesExpenseDoc, RemoveSalesExpenseDoc } from "@/lib/queries/sales";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 
@@ -59,35 +59,37 @@ export function ExpensesCard({
     if (!name.trim()) return void toast.error("Зардлын нэр оруулна уу");
     if (!Number.isFinite(n) || n <= 0)
       return void toast.error("Дүн эерэг тоо байх ёстой");
-    try {
-      const r = await addExpense({
-        variables: {
-          salesTransactionId: txId,
-          name: name.trim(),
-          amountMnt: n,
-          notes: notes.trim() || null,
+    await runMutation(
+      async () =>
+        (
+          await addExpense({
+            variables: {
+              salesTransactionId: txId,
+              name: name.trim(),
+              amountMnt: n,
+              notes: notes.trim() || null,
+            },
+          })
+        ).data?.addSalesExpense,
+      {
+        success: "Хадгалагдлаа",
+        onSuccess: () => {
+          setName("");
+          setAmt("");
+          setNotes("");
+          startTransition(() => router.refresh());
         },
-      });
-      unwrap(r.data?.addSalesExpense);
-      toast.success("Хадгалагдлаа");
-      setName("");
-      setAmt("");
-      setNotes("");
-      startTransition(() => router.refresh());
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+      },
+    );
   }
 
   async function onRemove(id: string) {
     if (!confirm("Энэ зардлыг устгах уу?")) return;
-    try {
-      const r = await removeExpense({ variables: { id } });
-      unwrap(r.data?.removeSalesExpense);
-      startTransition(() => router.refresh());
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await removeExpense({ variables: { id } })).data?.removeSalesExpense,
+      { onSuccess: () => startTransition(() => router.refresh()) },
+    );
   }
 
   return (

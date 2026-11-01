@@ -18,6 +18,7 @@ import { getFactories } from "@/lib/factory/server";
 import { factoryName, isByproductSite } from "@/lib/factory/factories";
 import { DateRangeFilter } from "@/components/common/DateRangeFilter";
 import { formatNumber } from "@/lib/format/money";
+import { productLabel } from "@/lib/format/product";
 import { fmtDateTime } from "@/lib/format/date";
 import { parseRange } from "@/lib/date/range";
 import { requireCap } from "@/lib/auth/server";
@@ -143,12 +144,11 @@ export default async function InventoryMovementsPage({ searchParams }: Props) {
                 const before = out ? after + qty : after - qty;
                 const unit = pieces ? "ш" : "кг";
                 const item = m.item;
-                const label =
-                  item?.productType === "MEAT"
-                    ? (item.animal?.name ?? "Мах")
-                    : [item?.animal?.name, item?.byproductName]
-                        .filter(Boolean)
-                        .join(" · ");
+                const label = productLabel(
+                  item?.productType,
+                  item?.animal?.name,
+                  item?.byproductName,
+                );
                 const source = MOVEMENT_SOURCE_MN[m.source ?? ""] ?? m.source;
                 return (
                   <TableRow key={m.id!}>

@@ -17,7 +17,7 @@ export type TSalesLineItem = {
   id: string;
   salesTransactionId: string;
   productType: PRODUCT_TYPE;
-  animalType: string | null;
+  animalId: string | null;
   // Free-form byproduct name from the byproduct catalogue (BYPRODUCT lines).
   byproductName: string | null;
   quantityKg: number;

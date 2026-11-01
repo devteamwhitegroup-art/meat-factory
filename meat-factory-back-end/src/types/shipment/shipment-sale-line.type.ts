@@ -9,11 +9,11 @@ export type TShipmentSaleLine = {
   shipmentId: string;
   productType: PRODUCT_TYPE;
   // Set for MEAT groups (HORSE/COW/…); null for byproducts.
-  animalType: string | null;
+  animalId: string | null;
   // Set for BYPRODUCT groups (free-form name, e.g. "Адууны хэл"); null for meat.
   byproductName: string | null;
-  // Dedup key within the shipment — "MEAT:<animalType>" or
-  // "BYPN:<animalType>:<name>" ("BYPN:<name>" for free-form / legacy cargo).
+  // Dedup key within the shipment = InventoryController stockKey():
+  // MEAT:<animalId> | BYPN:<animalId>:<name> | BYPN:<name>.
   groupKey: string;
   // Sum of the group's cargo-entry net weights (synced on every manifest edit).
   totalWeightKg: number;

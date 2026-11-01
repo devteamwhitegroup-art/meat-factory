@@ -1,5 +1,3 @@
-import { AdminController } from "../user/admin.controller";
-import { PERMISSION } from "../../types/user/permission.type";
 import {
   FACTORY_BYPRODUCT_INCLUDE,
   FactoryController,
@@ -12,15 +10,13 @@ import { ByproductBundleModel } from "../../models/livestock/byproduct-bundle.mo
 import { FactoryByproductModel } from "../../models/factory/factory-byproduct.model";
 import { RegistrationController } from "./registration.controller";
 import {
-  REGISTRATION_STATUS,
-} from "../../types/livestock/registration.type";
-import {
   TByproductBundleInput,
   TByproductBundleView,
 } from "../../types/livestock/byproduct-bundle.type";
 import { TStockLine } from "../../types/inventory/inventory.type";
 import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { TContext } from "../../types/global/global.type";
+import { round2 } from "../../utils";
 
 // Wrapper or item row (bundle / price list) → its name + the wrapper that
 // ties it to an animal.
@@ -90,13 +86,13 @@ export class ByproductBundleController {
       transaction: t,
     });
     const factory = reg?.factory ?? "";
-    // PRE_BUTCHERED byproducts arrive independently of the meat: the whole
-    // site list, count 0.
-    const pre = FactoryController.isPreButchered(factory);
+    // Live: one row per priced гэдэс of each animal brought in. Pre-butchered
+    // byproducts arrive independently of the meat: the whole list, count 0.
+    const { liveAnimals } = FactoryController.rules(factory);
     const list = await this._priceList(factory, t);
     return list.flatMap((p) => {
       const { name, wrapper } = describe(p);
-      if (!wrapper || (!pre && !heads.has(wrapper.animalId))) return [];
+      if (!wrapper || (liveAnimals && !heads.has(wrapper.animalId))) return [];
       return [
         {
           id: null,
@@ -137,17 +133,15 @@ export class ByproductBundleController {
     const out: Record<string, number> = {};
     for (const b of bundles)
       out[b.animalId] =
-        (out[b.animalId] ?? 0) + (b.count - b.herderCount) * b.unitPrice;
+        (out[b.animalId] ?? 0) + (b.count - b.herderCount) * Number(b.unitPrice);
     return out;
   }
 
   // Kept bundles → stock lines, counted in pieces (SKU per wrapper name).
-  static async bundleStockLines(
-    registrationId: string,
+  static bundleStockLines(
+    bundles: TByproductBundleView[],
     factory: string,
-    t?: Transaction,
-  ): Promise<TStockLine[]> {
-    const bundles = await this.bundlesFor(registrationId, t);
+  ): TStockLine[] {
     return bundles.map((b) => ({
       factory,
       productType: PRODUCT_TYPE.BYPRODUCT,
@@ -170,22 +164,26 @@ export class ByproductBundleController {
     bundles: TByproductBundleInput[],
     context: TContext,
   ): Promise<void> {
-    const reg = await RegistrationController.findIdCheck(
-      registrationId,
-      context,
-    );
-    const pre = FactoryController.isPreButchered(reg.factory);
-    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
-    RegistrationController.assertStatus(
-      reg,
-      pre
-        ? [REGISTRATION_STATUS.REGISTERED]
-        : [REGISTRATION_STATUS.WEIGHED, REGISTRATION_STATUS.VERIFIED],
-    );
+    await sequelize.transaction(async (t) => {
+      const reg = await RegistrationController.lock(registrationId, context, t);
+      RegistrationController.assertCan(reg, context, "editByproducts");
+      await this.writeBundles(registrationId, reg.factory, bundles, t);
+    });
+  }
 
-    await sequelize.transaction((t) =>
-      this.writeBundles(registrationId, reg.factory, bundles, pre, t),
-    );
+  // Intake head counts changed (or a line was dropped) after the гэдэс were
+  // counted: the saved counts must still fit, or the herder is over-credited.
+  static async revalidate(
+    registrationId: string,
+    factory: string,
+    t: Transaction,
+  ): Promise<void> {
+    const saved = await ByproductBundleModel.findAll({
+      where: { registrationId },
+      transaction: t,
+    });
+    if (saved.length)
+      await this._validateBundles(registrationId, factory, saved, t);
   }
 
   // Validate + replace in the caller's transaction (setBundles, intake).
@@ -193,14 +191,12 @@ export class ByproductBundleController {
     registrationId: string,
     factory: string,
     bundles: TByproductBundleInput[],
-    pre: boolean,
     t: Transaction,
   ): Promise<void> {
     const { rows, newAnimalIds } = await this._validateBundles(
       registrationId,
       factory,
       bundles,
-      pre,
       t,
     );
     await ByproductBundleModel.destroy({
@@ -227,9 +223,9 @@ export class ByproductBundleController {
     registrationId: string,
     factory: string,
     bundles: TByproductBundleInput[],
-    pre: boolean,
     t: Transaction,
   ) {
+    const { liveAnimals } = FactoryController.rules(factory);
     const lines = await RegistrationAnimalLineModel.findAll({
       where: { registrationId },
       transaction: t,
@@ -245,17 +241,18 @@ export class ByproductBundleController {
       const key = b.constantId ?? b.wrapperId ?? "";
       const p = byKey.get(key);
       const { name, wrapper } = p ? describe(p) : { name: "", wrapper: null };
-      if (!p || !wrapper || (!pre && !heads.has(wrapper.animalId)))
+      if (!p || !wrapper || (liveAnimals && !heads.has(wrapper.animalId)))
         throw new Error(
           "Дайвар энэ үйлдвэрийн жагсаалт эсвэл бүртгэлийн малд хамаарахгүй байна",
         );
       if (seen.has(key)) throw new Error(`Давхардсан дайвар: ${name}`);
       seen.add(key);
       const count = Math.floor(Number(b.count));
-      const herderCount = pre ? 0 : Math.floor(Number(b.herderCount ?? 0));
+      // Only a live animal's гэдэс can go back to the herder.
+      const herderCount = liveAnimals ? Math.floor(Number(b.herderCount ?? 0)) : 0;
       if (!Number.isFinite(count) || count < 0)
         throw new Error(`${name}: тоо сөрөг байж болохгүй`);
-      if (!pre && count > (heads.get(wrapper.animalId) ?? 0))
+      if (liveAnimals && count > (heads.get(wrapper.animalId) ?? 0))
         throw new Error(
           `${name}: тоо төхөөрсөн малын тооноос (${heads.get(wrapper.animalId)}) их байна`,
         );
@@ -265,9 +262,9 @@ export class ByproductBundleController {
         herderCount > count
       )
         throw new Error(`${name}: малчны авах тоо 0–${count} байх ёстой`);
-      // PRE_BUTCHERED: the receiver may price at today's market.
+      // Pre-butchered: the receiver may price at today's market.
       const unitPrice =
-        pre && b.unitPrice != null ? Number(b.unitPrice) : Number(p.price);
+        !liveAnimals && b.unitPrice != null ? Number(b.unitPrice) : Number(p.price);
       if (!Number.isFinite(unitPrice) || unitPrice < 0)
         throw new Error(`${name}: үнэ сөрөг байж болохгүй`);
       if (count > 0 && !heads.has(wrapper.animalId))
@@ -278,7 +275,7 @@ export class ByproductBundleController {
         constantId: p.constantId,
         count,
         herderCount,
-        unitPrice: Number(unitPrice.toFixed(2)),
+        unitPrice: round2(unitPrice),
       };
     });
     return { rows, newAnimalIds: [...newAnimalIds] };

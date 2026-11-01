@@ -12,11 +12,14 @@ import { PRODUCT_TYPE } from "../../types/sales/sales-transaction.type";
 import { SalesTransactionController } from "../sales/sales-transaction.controller";
 import { ShipmentController } from "../shipment/shipment.controller";
 import { ByproductBundleController } from "../livestock/byproduct-bundle.controller";
-import { FactoryController } from "../factory/factory.controller";
+import { SettlementController } from "../livestock/settlement.controller";
+import { RegistrationController } from "../livestock/registration.controller";
+import { AdminController } from "../user/admin.controller";
+import { PERMISSION } from "../../types/user/permission.type";
+import { TContext } from "../../types/global/global.type";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
-import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
 import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { HerderModel } from "../../models/livestock/herder.model";
 import { AnimalModel } from "../../models/livestock/animal.model";
@@ -124,7 +127,9 @@ function weighingLog(entries: WeighingEntryModel[]): RLine[] {
 }
 
 // ---- per-document line builders --------------------------------------------
-async function salesLines(id: string): Promise<RLine[]> {
+async function salesLines(id: string, ctx: TContext): Promise<RLine[]> {
+  // Sales carry no factory — gated like the salesTransaction query.
+  AdminController.assertPermission(ctx, PERMISSION.SALES_MANAGE);
   const tx = await SalesTransactionController.getById(id);
   const out: RLine[] = [
     ...heading("БОРЛУУЛАЛТЫН БАРИМТ"),
@@ -140,7 +145,7 @@ async function salesLines(id: string): Promise<RLine[]> {
     for (const li of items) {
       const name =
         li.productType === PRODUCT_TYPE.MEAT
-          ? (li.animalType ?? "Мах")
+          ? (li.animal?.name ?? "Мах")
           : (li.byproductName ?? "Дайвар");
       out.push(L(name));
       const unit = li.unitPrice == null ? "-" : mnt(li.unitPrice);
@@ -172,8 +177,8 @@ async function salesLines(id: string): Promise<RLine[]> {
   return [...out, ...foot()];
 }
 
-async function shipmentLines(id: string): Promise<RLine[]> {
-  const s = await ShipmentController.getById(id);
+async function shipmentLines(id: string, ctx: TContext): Promise<RLine[]> {
+  const s = await ShipmentController.getById(id, ctx);
   const out: RLine[] = [
     ...heading("АЧИЛТЫН ХУУДАС"),
     row("Код:", s.shipmentCode),
@@ -208,7 +213,7 @@ async function shipmentLines(id: string): Promise<RLine[]> {
   return [...out, ...foot()];
 }
 
-async function settlementLines(id: string): Promise<RLine[]> {
+async function settlementLines(id: string, ctx: TContext): Promise<RLine[]> {
   const st = await SettlementModel.findByPk(id, {
     include: [
       { model: FileModel, as: "storekeeperSignature" },
@@ -235,6 +240,7 @@ async function settlementLines(id: string): Promise<RLine[]> {
     ],
   });
   if (!st) throw new Error("Settlement not found");
+  AdminController.assertFactory(ctx, st.registration!.factory);
   // Herder-facing: гэдэс bundles only, never the items inside them.
   // Priced wrappers only (0₮ ones aren't the herder's business), as on screen.
   const bundles = (
@@ -303,19 +309,15 @@ async function settlementLines(id: string): Promise<RLine[]> {
   return [...out, ...foot()];
 }
 
-// Pre-settlement weighed / price slip. refId = Registration id. Meat per type =
-// Σ(weightKg × pricePerKg); бой per type = Σ(slaughter cost). The гэдэс credit
-// is decided after verify and shows on the settlement receipt, not here.
-async function weighSlipLines(id: string): Promise<RLine[]> {
+// Pre-settlement weighed / price slip. refId = Registration id. The money
+// block is SettlementController.compute — the same numbers the settlement
+// will lock in (гэдэс credit appears once the counts are saved).
+async function weighSlipLines(id: string, ctx: TContext): Promise<RLine[]> {
+  await RegistrationController.findIdCheck(id, ctx);
   const reg = await RegistrationModel.findByPk(id, {
     include: [
       { model: HerderModel, as: "herder" },
       { model: FileModel, as: "agreementSignature" },
-      {
-        model: RegistrationAnimalLineModel,
-        as: "animalLines",
-        include: [{ model: AnimalModel, as: "animal" }],
-      },
       {
         model: WeighingEntryModel,
         as: "weighingEntries",
@@ -327,21 +329,7 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
     ],
   });
   if (!reg) throw new Error("Registration not found");
-
-  const meat: Record<string, { weight: number; amount: number }> = {};
-  for (const e of reg.weighingEntries ?? []) {
-    const t = e.animal?.name ?? "-";
-    const w = Number(e.weightKg ?? 0);
-    const p = Number(e.pricePerKg ?? 0);
-    if (!meat[t]) meat[t] = { weight: 0, amount: 0 };
-    meat[t].weight += w;
-    meat[t].amount += w * p;
-  }
-  const boy: Record<string, number> = {};
-  for (const l of reg.animalLines ?? []) {
-    const t = l.animal?.name ?? "-";
-    boy[t] = (boy[t] ?? 0) + Number(l.slaughterCost ?? 0);
-  }
+  const calc = await SettlementController.compute(reg);
 
   const out: RLine[] = [
     ...heading("ЖИНЛЭЛТ / ҮНИЙН ХУУДАС"),
@@ -353,45 +341,34 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
     row("Жинлэсэн:", weighers(reg.weighingEntries ?? [])),
     RULE,
   ];
-
-  let gross = 0;
-  let totalBoy = 0;
-  for (const t of new Set([...Object.keys(meat), ...Object.keys(boy)])) {
-    const w = meat[t]?.weight ?? 0;
-    const m = meat[t]?.amount ?? 0;
-    const cost = boy[t] ?? 0;
-    gross += m;
-    totalBoy += cost;
-    out.push(L(t));
-    out.push(row(`  ${kg(w)} x ${mnt(w > 0 ? m / w : 0)}`, mnt(m)));
-    if (cost > 0) out.push(row("  Бойны зардал", `-${mnt(cost)}`));
+  for (const l of calc.lines) {
+    if (!l.receivedWeightKg && !l.slaughterCost) continue;
+    out.push(L(l.animal?.name ?? "-"));
+    out.push(
+      row(`  ${kg(l.receivedWeightKg)} x ${mnt(l.pricePerKg)}`, mnt(l.meatAmount)),
+    );
+    if (l.slaughterCost > 0)
+      out.push(row("  Бойны зардал", `-${mnt(l.slaughterCost)}`));
   }
-
-  // Хойд үйлдвэр: counted items are all kept (no herder take) and credited
-  // at their price — same as the settlement. FACTORY_1 decides at verify.
-  let gedes = 0;
-  if (FactoryController.isPreButchered(reg.factory)) {
-    const bundles = (await ByproductBundleController.bundlesFor(reg.id)).filter(
+  if (calc.totalByproductAmount > 0) {
+    const kept = (await ByproductBundleController.bundlesFor(id)).filter(
       (b) => b.unitPrice > 0 && b.count - b.herderCount > 0,
     );
-    for (const b of bundles) {
-      const kept = b.count - b.herderCount;
-      gedes += kept * b.unitPrice;
+    for (const b of kept) {
+      const n = b.count - b.herderCount;
       out.push(
-        row(
-          `${b.name} (${b.animalType}) ${kept} x ${mnt(b.unitPrice)}`,
-          `+${mnt(kept * b.unitPrice)}`,
-        ),
+        row(`${b.name} (${b.animalType}) ${n} x ${mnt(b.unitPrice)}`, `+${mnt(n * b.unitPrice)}`),
       );
     }
   }
-
   out.push(
     RULE,
-    row("НИЙТ МАХ", mnt(gross)),
-    ...(gedes > 0 ? [row("ДАЙВАР", `+${mnt(gedes)}`)] : []),
-    row("БОЙ ЗАРДАЛ", `-${mnt(totalBoy)}`),
-    { ...row("ЦЭВЭР ОЛГОХ", mnt(gross + gedes - totalBoy)), bold: true },
+    row("НИЙТ МАХ", mnt(calc.totalMeatAmount)),
+    ...(calc.totalByproductAmount > 0
+      ? [row("ДАЙВАР", `+${mnt(calc.totalByproductAmount)}`)]
+      : []),
+    row("БОЙ ЗАРДАЛ", `-${mnt(calc.totalSlaughterCost)}`),
+    { ...row("ЦЭВЭР ОЛГОХ", mnt(calc.netPayable)), bold: true },
   );
   out.push(...weighingLog(reg.weighingEntries ?? []));
   out.push(RULE);
@@ -402,16 +379,22 @@ async function weighSlipLines(id: string): Promise<RLine[]> {
 }
 
 // ---- entry points ----------------------------------------------------------
-function lines(type: PRINT_JOB_TYPE, refId: string): Promise<RLine[]> {
+// Every builder checks the actor may see its record (factory boundary /
+// permission) — preview and print are open to any logged-in staff.
+function lines(
+  type: PRINT_JOB_TYPE,
+  refId: string,
+  ctx: TContext,
+): Promise<RLine[]> {
   switch (type) {
     case PRINT_JOB_TYPE.SALES_RECEIPT:
-      return salesLines(refId);
+      return salesLines(refId, ctx);
     case PRINT_JOB_TYPE.SHIPMENT_SLIP:
-      return shipmentLines(refId);
+      return shipmentLines(refId, ctx);
     case PRINT_JOB_TYPE.SETTLEMENT_RECEIPT:
-      return settlementLines(refId);
+      return settlementLines(refId, ctx);
     case PRINT_JOB_TYPE.WEIGH_SLIP:
-      return weighSlipLines(refId);
+      return weighSlipLines(refId, ctx);
     default:
       throw new Error(`Cannot render print type ${type}`);
   }
@@ -421,8 +404,9 @@ function lines(type: PRINT_JOB_TYPE, refId: string): Promise<RLine[]> {
 export async function renderReceipt(
   type: PRINT_JOB_TYPE,
   refId: string,
+  ctx: TContext,
 ): Promise<Buffer> {
-  const r = receiptRaster(await lines(type, refId));
+  const r = receiptRaster(await lines(type, refId, ctx));
   return new Escpos()
     .init()
     .raster(r.widthBytes, r.height, r.data)
@@ -435,8 +419,9 @@ export async function renderReceipt(
 export async function renderReceiptPreview(
   type: PRINT_JOB_TYPE,
   refId: string,
+  ctx: TContext,
 ): Promise<string> {
-  const png = receiptPng(await lines(type, refId));
+  const png = receiptPng(await lines(type, refId, ctx));
   return `data:image/png;base64,${png.toString("base64")}`;
 }
 

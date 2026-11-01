@@ -22,9 +22,10 @@ import {
   AddSalesInstallmentDoc,
   RemoveSalesInstallmentDoc,
 } from "@/lib/queries/sales";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
+import { ymd } from "@/lib/date/range";
 
 export type InstallmentRow = {
   id: string;
@@ -52,7 +53,7 @@ export function InstallmentsCard({
   );
   const [removeInstallment] = useMutation(RemoveSalesInstallmentDoc);
   const [amt, setAmt] = useState("");
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
+  const [paidAt, setPaidAt] = useState(() => ymd(new Date()));
   const [notes, setNotes] = useState("");
 
   const paidSum = installments.reduce((s, r) => s + r.amountMnt, 0);
@@ -68,34 +69,37 @@ export function InstallmentsCard({
       toast.error("Үлдэгдэлээс илүү дүн оруулсан байна");
       return;
     }
-    try {
-      const r = await addInstallment({
-        variables: {
-          salesTransactionId: txId,
-          amountMnt: n,
-          paidAt: paidAt ? new Date(paidAt).toISOString() : null,
-          notes: notes.trim() || null,
+    await runMutation(
+      async () =>
+        (
+          await addInstallment({
+            variables: {
+              salesTransactionId: txId,
+              amountMnt: n,
+              paidAt: paidAt ? new Date(paidAt).toISOString() : null,
+              notes: notes.trim() || null,
+            },
+          })
+        ).data?.addSalesInstallment,
+      {
+        success: "Хадгалагдлаа",
+        onSuccess: () => {
+          setAmt("");
+          setNotes("");
+          startTransition(() => router.refresh());
         },
-      });
-      unwrap(r.data?.addSalesInstallment);
-      toast.success("Хадгалагдлаа");
-      setAmt("");
-      setNotes("");
-      startTransition(() => router.refresh());
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+      },
+    );
   }
 
   async function onRemove(id: string) {
     if (!confirm("Энэ төлбөрийг устгах уу?")) return;
-    try {
-      const r = await removeInstallment({ variables: { id } });
-      unwrap(r.data?.removeSalesInstallment);
-      startTransition(() => router.refresh());
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
+    await runMutation(
+      async () =>
+        (await removeInstallment({ variables: { id } })).data
+          ?.removeSalesInstallment,
+      { onSuccess: () => startTransition(() => router.refresh()) },
+    );
   }
 
   return (

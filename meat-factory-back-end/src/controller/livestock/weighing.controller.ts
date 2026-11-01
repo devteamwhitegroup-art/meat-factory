@@ -1,6 +1,4 @@
-import { Transaction } from "sequelize";
-import { AdminController } from "../user/admin.controller";
-import { PERMISSION } from "../../types/user/permission.type";
+import { Transaction, col, fn, literal } from "sequelize";
 import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
@@ -12,6 +10,8 @@ import { FileController } from "../global/file.controller";
 import { RegistrationController } from "./registration.controller";
 import { ByproductBundleController } from "./byproduct-bundle.controller";
 import { InventoryController } from "../inventory/inventory.controller";
+import { SettlementController } from "./settlement.controller";
+import { findOrThrow, round2 } from "../../utils";
 import {
   REGISTRATION_STATUS,
 } from "../../types/livestock/registration.type";
@@ -27,153 +27,189 @@ import {
 } from "../../types/livestock/weighing-entry.type";
 import { TContext } from "../../types/global/global.type";
 
-// Weighing (Хэмжүүр) — sub-domain of the registration aggregate. Shared
-// status/role guards and registration lookups live on RegistrationController.
+// Weighing (Хэмжүүр) — sub-domain of the registration aggregate. Who may
+// weigh when: RegistrationController.blocker("weigh").
 export class WeighingController {
-  // Weighed kg summed per animal → MEAT stock lines. Shared by the two meat
-  // ingest points: FACTORY_1 verify, FACTORY_2 finishWeighing.
+  // Σ kg and Σ kg × price per animal of a registration, in SQL. The one
+  // source for the settlement meat amount, meat stock IN and costing.
+  static async totalsByAnimal(
+    registrationId: string,
+    t?: Transaction,
+  ): Promise<Map<string, { kg: number; amount: number }>> {
+    const rows = (await WeighingEntryModel.findAll({
+      attributes: [
+        "animalId",
+        [fn("SUM", col("weight_kg")), "kg"],
+        [fn("SUM", literal("weight_kg * COALESCE(price_per_kg, 0)")), "amount"],
+      ],
+      where: { registrationId },
+      group: ["animal_id"],
+      raw: true,
+      transaction: t,
+    })) as unknown as { animalId: string; kg: string; amount: string }[];
+    return new Map(
+      rows.map((r) => [r.animalId, { kg: Number(r.kg), amount: Number(r.amount) }]),
+    );
+  }
+
+  // Weighed kg per animal → MEAT stock lines (live: at verify; pre-butchered:
+  // when weighing finishes).
   static async meatStockLines(
     registrationId: string,
     factory: string,
     t?: Transaction,
   ): Promise<TStockLine[]> {
-    const entries = await WeighingEntryModel.findAll({
-      where: { registrationId },
+    return [...(await this.totalsByAnimal(registrationId, t))].map(
+      ([animalId, { kg }]) => ({
+        factory,
+        productType: PRODUCT_TYPE.MEAT,
+        animalId,
+        byproductName: null,
+        quantityKg: round2(kg),
+      }),
+    );
+  }
+
+  // Weight > 0, price ≥ 0 (or absent). Shared by every weighing input.
+  static assertValues(
+    weightKg: number | null | undefined,
+    pricePerKg: number | null | undefined,
+  ): void {
+    if (!(Number(weightKg) > 0)) throw new Error("Жин 0-ээс их байх ёстой");
+    if (pricePerKg != null && !(Number(pricePerKg) >= 0))
+      throw new Error("Үнэ сөрөг байж болохгүй");
+  }
+
+  // The animal (by catalogue name) must be one of the registration's lines.
+  private static async _animalOnRegistration(
+    registrationId: string,
+    animalType: string,
+    t?: Transaction,
+  ): Promise<string> {
+    const animal = await AnimalController.resolveByName(animalType);
+    const line = await RegistrationAnimalLineModel.findOne({
+      where: { registrationId, animalId: animal.id },
       transaction: t,
     });
-    const byAnimal: Record<string, number> = {};
-    for (const w of entries)
-      byAnimal[w.animalId] = (byAnimal[w.animalId] ?? 0) + Number(w.weightKg);
-    return Object.entries(byAnimal).map(([animalId, kg]) => ({
-      factory,
-      productType: PRODUCT_TYPE.MEAT,
-      animalId,
-      byproductName: null,
-      quantityKg: Number(kg.toFixed(2)),
-    }));
+    if (!line) throw new Error(`${animalType} бүртгэлийн малд алга`);
+    return animal.id;
+  }
+
+  // Locked registration + "weigh" rule, inside the caller's transaction.
+  private static async _editable(
+    registrationId: string,
+    context: TContext,
+    t: Transaction,
+  ): Promise<RegistrationModel> {
+    const reg = await RegistrationController.lock(registrationId, context, t);
+    RegistrationController.assertCan(reg, context, "weigh");
+    return reg;
   }
 
   static async addWeighingEntry(
     doc: TCreateWeighingEntry,
     context: TContext,
   ): Promise<WeighingEntryModel> {
-    const { registrationId, animalType, weightKg, pricePerKg } = doc;
-    if (!weightKg || weightKg <= 0)
-      throw new Error("Weight must be a positive number");
-    if (pricePerKg != null && pricePerKg < 0)
-      throw new Error("Price per kg cannot be negative");
-
-    const reg = await RegistrationController.findIdCheck(
-      registrationId,
-      context,
-    );
-    // Same gate as update/delete — see _assertWeighingEditable.
-    this._assertWeighingEditable(reg, context);
-
-    // Resolve the animal by catalogue name (throws if unknown).
-    const animal = await AnimalController.resolveByName(animalType);
-
-    const line = await RegistrationAnimalLineModel.findOne({
-      where: { registrationId, animalId: animal.id },
-    });
-    if (!line)
-      throw new Error(
-        `Animal type ${animalType} is not part of this registration`,
-      );
-
+    const { registrationId, weightKg, pricePerKg } = doc;
+    this.assertValues(weightKg, pricePerKg);
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    return await sequelize.transaction((t) =>
-      this.insertEntry(
-        {
-          registrationId,
-          animalId: animal.id,
-          weightKg,
-          pricePerKg: pricePerKg ?? null,
-          photoFileId: doc.photoFileId ?? null,
-        },
+    return sequelize.transaction(async (t) => {
+      const reg = await this._editable(registrationId, context, t);
+      const animalId = await this._animalOnRegistration(
+        registrationId,
+        doc.animalType,
+        t,
+      );
+      const [entry] = await this.insertEntries(
+        [
+          {
+            registrationId,
+            animalId,
+            weightKg,
+            pricePerKg: pricePerKg ?? null,
+            photoFileId: doc.photoFileId ?? null,
+          },
+        ],
         context.id,
         t,
-      ),
-    );
+      );
+      await SettlementController.recompute(reg, t);
+      return entry;
+    });
   }
 
-  // Next-sequence insert + CREATE audit. Shared with admin-approved additions
-  // from a registration change request (callers validate first).
-  static async insertEntry(
-    row: {
+  // Append entries (next sequence numbers) + their CREATE audit rows, in
+  // bulk. Callers validate and hold the registration lock (or create it).
+  static async insertEntries(
+    rows: {
       registrationId: string;
       animalId: string;
       weightKg: number;
       pricePerKg: number | null;
       photoFileId: string | null;
-    },
+    }[],
     actorId: string,
     t: Transaction,
-  ): Promise<WeighingEntryModel> {
-    const maxSeq: number =
+  ): Promise<WeighingEntryModel[]> {
+    if (!rows.length) return [];
+    const maxSeq =
       ((await WeighingEntryModel.max("sequenceNo", {
-        where: { registrationId: row.registrationId },
+        where: { registrationId: rows[0].registrationId },
         transaction: t,
       })) as number | null) ?? 0;
-
-    const entry = await WeighingEntryModel.create(
-      { ...row, sequenceNo: maxSeq + 1, scaleOperatorId: actorId },
-      { transaction: t },
+    const entries = await WeighingEntryModel.bulkCreate(
+      rows.map((r, i) => ({
+        ...r,
+        sequenceNo: maxSeq + 1 + i,
+        scaleOperatorId: actorId,
+      })),
+      { transaction: t, returning: true },
     );
-
-    await this._logAudit(
-      {
-        registrationId: row.registrationId,
-        weighingEntryId: entry.id,
+    await WeighingEntryAuditModel.bulkCreate(
+      entries.map((e) => ({
+        registrationId: e.registrationId,
+        weighingEntryId: e.id,
         action: WEIGHING_AUDIT_ACTION.CREATE,
         actorId,
         weightKgBefore: null,
-        weightKgAfter: entry.weightKg,
+        weightKgAfter: e.weightKg,
         pricePerKgBefore: null,
-        pricePerKgAfter: entry.pricePerKg,
-      },
-      t,
+        pricePerKgAfter: e.pricePerKg,
+      })),
+      { transaction: t },
     );
-    return entry;
+    return entries;
   }
 
   static async finishWeighing(
     registrationId: string,
     context: TContext,
   ): Promise<RegistrationModel> {
-    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
-
-    const reg = await RegistrationController.findIdCheck(
-      registrationId,
-      context,
-    );
-    // finishWeighing flips REGISTERED → WEIGHED once entries have been recorded.
-    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.REGISTERED]);
-
-    const count = await WeighingEntryModel.count({ where: { registrationId } });
-    if (count === 0)
-      throw new Error("Cannot finish weighing with no entries recorded");
-
-    if (!FactoryController.isPreButchered(reg.factory)) {
-      await reg.update({ status: REGISTRATION_STATUS.WEIGHED });
-      return RegistrationController.getById(registrationId);
-    }
-
     await sequelize.transaction(async (t) => {
+      const reg = await RegistrationController.lock(registrationId, context, t);
+      RegistrationController.assertCan(reg, context, "finishWeighing");
+      const count = await WeighingEntryModel.count({
+        where: { registrationId },
+        transaction: t,
+      });
+      if (count === 0)
+        throw new Error("Cannot finish weighing with no entries recorded");
       await reg.update(
         { status: REGISTRATION_STATUS.WEIGHED },
         { transaction: t },
       );
-      await this.stockPreButchered(registrationId, reg.factory, t);
+      // Live meat is stocked at verify instead.
+      if (!FactoryController.rules(reg.factory).liveAnimals)
+        await this.stockAtWeighing(registrationId, reg.factory, t);
     });
     return RegistrationController.getById(registrationId);
   }
 
-  // FACTORY_2: no verify step — received meat + byproducts become stock when
-  // weighing finishes (here, or on the intake form when it carries weighings);
-  // finance settles with the herder later.
-  static async stockPreButchered(
+  // Pre-butchered: no verify step — received meat + byproducts become stock
+  // when weighing finishes (here, or on the intake form when it carries
+  // weighings); finance settles with the herder later.
+  static async stockAtWeighing(
     registrationId: string,
     factory: string,
     t: Transaction,
@@ -187,50 +223,12 @@ export class WeighingController {
     await InventoryController.ingestFromRegistration(
       registrationId,
       MOVEMENT_SOURCE.BYPRODUCT,
-      await ByproductBundleController.bundleStockLines(
-        registrationId,
+      ByproductBundleController.bundleStockLines(
+        await ByproductBundleController.bundlesFor(registrationId, t),
         factory,
-        t,
       ),
       t,
     );
-  }
-
-  // Adding/editing/removing a weighing entry. While weighing is in progress
-  // (REGISTERED) the scale operator (and managers) may add/edit/remove. Once
-  // weighing is "fully uploaded" (finishWeighing → WEIGHED, and onwards
-  // through VERIFIED / PAYMENT_PENDING / PARTIALLY_SETTLED) it is locked for
-  // the storekeeper — only REGISTRATION_WEIGH_FIX may fix a mis-weighed entry,
-  // and every fix is logged (see _logAudit) rather than blocked, since the
-  // herder hasn't necessarily been paid yet even once a Settlement exists
-  // (money transfer lags). The real lock point is the payout itself
-  // (SettlementController.markSettlementPaid → SETTLED/PARTIALLY_SETTLED) —
-  // after that, changing a weighing entry would silently desync the record
-  // from money that's already moved, so it's frozen for everyone alongside
-  // CANCELLED.
-  private static _assertWeighingEditable(
-    reg: RegistrationModel,
-    context: TContext,
-  ): void {
-    if (
-      reg.status === REGISTRATION_STATUS.SETTLED ||
-      reg.status === REGISTRATION_STATUS.PARTIALLY_SETTLED ||
-      reg.status === REGISTRATION_STATUS.CANCELLED
-    ) {
-      throw new Error(
-        "Төлбөр хийгдсэн эсвэл бүртгэл хаагдсан тул жинг засах боломжгүй",
-      );
-    }
-    if (reg.status !== REGISTRATION_STATUS.REGISTERED) {
-      // WEIGHED / VERIFIED / PAYMENT_PENDING: settlement may already exist
-      // (created, not yet paid), so only a privileged fix — logged — is
-      // allowed.
-      if (!AdminController.hasPermission(context, PERMISSION.REGISTRATION_WEIGH_FIX))
-        throw new Error("Жин баталгаажсан тул засах тусгай эрх шаардлагатай");
-      return;
-    }
-    // REGISTERED: open-window weigh edits.
-    AdminController.assertPermission(context, PERMISSION.REGISTRATION_WEIGH);
   }
 
   private static async _logAudit(
@@ -276,49 +274,36 @@ export class WeighingController {
     );
   }
 
+  // ponytail: a fix after the meat was stocked (verify / finishWeighing)
+  // doesn't re-sync stock — only the settlement follows the new weights.
   static async updateWeighingEntry(
     doc: TUpdateWeighingEntry,
     context: TContext,
   ): Promise<WeighingEntryModel> {
-    const entry = await WeighingEntryModel.findByPk(doc.id);
-    if (!entry) throw new Error("Weighing entry not found");
-
-    const reg = await RegistrationController.findIdCheck(
-      entry.registrationId,
-      context,
+    const found = await findOrThrow(
+      WeighingEntryModel,
+      doc.id,
+      "Weighing entry not found",
     );
-    this._assertWeighingEditable(reg, context);
+    if (doc.weightKg != null || doc.pricePerKg != null)
+      this.assertValues(doc.weightKg ?? found.weightKg, doc.pricePerKg);
+    if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    const weightKgBefore = entry.weightKg;
-    const pricePerKgBefore = entry.pricePerKg;
-
-    if (doc.weightKg !== undefined && doc.weightKg !== null) {
-      if (doc.weightKg <= 0)
-        throw new Error("Weight must be a positive number");
-      entry.weightKg = doc.weightKg;
-    }
-    if (doc.pricePerKg !== undefined) {
-      if (doc.pricePerKg != null && doc.pricePerKg < 0)
-        throw new Error("Price per kg cannot be negative");
-      entry.pricePerKg = doc.pricePerKg ?? null;
-    }
-    if (doc.animalType !== undefined && doc.animalType !== null) {
-      const animal = await AnimalController.resolveByName(doc.animalType);
-      const line = await RegistrationAnimalLineModel.findOne({
-        where: { registrationId: entry.registrationId, animalId: animal.id },
-      });
-      if (!line)
-        throw new Error(
-          `Animal type ${doc.animalType} is not part of this registration`,
+    return sequelize.transaction(async (t) => {
+      const reg = await this._editable(found.registrationId, context, t);
+      const entry = await found.reload({ transaction: t });
+      const weightKgBefore = entry.weightKg;
+      const pricePerKgBefore = entry.pricePerKg;
+      if (doc.weightKg != null) entry.weightKg = doc.weightKg;
+      if (doc.pricePerKg !== undefined) entry.pricePerKg = doc.pricePerKg ?? null;
+      if (doc.animalType != null)
+        entry.animalId = await this._animalOnRegistration(
+          entry.registrationId,
+          doc.animalType,
+          t,
         );
-      entry.animalId = animal.id;
-    }
-    if (doc.photoFileId !== undefined) {
-      if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
-      entry.photoFileId = doc.photoFileId ?? null;
-    }
-
-    await sequelize.transaction(async (t) => {
+      if (doc.photoFileId !== undefined)
+        entry.photoFileId = doc.photoFileId ?? null;
       await entry.save({ transaction: t });
       await this._logAudit(
         {
@@ -333,24 +318,22 @@ export class WeighingController {
         },
         t,
       );
+      await SettlementController.recompute(reg, t);
+      return entry;
     });
-    return entry;
   }
 
   static async deleteWeighingEntry(
     id: string,
     context: TContext,
   ): Promise<void> {
-    const entry = await WeighingEntryModel.findByPk(id);
-    if (!entry) throw new Error("Weighing entry not found");
-
-    const reg = await RegistrationController.findIdCheck(
-      entry.registrationId,
-      context,
+    const entry = await findOrThrow(
+      WeighingEntryModel,
+      id,
+      "Weighing entry not found",
     );
-    this._assertWeighingEditable(reg, context);
-
     await sequelize.transaction(async (t) => {
+      const reg = await this._editable(entry.registrationId, context, t);
       await this._logAudit(
         {
           registrationId: entry.registrationId,
@@ -365,6 +348,7 @@ export class WeighingController {
         t,
       );
       await entry.destroy({ transaction: t });
+      await SettlementController.recompute(reg, t);
     });
   }
 }

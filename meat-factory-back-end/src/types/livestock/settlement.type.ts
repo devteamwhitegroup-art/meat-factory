@@ -1,14 +1,7 @@
 import { TDateRange, TPagination } from '../global/global.type';
 
-// Бой зардал is not an input: it is fixed per head (Animal.pricePerAnimal ×
-// count, snapshotted on the animal line at intake).
-export type TSettlementLineInput = {
-  animalType: string;
-};
-
 export type TCreateSettlement = {
   registrationId: string;
-  lines: TSettlementLineInput[];
   notes?: string | null;
   photoFileId?: string | null;
   // Per-settlement payout override. When any field is set we use it instead

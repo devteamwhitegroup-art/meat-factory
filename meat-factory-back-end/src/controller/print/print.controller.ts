@@ -21,9 +21,13 @@ const MAX_ATTEMPTS = 3;
 export class PrintController {
   // Render a receipt to a PNG data URL for the on-screen preview (same code
   // path as enqueue, so the preview can't drift from what prints).
-  static preview(type: PRINT_JOB_TYPE, refId: string): Promise<string> {
+  static preview(
+    type: PRINT_JOB_TYPE,
+    refId: string,
+    context: TContext,
+  ): Promise<string> {
     if (!refId) throw new Error("id is required");
-    return renderReceiptPreview(type, refId);
+    return renderReceiptPreview(type, refId, context);
   }
 
   // A Settings printer. Staff may only use their own factory's; admin
@@ -51,7 +55,7 @@ export class PrintController {
   ): Promise<PrintJobModel> {
     if (!refId) throw new Error("id is required");
     const printer = await this.printerFor(printerKey, context);
-    const payload = await renderReceipt(type, refId);
+    const payload = await renderReceipt(type, refId, context);
     return PrintJobModel.create({
       printerKey: printer.id,
       printerIp: printer.ip,

@@ -143,7 +143,6 @@ export const AddCargoEntryDoc = graphql(/* GraphQL */ `
     $shipmentId: ID!
     $productType: PRODUCT_TYPE!
     $animalType: String
-    $byproductName: String
     $sourceConstantId: ID
     $productLabel: String
     $pieceCount: Int
@@ -155,7 +154,6 @@ export const AddCargoEntryDoc = graphql(/* GraphQL */ `
       shipmentId: $shipmentId
       productType: $productType
       animalType: $animalType
-      byproductName: $byproductName
       sourceConstantId: $sourceConstantId
       productLabel: $productLabel
       pieceCount: $pieceCount

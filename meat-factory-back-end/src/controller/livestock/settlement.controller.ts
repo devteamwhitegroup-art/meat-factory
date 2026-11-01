@@ -1,10 +1,9 @@
-import { WhereOptions } from "sequelize";
+import { Includeable, Transaction, WhereOptions } from "sequelize";
 import { PERMISSION } from "../../types/user/permission.type";
 import { FactoryController } from "../factory/factory.controller";
 import sequelize from "../../config/db-connection";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { RegistrationAnimalLineModel } from "../../models/livestock/registration-animal-line.model";
-import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model";
 import { SettlementModel } from "../../models/livestock/settlement.model";
 import { SettlementLineModel } from "../../models/livestock/settlement-line.model";
 import { SettlementPaymentProofModel } from "../../models/livestock/settlement-payment-proof.model";
@@ -12,16 +11,14 @@ import { AnimalModel } from "../../models/livestock/animal.model";
 import { HerderModel } from "../../models/livestock/herder.model";
 import { FileModel } from "../../models/global/file.model";
 import { AdminModel } from "../../models/user/admin.model";
-import { AnimalController } from "./animal.controller";
 import { FileController } from "../global/file.controller";
 import { InventoryController } from "../inventory/inventory.controller";
 import { RegistrationController } from "./registration.controller";
 import { ByproductBundleController } from "./byproduct-bundle.controller";
+import { WeighingController } from "./weighing.controller";
 import { AdminController } from "../user/admin.controller";
-import { dateRangeWhere, findOrThrow, listPaginated } from "../../utils";
-import {
-  REGISTRATION_STATUS,
-} from "../../types/livestock/registration.type";
+import { dateRangeWhere, findOrThrow, listPaginated, round2 } from "../../utils";
+import { REGISTRATION_STATUS } from "../../types/livestock/registration.type";
 import {
   TCreateSettlement,
   TGetSettlements,
@@ -30,34 +27,151 @@ import { MOVEMENT_SOURCE } from "../../types/inventory/inventory.type";
 import { TContext, TPaginationGeneric } from "../../types/global/global.type";
 
 // Settlement (Няравын тооцоо / Санхүү) — sub-domain of the registration
-// aggregate. Shared status/role guards and registration lookups live on
-// RegistrationController.
+// aggregate. Status/permission rules: RegistrationController.blocker.
 
-// Full eager-load every mutation returns to the resolver.
-const SETTLEMENT_INCLUDE = [
+// The settlement with everything its screens and receipt show. A function:
+// Sequelize mutates include objects, so each read (and the registration
+// detail, which nests it) builds fresh ones.
+export const SETTLEMENT_INCLUDE = (): Includeable[] => [
   {
     model: SettlementLineModel,
     as: "lines",
+    separate: true,
     include: [{ model: AnimalModel, as: "animal" }],
   },
   {
     model: SettlementPaymentProofModel,
     as: "paymentProofs",
+    separate: true,
+    order: [["sequenceNo", "ASC"]],
     include: [
       { model: FileModel, as: "file" },
       { model: AdminModel, as: "createdBy" },
     ],
   },
+  { model: AdminModel, as: "settledBy" },
+  { model: FileModel, as: "photo" },
   { model: FileModel, as: "storekeeperSignature" },
 ];
+
+export type TSettlementCalcLine = {
+  animalId: string;
+  animal?: AnimalModel;
+  receivedWeightKg: number;
+  pricePerKg: number;
+  meatAmount: number;
+  byproductAmount: number;
+  slaughterCost: number;
+};
+
+export type TSettlementCalc = {
+  lines: TSettlementCalcLine[];
+  totalMeatAmount: number;
+  totalByproductAmount: number;
+  totalSlaughterCost: number;
+  grossAmount: number;
+  netPayable: number;
+  // Live intake whose гэдэс take isn't recorded yet: no credit included and
+  // the settlement can't be created.
+  byproductsPending: boolean;
+};
 
 export class SettlementController {
   // Re-fetch a settlement with the full include after a mutation (also used
   // by EbarimtController).
   static reload(id: string): Promise<SettlementModel> {
     return findOrThrow(SettlementModel, id, "Settlement not found", {
-      include: SETTLEMENT_INCLUDE,
+      include: SETTLEMENT_INCLUDE(),
     });
+  }
+
+  // THE settlement formula, one line per animal line of the registration:
+  //   meat      = Σ weighed kg × negotiated price
+  //   byproduct = kept гэдэс × unit price (only once the counts are saved)
+  //   slaughter = the бой зардал snapshotted on the line at intake (0 for
+  //               pre-butchered intake)
+  // gross = meat + byproduct; net = gross − slaughter. Totals are sums of the
+  // rounded lines, so the lines always add up to the totals.
+  // Used by createSettlement, the weigh-fix recalculation, the GraphQL
+  // `Registration.settlementPreview` and the printed weigh slip.
+  static async compute(
+    reg: Pick<RegistrationModel, "id" | "factory">,
+    t?: Transaction,
+  ): Promise<TSettlementCalc> {
+    const registrationId = reg.id;
+    const [animalLines, weighed, bundles] = await Promise.all([
+      RegistrationAnimalLineModel.findAll({
+        where: { registrationId },
+        include: [{ model: AnimalModel, as: "animal" }],
+        transaction: t,
+      }),
+      WeighingController.totalsByAnimal(registrationId, t),
+      ByproductBundleController.bundlesFor(registrationId, t),
+    ]);
+    // Pre-butchered unsaved defaults count 0, so they credit nothing anyway.
+    const byproductsPending =
+      FactoryController.rules(reg.factory).liveAnimals &&
+      bundles.some((b) => !b.id);
+    const credit = byproductsPending
+      ? {}
+      : ByproductBundleController.byproductAmountByAnimal(bundles);
+
+    const lines = animalLines.map((l) => {
+      const w = weighed.get(l.animalId) ?? { kg: 0, amount: 0 };
+      return {
+        animalId: l.animalId,
+        animal: l.animal,
+        receivedWeightKg: round2(w.kg),
+        pricePerKg: w.kg > 0 ? round2(w.amount / w.kg) : 0,
+        meatAmount: round2(w.amount),
+        byproductAmount: round2(credit[l.animalId] ?? 0),
+        slaughterCost: round2(Number(l.slaughterCost)),
+      };
+    });
+    const sum = (k: "meatAmount" | "byproductAmount" | "slaughterCost") =>
+      round2(lines.reduce((acc, l) => acc + l[k], 0));
+    const totalMeatAmount = sum("meatAmount");
+    const totalByproductAmount = sum("byproductAmount");
+    const totalSlaughterCost = sum("slaughterCost");
+    const grossAmount = round2(totalMeatAmount + totalByproductAmount);
+    return {
+      lines,
+      totalMeatAmount,
+      totalByproductAmount,
+      totalSlaughterCost,
+      grossAmount,
+      netPayable: round2(grossAmount - totalSlaughterCost),
+      byproductsPending,
+    };
+  }
+
+  // The calc as Settlement / SettlementLine column values.
+  private static _amounts({ lines, byproductsPending: _, ...totals }: TSettlementCalc) {
+    return { totals, lines: lines.map(({ animal: _a, ...l }) => l) };
+  }
+
+  // Weights were fixed after the settlement was created (not yet paid —
+  // payout freezes weighing): rebuild its totals and lines in the fix's
+  // transaction so the payout always matches the weigh record.
+  static async recompute(reg: RegistrationModel, t: Transaction): Promise<void> {
+    const settlement = await SettlementModel.findOne({
+      where: { registrationId: reg.id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!settlement) return;
+    if (Number(settlement.paidAmount) > 0)
+      throw new Error("Төлбөр хийгдсэн тооцоог өөрчлөх боломжгүй");
+    const { totals, lines } = this._amounts(await this.compute(reg, t));
+    await settlement.update(totals, { transaction: t });
+    await SettlementLineModel.destroy({
+      where: { settlementId: settlement.id },
+      transaction: t,
+    });
+    await SettlementLineModel.bulkCreate(
+      lines.map((l) => ({ ...l, settlementId: settlement.id })),
+      { transaction: t },
+    );
   }
 
   // Herder-side payout list — the "Малчид" tab on /sales, alongside the
@@ -100,139 +214,26 @@ export class SettlementController {
     doc: TCreateSettlement,
     context: TContext,
   ): Promise<SettlementModel> {
-    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_CREATE);
-
-    const reg = await RegistrationController.findIdCheck(
-      doc.registrationId,
-      context,
-    );
-    const pre = FactoryController.isPreButchered(reg.factory);
-    // FACTORY_1 settles after verify; FACTORY_2 (no verify step) once weighed.
-    RegistrationController.assertStatus(reg, [
-      pre ? REGISTRATION_STATUS.WEIGHED : REGISTRATION_STATUS.VERIFIED,
-    ]);
-
-    const existing = await SettlementModel.findOne({
-      where: { registrationId: doc.registrationId },
-    });
-    if (existing) throw new Error("Settlement already exists");
-
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    const animalLines = await RegistrationAnimalLineModel.findAll({
-      where: { registrationId: doc.registrationId },
-      include: [{ model: AnimalModel, as: "animal" }],
-    });
-    const regTypes = new Set(
-      animalLines.map((l) => l.animal?.name).filter(Boolean) as string[],
-    );
-    // Бой зардал is fixed: per-head catalogue price × head count, snapshotted
-    // on the animal line at intake. Never overridden here.
-    const storedCostByType: Record<string, number> = {};
-    for (const al of animalLines)
-      if (al.animal?.name)
-        storedCostByType[al.animal.name] = Number(al.slaughterCost);
-
-    if (!doc.lines || doc.lines.length === 0)
-      throw new Error("At least one settlement line is required");
-
-    const lineTypes = new Set<string>();
-    for (const l of doc.lines) {
-      if (!regTypes.has(l.animalType))
-        throw new Error(
-          `Settlement line ${l.animalType} is not part of this registration`,
-        );
-      if (lineTypes.has(l.animalType))
-        throw new Error(`Duplicate settlement line: ${l.animalType}`);
-      lineTypes.add(l.animalType);
-    }
-    for (const t of regTypes) {
-      if (!lineTypes.has(t))
-        throw new Error(`Missing settlement line for animal type ${t}`);
-    }
-
-    // Meat income is derived from the per-entry negotiated prices
-    // (dynamic pricing): meat = Σ(weighing.weightKg × weighing.pricePerKg).
-    // Aggregate by animal *id* (it's what we'll store on each line) and
-    // by *type* (it's how the input is keyed).
-    const weighing = await WeighingEntryModel.findAll({
-      where: { registrationId: doc.registrationId },
-      include: [{ model: AnimalModel, as: "animal" }],
-    });
-    const receivedByType: Record<string, number> = {};
-    const meatByType: Record<string, number> = {};
-    for (const w of weighing) {
-      const t = w.animal?.name ?? "";
-      const wt = Number(w.weightKg);
-      const price = w.pricePerKg != null ? Number(w.pricePerKg) : 0;
-      receivedByType[t] = (receivedByType[t] ?? 0) + wt;
-      meatByType[t] = (meatByType[t] ?? 0) + wt * price;
-    }
-
-    // Map every line's animal name → animalId so we can persist the FK.
-    const typeToId = await AnimalController.mapNamesToIds(
-      Array.from(lineTypes),
-    );
-
-    // Byproduct credit: every гэдэс the factory keeps is worth its price to
-    // the herder (35K бой − 15K гэдэс → herder owes 20K). FACTORY_1 must have
-    // recorded the herder's take first — the defaults assume factory keeps all.
-    const bundles = await ByproductBundleController.bundlesFor(
-      doc.registrationId,
-    );
-    if (!pre && bundles.length > 0 && bundles[0].id === null)
-      throw new Error("Эхлээд дайвар (гэдэс) бүртгэнэ үү");
-    const byproductByAnimal =
-      ByproductBundleController.byproductAmountByAnimal(bundles);
-
-    let totalMeatAmount = 0;
-    let totalByproductAmount = 0;
-    let totalSlaughterCost = 0;
-
-    const lineRows = doc.lines.map((l) => {
-      const received = receivedByType[l.animalType] ?? 0;
-      const meatAmount = meatByType[l.animalType] ?? 0;
-      const avgPrice = received > 0 ? meatAmount / received : 0;
-      // Pre-butchered intake: the herder delivered cut meat, so there is no
-      // slaughter step on our side.
-      const slaughterCost = pre ? 0 : (storedCostByType[l.animalType] ?? 0);
-      const byproductAmount = byproductByAnimal[typeToId[l.animalType]] ?? 0;
-
-      totalMeatAmount += meatAmount;
-      totalByproductAmount += byproductAmount;
-      totalSlaughterCost += slaughterCost;
-
-      return {
-        animalId: typeToId[l.animalType],
-        receivedWeightKg: Number(received.toFixed(2)),
-        pricePerKg: Number(avgPrice.toFixed(2)),
-        meatAmount: Number(meatAmount.toFixed(2)),
-        byproductAmount: Number(byproductAmount.toFixed(2)),
-        slaughterCost: Number(slaughterCost.toFixed(2)),
-      };
-    });
-
-    const grossAmount = totalMeatAmount + totalByproductAmount;
-    const netPayable = grossAmount - totalSlaughterCost;
-
-    // FACTORY_1 kept гэдэс (counted) enter stock once the herder's take is
-    // locked in by this settlement (FACTORY_2 stocked at finishWeighing).
-    const keptBundles = pre
-      ? []
-      : await ByproductBundleController.bundleStockLines(
-          doc.registrationId,
-          reg.factory,
-        );
-
     const settlement = await sequelize.transaction(async (t) => {
+      const reg = await RegistrationController.lock(
+        doc.registrationId,
+        context,
+        t,
+      );
+      RegistrationController.assertCan(reg, context, "createSettlement");
+      const calc = await this.compute(reg, t);
+      // Live intake: the herder's гэдэс take must be recorded first (the
+      // defaults assume the factory keeps all).
+      if (calc.byproductsPending)
+        throw new Error("Эхлээд дайвар (гэдэс) бүртгэнэ үү");
+
+      const { totals, lines } = this._amounts(calc);
       const s = await SettlementModel.create(
         {
-          registrationId: doc.registrationId,
-          totalMeatAmount: Number(totalMeatAmount.toFixed(2)),
-          totalByproductAmount: Number(totalByproductAmount.toFixed(2)),
-          totalSlaughterCost: Number(totalSlaughterCost.toFixed(2)),
-          grossAmount: Number(grossAmount.toFixed(2)),
-          netPayable: Number(netPayable.toFixed(2)),
+          registrationId: reg.id,
+          ...totals,
           payoutBankAccount: doc.payoutBankAccount?.trim() || null,
           payoutBankName: doc.payoutBankName?.trim() || null,
           payoutAccountHolderName: doc.payoutAccountHolderName?.trim() || null,
@@ -243,29 +244,45 @@ export class SettlementController {
         },
         { transaction: t },
       );
-
       await SettlementLineModel.bulkCreate(
-        lineRows.map((r) => ({ ...r, settlementId: s.id })),
+        lines.map((l) => ({ ...l, settlementId: s.id })),
         { transaction: t },
       );
-
-      // VERIFIED/WEIGHED → PAYMENT_PENDING: amounts locked, waiting for cash.
+      // Amounts locked, waiting for cash.
       await reg.update(
         { status: REGISTRATION_STATUS.PAYMENT_PENDING },
         { transaction: t },
       );
-
-      await InventoryController.ingestFromRegistration(
-        doc.registrationId,
-        MOVEMENT_SOURCE.BYPRODUCT,
-        keptBundles,
-        t,
-      );
-
+      // Live intake: kept гэдэс enter stock once the herder's take is locked
+      // in here (pre-butchered stocked them when weighing finished).
+      if (FactoryController.rules(reg.factory).liveAnimals)
+        await InventoryController.ingestFromRegistration(
+          reg.id,
+          MOVEMENT_SOURCE.BYPRODUCT,
+          ByproductBundleController.bundleStockLines(
+            await ByproductBundleController.bundlesFor(reg.id, t),
+            reg.factory,
+          ),
+          t,
+        );
       return s;
     });
-
     return this.reload(settlement.id);
+  }
+
+  // The settlement row of a registration, locked in the caller's transaction.
+  private static async _lockSettlement(
+    registrationId: string,
+    t: Transaction,
+  ): Promise<SettlementModel> {
+    const s = await SettlementModel.findOne({
+      where: { registrationId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!s) throw new Error("Settlement not found");
+    if (s.isPaid) throw new Error("Settlement already paid");
+    return s;
   }
 
   // First (and possibly partial) payout. `heldAmount` is withheld pending
@@ -280,55 +297,49 @@ export class SettlementController {
     heldAmount: number | null | undefined,
     context: TContext,
   ): Promise<SettlementModel> {
-    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
+    const id = await sequelize.transaction(async (t) => {
+      // Row locks: a double-click or two clerks can't both pay, and a
+      // medical-number ruling can't change mid-payment.
+      const reg = await RegistrationController.lock(registrationId, context, t);
+      RegistrationController.assertCan(reg, context, "pay");
+      const settlement = await this._lockSettlement(registrationId, t);
 
-    const reg = await RegistrationController.findIdCheck(
-      registrationId,
-      context,
-    );
-    // Settlement was created during createSettlement → PAYMENT_PENDING.
-    RegistrationController.assertStatus(reg, [
-      REGISTRATION_STATUS.PAYMENT_PENDING,
-    ]);
-
-    const settlement = await SettlementModel.findOne({
-      where: { registrationId },
-    });
-    if (!settlement) throw new Error("Settlement not found");
-    if (settlement.isPaid) throw new Error("Settlement already paid");
-
-    const net = Number(settlement.netPayable);
-    let held = heldAmount != null ? Number(heldAmount) : 0;
-    if (!Number.isFinite(held) || held < 0)
-      throw new Error("Суутгах дүн сөрөг байж болохгүй");
-    held = Number(held.toFixed(2));
-    if (held > net) throw new Error("Суутгах дүн нийт төлбөрөөс хэтэрсэн");
-    if (reg.medicalNumberApproved) {
-      // Approved → no reason to hold; pay in full.
-      held = 0;
-    } else if (held <= 0) {
-      throw new Error(
-        "Мал эмнэлгийн дугаар батлагдаагүй тул бүтэн төлбөр хийх боломжгүй. Суутгах дүн оруулна уу.",
+      const net = Number(settlement.netPayable);
+      let held = heldAmount != null ? Number(heldAmount) : 0;
+      if (!Number.isFinite(held) || held < 0)
+        throw new Error("Суутгах дүн сөрөг байж болохгүй");
+      held = round2(held);
+      if (held > net) throw new Error("Суутгах дүн нийт төлбөрөөс хэтэрсэн");
+      if (reg.medicalNumberApproved) {
+        // Approved → no reason to hold; pay in full.
+        held = 0;
+      } else if (held <= 0) {
+        throw new Error(
+          "Мал эмнэлгийн дугаар батлагдаагүй тул бүтэн төлбөр хийх боломжгүй. Суутгах дүн оруулна уу.",
+        );
+      }
+      const fullyPaid = held === 0;
+      await settlement.update(
+        {
+          heldAmount: held,
+          paidAmount: round2(net - held),
+          isPaid: fullyPaid,
+          paidAt: new Date(),
+          settledById: context.id,
+        },
+        { transaction: t },
       );
-    }
-
-    const paidNow = Number((net - held).toFixed(2));
-    const fullyPaid = held === 0;
-
-    await settlement.update({
-      heldAmount: held,
-      paidAmount: paidNow,
-      isPaid: fullyPaid,
-      paidAt: new Date(),
-      settledById: context.id,
+      await reg.update(
+        {
+          status: fullyPaid
+            ? REGISTRATION_STATUS.SETTLED
+            : REGISTRATION_STATUS.PARTIALLY_SETTLED,
+        },
+        { transaction: t },
+      );
+      return settlement.id;
     });
-    await reg.update({
-      status: fullyPaid
-        ? REGISTRATION_STATUS.SETTLED
-        : REGISTRATION_STATUS.PARTIALLY_SETTLED,
-    });
-
-    return this.reload(settlement.id);
+    return this.reload(id);
   }
 
   // Release the withheld portion once the medical number is approved. Pays the
@@ -337,35 +348,28 @@ export class SettlementController {
     registrationId: string,
     context: TContext,
   ): Promise<SettlementModel> {
-    AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
-
-    const reg = await RegistrationController.findIdCheck(
-      registrationId,
-      context,
-    );
-    RegistrationController.assertStatus(reg, [
-      REGISTRATION_STATUS.PARTIALLY_SETTLED,
-    ]);
-    if (!reg.medicalNumberApproved)
-      throw new Error("Мал эмнэлгийн дугаар батлагдаагүй байна");
-
-    const settlement = await SettlementModel.findOne({
-      where: { registrationId },
+    const id = await sequelize.transaction(async (t) => {
+      const reg = await RegistrationController.lock(registrationId, context, t);
+      RegistrationController.assertCan(reg, context, "releaseHold");
+      const settlement = await this._lockSettlement(registrationId, t);
+      if (Number(settlement.heldAmount) <= 0)
+        throw new Error("Суутгасан дүн алга байна");
+      await settlement.update(
+        {
+          paidAmount: Number(settlement.netPayable),
+          isPaid: true,
+          heldReleasedAt: new Date(),
+          settledById: context.id,
+        },
+        { transaction: t },
+      );
+      await reg.update(
+        { status: REGISTRATION_STATUS.SETTLED },
+        { transaction: t },
+      );
+      return settlement.id;
     });
-    if (!settlement) throw new Error("Settlement not found");
-    if (settlement.isPaid) throw new Error("Settlement already paid");
-    if (Number(settlement.heldAmount) <= 0)
-      throw new Error("Суутгасан дүн алга байна");
-
-    await settlement.update({
-      paidAmount: Number(settlement.netPayable),
-      isPaid: true,
-      heldReleasedAt: new Date(),
-      settledById: context.id,
-    });
-    await reg.update({ status: REGISTRATION_STATUS.SETTLED });
-
-    return this.reload(settlement.id);
+    return this.reload(id);
   }
 
   // Money-flow statement: attach an already-uploaded image (bank transfer
@@ -377,11 +381,7 @@ export class SettlementController {
     context: TContext,
   ): Promise<SettlementPaymentProofModel> {
     AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
-
-    const settlement = await SettlementModel.findOne({
-      where: { registrationId },
-    });
-    if (!settlement) throw new Error("Settlement not found");
+    const settlement = await this._scoped(registrationId, context);
     if (Number(settlement.paidAmount) <= 0)
       throw new Error("Төлбөр хийгдээгүй тул баримт хавсаргах боломжгүй");
 
@@ -424,12 +424,7 @@ export class SettlementController {
   ): Promise<SettlementModel> {
     // Drawn by нягтлан on the receipt — not нярав.
     AdminController.assertPermission(context, PERMISSION.SETTLEMENT_PAY);
-
-    const settlement = await SettlementModel.findOne({
-      where: { registrationId },
-    });
-    if (!settlement) throw new Error("Settlement not found");
-
+    const settlement = await this._scoped(registrationId, context);
     if (fileId) await FileController.findIdCheck(fileId);
     await settlement.update({ storekeeperSignatureFileId: fileId ?? null });
     return this.reload(settlement.id);
@@ -444,7 +439,20 @@ export class SettlementController {
       SettlementPaymentProofModel,
       id,
       "Баримт олдсонгүй",
+      { include: [{ model: SettlementModel, as: "settlement" }] },
     );
+    await this._scoped(row.settlement!.registrationId, context);
     await row.destroy();
+  }
+
+  // A registration's settlement, within the actor's factory.
+  private static async _scoped(
+    registrationId: string,
+    context: TContext,
+  ): Promise<SettlementModel> {
+    await RegistrationController.findIdCheck(registrationId, context);
+    const s = await SettlementModel.findOne({ where: { registrationId } });
+    if (!s) throw new Error("Settlement not found");
+    return s;
   }
 }

@@ -14,7 +14,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -42,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { canCreateRegistration } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/server";
 import { MedicalNumbersCard } from "./_components/MedicalNumbersCard";
+import { SettlementBreakdown } from "@/components/registration/SettlementBreakdown";
 import { HerderInfoCard } from "./_components/HerderInfoCard";
 import { RegistrationProgress } from "./_components/RegistrationProgress";
 
@@ -84,6 +84,9 @@ export default async function RegistrationDetailPage({ params }: Props) {
   );
 
   const base = `/registrations/${r.id}`;
+  // What this account may do now — the backend's own rules (status ×
+  // factory kind × permissions), so buttons never re-derive them.
+  const can: Partial<NonNullable<typeof r.can>> = r.can ?? {};
   const canSettle = session.can("SETTLEMENT_CREATE", "SETTLEMENT_PAY");
   const weighed = compact(r.weighingEntries).length > 0;
   const step = (label: string, path: string, icon: LucideIcon): Action => ({
@@ -104,7 +107,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
           ? {
               title: "Жин баталгаажуулах",
               hint: "Оруулсан мах, жин, үнийг шалгаад баталгаажуулна.",
-              action: session.can("REGISTRATION_WEIGH")
+              action: can.finishWeighing
                 ? step("Баталгаажуулах", "verify", ShieldCheck)
                 : null,
             }
@@ -113,9 +116,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
               hint: pre
                 ? "Махыг жинлэж, кг тутмын үнийг оруулна."
                 : "Малыг нэг нэгээр нь жинлүүрт жинлэнэ.",
-              action: session.can("REGISTRATION_WEIGH")
-                ? step("Жинлэх", "weigh", Scale)
-                : null,
+              action: can.weigh ? step("Жинлэх", "weigh", Scale) : null,
             };
       break;
     case "WEIGHED":
@@ -123,19 +124,22 @@ export default async function RegistrationDetailPage({ params }: Props) {
         ? {
             title: "Тооцоо хийх",
             hint: "Малчинд олгох мөнгөн дүнг тооцоолно.",
-            action: canSettle ? step("Тооцоо хийх", "settlement", Calculator) : null,
+            action: can.createSettlement
+              ? step("Тооцоо хийх", "settlement", Calculator)
+              : null,
           }
         : {
             title: "Баталгаажуулах",
             hint: "Жинг шалгаж, малчинд гарын үсэг зуруулна.",
-            action: session.can("REGISTRATION_VERIFY")
+            action: can.verify
               ? step("Баталгаажуулах", "verify", ShieldCheck)
               : null,
           };
       break;
     case "VERIFIED":
+      // The herder's гэдэс take must be recorded before the settlement.
       next =
-        bundles.length === 0 && session.can("REGISTRATION_WEIGH")
+        r.settlementPreview?.byproductsPending && can.editByproducts
           ? {
               title: "Гэдэс тоолох",
               hint: "Малчинд өгөх болон үйлдвэрт үлдэх гэдсийг тоолно. Дараа нь тооцоо хийнэ.",
@@ -144,7 +148,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
           : {
               title: "Тооцоо хийх",
               hint: "Малчинд олгох мөнгөн дүнг тооцоолно.",
-              action: canSettle
+              action: can.createSettlement
                 ? step("Тооцоо хийх", "settlement", Calculator)
                 : null,
             };
@@ -153,9 +157,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
       next = {
         title: "Төлбөр олгох",
         hint: "Малчинд мөнгийг шилжүүлээд, «Төлсөн» гэж тэмдэглэнэ.",
-        action: session.can("SETTLEMENT_PAY")
-          ? step("Төлбөр олгох", "settlement", Calculator)
-          : null,
+        action: can.pay ? step("Төлбөр олгох", "settlement", Calculator) : null,
       };
       break;
     case "PARTIALLY_SETTLED":
@@ -174,21 +176,14 @@ export default async function RegistrationDetailPage({ params }: Props) {
   // rest anyway.
   const more: Action[] = [];
   // Intake fix: direct the same day, a change request after.
-  if (
-    (status === "REGISTERED" || status === "WEIGHED" || status === "VERIFIED") &&
-    session.can("REGISTRATION_CREATE")
-  )
+  if (can.editIntake)
     more.push(
       step(r.editableByMe ? "Засах" : "Засварын хүсэлт", "edit", Pencil),
     );
-  if (
-    (status === "WEIGHED" ||
-      status === "VERIFIED" ||
-      status === "PAYMENT_PENDING") &&
-    session.can("REGISTRATION_WEIGH_FIX")
-  )
+  // Once weighed: the privileged, logged fix (an unpaid settlement follows).
+  if (status !== "REGISTERED" && can.weigh)
     more.push(step("Жин засах", "weigh", Scale));
-  if (status === "VERIFIED" && !pre && session.can("REGISTRATION_WEIGH"))
+  if (status === "VERIFIED" && can.editByproducts)
     more.push(step("Гэдэс", "byproduct", Package));
   // Хойд intake is created WEIGHED, so this is where its eBarimt check lives.
   if (
@@ -197,14 +192,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
     session.can("REGISTRATION_VERIFY")
   )
     more.push(step("Баталгаажуулалт", "verify", ShieldCheck));
-  if (
-    (status === "VERIFIED" ||
-      (pre && status === "WEIGHED") ||
-      status === "PAYMENT_PENDING" ||
-      status === "PARTIALLY_SETTLED" ||
-      status === "SETTLED") &&
-    canSettle
-  )
+  if ((r.settlement || can.createSettlement) && canSettle)
     more.push(step("Тооцоо", "settlement", Calculator));
   const secondary = more.filter((a) => a.href !== next?.action?.href);
 
@@ -451,22 +439,18 @@ export default async function RegistrationDetailPage({ params }: Props) {
               </TableHeader>
               <TableBody>
                 {(() => {
-                  // Per animal-type ordinal (1..N) so numbering restarts at 1
-                  // for each type and stays gap-free.
-                  const ordinal: Record<string, number> = {};
+                  // Entries arrive in sequence order. Number them 1..N per
+                  // animal type so each type's count reads gap-free.
                   const perType: Record<string, number> = {};
-                  for (const w of [...compact(r.weighingEntries)].sort(
-                    (a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0),
-                  )) {
-                    const t = w.animalType ?? "";
-                    perType[t] = (perType[t] ?? 0) + 1;
-                    if (w.id) ordinal[w.id] = perType[t];
-                  }
-                  return [...compact(r.weighingEntries)]
-                    .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0))
-                    .map((w) => (
+                  return compact(r.weighingEntries)
+                    .map((w) => {
+                      const t = w.animalType ?? "";
+                      perType[t] = (perType[t] ?? 0) + 1;
+                      return { w, n: perType[t] };
+                    })
+                    .map(({ w, n }) => (
                       <TableRow key={w.id!}>
-                        <TableCell>{ordinal[w.id!] ?? w.sequenceNo}</TableCell>
+                        <TableCell>{n}</TableCell>
                         <TableCell>{w.animalType}</TableCell>
                         <TableCell>{formatNumber(w.weightKg)}</TableCell>
                         <TableCell>
@@ -480,7 +464,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                           {w.photo?.url ? (
                             <ImagePreviewLink
                               url={w.photo.url}
-                              title={`Жинлэлт #${ordinal[w.id!] ?? w.sequenceNo} — Зураг`}
+                              title={`Жинлэлт #${n} — Зураг`}
                             />
                           ) : (
                             "—"
@@ -553,55 +537,8 @@ export default async function RegistrationDetailPage({ params }: Props) {
           <CardHeader>
             <CardTitle>Тооцоо</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Төрөл</TableHead>
-                  <TableHead>Хүлээн авсан</TableHead>
-                  <TableHead>Үнэ/кг</TableHead>
-                  <TableHead>Мах</TableHead>
-                  <TableHead>Дайвар</TableHead>
-                  <TableHead>Бой зардал</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {compact(r.settlement.lines).map((l) => (
-                  <TableRow key={l.id!}>
-                    <TableCell>{l.animalType}</TableCell>
-                    <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
-                    <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
-                    <TableCell>{formatNumber(l.meatAmount)}</TableCell>
-                    <TableCell>{formatNumber(l.byproductAmount)}</TableCell>
-                    <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Separator />
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-              <div className="text-muted-foreground">Нийт мах</div>
-              <div className="text-right">
-                {formatNumber(r.settlement.totalMeatAmount)}
-              </div>
-              <div className="text-muted-foreground">Нийт дайвар (гэдэс)</div>
-              <div className="text-right">
-                {formatNumber(r.settlement.totalByproductAmount)}
-              </div>
-              <div className="text-muted-foreground">Нийт бой зардал</div>
-              <div className="text-right">
-                {formatNumber(r.settlement.totalSlaughterCost)}
-              </div>
-              <div className="font-medium">
-                Нийт төлбөр (бой зардал хасахаас өмнө)
-              </div>
-              <div className="text-right font-medium">
-                {formatNumber(r.settlement.grossAmount)}
-              </div>
-              <div className="text-base font-semibold">Малчинд өгөх дүн</div>
-              <div className="text-right text-base font-semibold">
-                {formatNumber(r.settlement.netPayable)}
-              </div>
+          <CardContent>
+            <SettlementBreakdown s={r.settlement}>
               {Number(r.settlement.heldAmount ?? 0) > 0 && (
                 <>
                   <div className="text-muted-foreground">Олгосон дүн</div>
@@ -620,7 +557,7 @@ export default async function RegistrationDetailPage({ params }: Props) {
                   ? `Тийм (${fmtDateTime(r.settlement.paidAt)})`
                   : "Үгүй"}
               </div>
-            </div>
+            </SettlementBreakdown>
           </CardContent>
         </Card>
       )}

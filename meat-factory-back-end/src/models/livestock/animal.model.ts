@@ -8,6 +8,7 @@ export class AnimalModel extends Model implements TAnimal {
   public name!: string;
   // Meat allowed on export shipments (horse only, for now).
   public isExport!: boolean;
+  public requiresStamp!: boolean;
   public pricePerAnimal!: number;
   // Carcass-to-saleable yield (%); horse 70 (bone-out), others 100.
   public yieldPercent!: number;
@@ -40,6 +41,11 @@ export const createAnimalModel = (sequelize: Sequelize) => {
         unique: true,
       },
       isExport: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      requiresStamp: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,

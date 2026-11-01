@@ -15,9 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SetSalesLineItemPriceDoc } from "@/lib/queries/sales";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatMNT, formatNumber } from "@/lib/format/money";
+import { productLabel } from "@/lib/format/product";
 
 type Line = {
   id: string;
@@ -34,7 +35,8 @@ export function LineItemsTable({
   fromReport = false,
 }: {
   lines: Line[];
-  // Shipment sale: prices come from its sales report (below), not typed here.
+  // Shipment sale: prices come from its sales report (below), not typed here
+  // — the BE refuses setSalesLineItemPrice on such invoices.
   fromReport?: boolean;
 }) {
   return (
@@ -51,7 +53,7 @@ export function LineItemsTable({
       <TableBody>
         {lines.map((l) => {
           const product =
-            l.productType === "MEAT" ? l.animalType : (l.byproductName ?? "—");
+            productLabel(l.productType, l.animalType, l.byproductName) || "—";
           return (
             <TableRow key={l.id}>
               <TableCell>
@@ -93,16 +95,13 @@ function PriceInput({ lineId }: { lineId: string }) {
       return;
     }
     setBusy(true);
-    try {
-      const r = await setPrice({ variables: { id: lineId, unitPrice: n } });
-      unwrap(r.data?.setSalesLineItemPrice);
-      toast.success("Үнэ хадгалагдлаа");
-      router.refresh();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await runMutation(
+      async () =>
+        (await setPrice({ variables: { id: lineId, unitPrice: n } })).data
+          ?.setSalesLineItemPrice,
+      { success: "Үнэ хадгалагдлаа", onSuccess: () => router.refresh() },
+    );
+    setBusy(false);
   }
 
   return (

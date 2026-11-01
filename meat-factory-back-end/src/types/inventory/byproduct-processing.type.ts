@@ -45,15 +45,6 @@ export type TGetByproductProcessings = {
   dateRange?: TDateRange;
 } & TPagination;
 
-// Counted byproducts sent from FACTORY_1/2 stock to the byproduct factory.
-export type TTransferByproducts = {
-  fromFactory?: string | null;
-  // Receiving byproduct-kind site; defaults to the only active one.
-  toFactory?: string | null;
-  lines: { inventoryItemId: string; count: number }[];
-  notes?: string | null;
-};
-
 export type TProcessingSummaryRow = {
   animalType: string;
   wrapperName: string;

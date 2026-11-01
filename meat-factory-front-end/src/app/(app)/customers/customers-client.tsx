@@ -48,17 +48,21 @@ import {
   UpdateCustomerDoc,
 } from "@/lib/queries/customer";
 import { Customer_Kind } from "@/lib/gql/graphql";
-import { CUSTOMER_KIND_MN, CUSTOMER_KIND_COLOR } from "@/lib/format/enum";
+import {
+  CUSTOMER_KINDS,
+  CUSTOMER_KIND_MN,
+  CUSTOMER_KIND_COLOR,
+} from "@/lib/format/enum";
+import { useDebounced } from "@/lib/hooks/useDebounced";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
 import { PaginationFooter } from "@/components/common/PaginationFooter";
 
-const KIND_VALUES = ["LOCAL_BROKER", "ULAANBAATAR_BROKER", "FACTORY"] as const;
-type Kind = (typeof KIND_VALUES)[number];
+type Kind = (typeof CUSTOMER_KINDS)[number];
 
 const schema = z.object({
   name: z.string().min(1, "Нэр шаардлагатай"),
-  kind: z.enum(KIND_VALUES),
+  kind: z.enum(CUSTOMER_KINDS),
   contactPhone: z.string().optional(),
   address: z.string().optional(),
   bankAccount: z.string().optional(),
@@ -83,13 +87,14 @@ export function CustomersClient() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [kindFilter, setKindFilter] = useState<"ALL" | Kind>("ALL");
+  const debouncedSearch = useDebounced(search.trim(), 250);
   const {
     data,
     loading: fetching,
     refetch,
   } = useQuery(CustomerListDoc, {
     variables: {
-      search: search || null,
+      search: debouncedSearch || null,
       isActive: null,
       kind: kindFilter === "ALL" ? null : (kindFilter as Customer_Kind),
       limit: 20,
@@ -230,7 +235,7 @@ export function CustomersClient() {
           >
             <TabsList>
               <TabsTrigger value="ALL">Бүгд</TabsTrigger>
-              {KIND_VALUES.map((k) => (
+              {CUSTOMER_KINDS.map((k) => (
                 <TabsTrigger key={k} value={k}>
                   {CUSTOMER_KIND_MN[k]}
                 </TabsTrigger>
@@ -282,7 +287,7 @@ export function CustomersClient() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {KIND_VALUES.map((k) => (
+                          {CUSTOMER_KINDS.map((k) => (
                             <SelectItem key={k} value={k}>
                               {CUSTOMER_KIND_MN[k]}
                             </SelectItem>

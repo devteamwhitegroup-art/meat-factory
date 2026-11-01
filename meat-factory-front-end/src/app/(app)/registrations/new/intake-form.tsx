@@ -26,6 +26,7 @@ import {
   type PickedHerder,
 } from "@/components/registration/HerderPicker";
 import { AnimalCountGrid } from "@/components/registration/AnimalCountGrid";
+import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
 import {
   EMPTY_WEIGH_ROW,
   IntakeWeighRows,
@@ -133,10 +134,6 @@ function FormSection({
   );
 }
 
-// ponytail: horse matched by catalogue name. If admins rename it, add a
-// `requiresStamp` flag on Animal instead.
-export const STAMPED_ANIMAL = "Адуу";
-
 // `factory` = the staff member's own factory (their form is fixed); null for
 // cross-factory roles, who pick it here. Live sites take animals (stamp for
 // horses, бой зардал); pre-butchered sites take meat (neither).
@@ -150,6 +147,7 @@ export function IntakeForm({
 }) {
   const router = useRouter();
   const { intake, isPreButchered } = useFactories();
+  const { stampAnimal } = useAnimalCatalog();
   const [createRegistration] = useMutation(CreateRegistrationDoc);
   const [submitting, setSubmitting] = useState(false);
   const [herder, setHerder] = useState<PickedHerder | null>(null);
@@ -203,7 +201,9 @@ export function IntakeForm({
       }))
     : [];
   const counts = useWatch({ control: form.control, name: "counts" });
-  const stampRequired = !pre && (counts?.[STAMPED_ANIMAL] ?? 0) > 0;
+  // Live intake of a stamp-requiring animal (catalogue flag).
+  const stamped = pre ? null : stampAnimal(counts);
+  const stampRequired = !!stamped;
 
   async function onSubmit(values: Values) {
     if (!values.factory) {
@@ -246,11 +246,11 @@ export function IntakeForm({
       return;
     }
     if (stampRequired && !values.stamp?.trim()) {
-      toast.error("Адуунд таних тэмдэг шаардлагатай");
+      toast.error(`${stamped}: таних тэмдэг шаардлагатай`);
       return;
     }
     if (stampRequired && !values.stampFileId) {
-      toast.error("Адуунд тамга зурна уу");
+      toast.error(`${stamped}: тамга зурна уу`);
       return;
     }
     if (!values.signatureFileId) {

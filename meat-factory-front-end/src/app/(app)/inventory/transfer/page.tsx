@@ -5,6 +5,7 @@ import { getClient } from "@/lib/apollo/server";
 import { InventoryTabs } from "@/components/inventory/InventoryTabs";
 import { InventoryStockDoc } from "@/lib/queries/inventory";
 import { unwrapList } from "@/lib/unwrap";
+import { productLabel } from "@/lib/format/product";
 import { requireCap } from "@/lib/auth/server";
 import { getFactories } from "@/lib/factory/server";
 import {
@@ -55,7 +56,7 @@ export default async function TransferPage({ searchParams }: Props) {
     .filter((i) => Number(i.quantityCount ?? 0) > 0)
     .map((i) => ({
       id: i.id!,
-      label: [i.animal?.name, i.byproductName].filter(Boolean).join(" · "),
+      label: productLabel(i.productType, i.animal?.name, i.byproductName),
       available: Number(i.quantityCount),
     }));
 
@@ -63,7 +64,7 @@ export default async function TransferPage({ searchParams }: Props) {
     <div className="space-y-4">
       <PageHeader
         title={`Дайвар илгээх → ${target}`}
-        description="Тоолсон гэдсийг дайврын үйлдвэр рүү илгээнэ. Илгээгчийн нөөцөөс хасагдаж, дайврын үйлдвэрийн нөөцөд нэмэгдэнэ."
+        description="Тоолсон гэдсийг дайврын үйлдвэр рүү илгээнэ. Илгээгчийн нөөцөөс шууд хасагдаж, дайврын үйлдвэр «Үйлдвэр хооронд» хэсэгт хүлээн авмагц нөөцөд нь нэмэгдэнэ."
       />
       <InventoryTabs />
 

@@ -232,8 +232,41 @@ export default `#graphql
         # true → the caller may edit intake fields directly (admin, or the
         # person who registered it on the same day); else a change request.
         editableByMe: Boolean @authLogin
+        # What the caller may do to this registration right now (status ×
+        # factory kind × permissions) — the same rules the mutations enforce.
+        can: RegistrationActions @authLogin
+        # The settlement as it would be created now (meat, гэдэс credit, бой
+        # зардал, net) — the one formula the settlement itself uses.
+        settlementPreview: SettlementPreview @authLogin
         createdAt: Date
         updatedAt: Date
+    }
+
+    type RegistrationActions {
+        # Add / edit / delete weighings (a privileged, logged fix once weighed).
+        weigh: Boolean
+        finishWeighing: Boolean
+        verify: Boolean
+        # Count гэдэс / set the herder's take.
+        editByproducts: Boolean
+        createSettlement: Boolean
+        pay: Boolean
+        releaseHold: Boolean
+        cancel: Boolean
+        # Change intake fields (directly or by change request, see editableByMe).
+        editIntake: Boolean
+    }
+
+    type SettlementPreview {
+        lines: [SettlementLine]
+        totalMeatAmount: Float
+        totalByproductAmount: Float
+        totalSlaughterCost: Float
+        grossAmount: Float
+        netPayable: Float
+        # Live intake whose гэдэс take isn't recorded yet: no credit included,
+        # and createSettlement refuses until it is.
+        byproductsPending: Boolean
     }
 
     # What a change request proposes; each part null when untouched.
@@ -369,10 +402,6 @@ export default `#graphql
     }
 
     # Бой зардал is fixed per head (set at intake) — not an input.
-    input SettlementLineInput {
-        animalType: String!
-    }
-
     extend type Query {
         registrations(
             status: REGISTRATION_STATUS
@@ -500,7 +529,6 @@ export default `#graphql
 
         createSettlement(
             registrationId: ID!
-            lines: [SettlementLineInput!]!
             notes: String
             photoFileId: ID
             # Optional per-settlement payout override.

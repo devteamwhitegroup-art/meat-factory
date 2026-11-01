@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TransferByproductsDoc } from "@/lib/queries/byproduct-processing";
+import { CreateFactoryTransferDoc } from "@/lib/queries/factory-transfer";
 import { useDraft } from "@/lib/hooks/useDraft";
 import { runMutation } from "@/lib/runMutation";
 
@@ -24,7 +24,7 @@ export function TransferForm({
   items: Item[];
 }) {
   const router = useRouter();
-  const [transfer] = useMutation(TransferByproductsDoc);
+  const [transfer] = useMutation(CreateFactoryTransferDoc);
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,18 +55,21 @@ export function TransferForm({
       async () =>
         (
           await transfer({
+            // toFactory omitted → the byproduct site.
             variables: {
               fromFactory,
               lines: lines.map(({ inventoryItemId, count }) => ({
                 inventoryItemId,
-                count,
+                quantityKg: 0,
+                quantityCount: count,
               })),
               notes: notes.trim() || null,
             },
           })
-        ).data?.transferByproducts,
+        ).data?.createFactoryTransfer,
       {
-        success: "Дайврын үйлдвэр рүү илгээлээ",
+        success: (d) =>
+          `${d.transfer?.code ?? "Ачилт"} илгээгдлээ — дайврын үйлдвэр хүлээн авахад нөөцөд нэмэгдэнэ`,
         onSuccess: () => {
           setCounts({});
           setNotes("");

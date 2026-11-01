@@ -88,6 +88,7 @@ export type TGetShipments = {
 export type TShipmentStockRow = {
   groupKey: string;
   productType: PRODUCT_TYPE;
+  animalId: string | null;
   animalType: string | null;
   byproductName: string | null;
   onHandKg: number;

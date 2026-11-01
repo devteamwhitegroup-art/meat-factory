@@ -20,7 +20,7 @@ import { formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
 import { unwrapList } from "@/lib/unwrap";
 import { ByproductProcessingsDoc } from "@/lib/queries/byproduct-processing";
-import { Diff } from "./_components/Diff";
+import { Diff, localDiff } from "./_components/Diff";
 
 export const dynamic = "force-dynamic";
 
@@ -120,10 +120,8 @@ export default async function ByproductPage({
                           {formatNumber(l.actualKg)} кг
                         </TableCell>
                         <TableCell className="text-right">
-                          <Diff
-                            expected={l.expectedKg}
-                            actual={l.actualKg ?? 0}
-                          />
+                          {/* ByproductProcessingsDoc lines carry no diff. */}
+                          <Diff {...localDiff(l.expectedKg, l.actualKg ?? 0)} />
                         </TableCell>
                       </TableRow>
                     ))}

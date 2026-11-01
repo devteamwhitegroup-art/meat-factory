@@ -3,7 +3,8 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const COLORS = [
+// Series palette by position (also the inventory stock bar).
+export const CHART_COLORS = [
   "#2563eb",
   "#16a34a",
   "#dc2626",
@@ -62,7 +63,7 @@ export function BreakdownPie({
                 }
               >
                 {filtered.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip formatter={(v) => Number(v).toLocaleString("mn-MN")} />

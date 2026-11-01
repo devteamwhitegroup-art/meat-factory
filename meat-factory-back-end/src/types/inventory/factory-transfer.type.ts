@@ -42,7 +42,8 @@ export type TFactoryTransferLine = {
 export type TCreateFactoryTransfer = {
   // Cross-factory roles pick; staff send from their own.
   fromFactory?: string | null;
-  toFactory: string;
+  // Defaults to the byproduct site (FactoryController.defaultByproductFactory).
+  toFactory?: string | null;
   // Picked from the sender's stock rows; kg and/or pieces.
   lines: {
     inventoryItemId: string;

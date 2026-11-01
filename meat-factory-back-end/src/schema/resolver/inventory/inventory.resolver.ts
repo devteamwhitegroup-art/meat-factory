@@ -6,35 +6,30 @@ import {
   TManualAdjustInput,
 } from "../../../types/inventory/inventory.type";
 import { InventoryMovementModel } from "../../../models/inventory/inventory-movement.model";
-import { RegistrationModel } from "../../../models/livestock/registration.model";
-import { ShipmentModel } from "../../../models/shipment/shipment.model";
+import { InventoryItemModel } from "../../../models/inventory/inventory-item.model";
+import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
 import { wrapItems, wrapList, wrapOne } from "../../../utils";
 
 export default {
-  // Source codes for the movement log's links (one page = ≤50 lookups).
+  // Display SKU ("Мах:Адуу"); the stored sku is the id-based stockKey.
+  InventoryItem: {
+    sku: (i: InventoryItemModel) =>
+      i.productType === PRODUCT_TYPE.MEAT
+        ? `Мах:${i.animal?.name ?? ""}`
+        : ["Дайвар", i.animal?.name, i.byproductName].filter(Boolean).join(":"),
+  },
+  // Source links for the movement log (joined in listMovements).
   InventoryMovement: {
-    registrationCode: async (m: InventoryMovementModel) =>
-      m.sourceRegistrationId
-        ? ((
-            await RegistrationModel.findByPk(m.sourceRegistrationId, {
-              attributes: ["registrationCode"],
-            })
-          )?.registrationCode ?? null)
-        : null,
-    shipmentCode: async (m: InventoryMovementModel) =>
-      m.sourceShipmentId
-        ? ((
-            await ShipmentModel.findByPk(m.sourceShipmentId, {
-              attributes: ["shipmentCode"],
-            })
-          )?.shipmentCode ?? null)
-        : null,
+    registrationCode: (m: InventoryMovementModel) =>
+      m.registration?.registrationCode ?? null,
+    shipmentCode: (m: InventoryMovementModel) =>
+      m.shipment?.shipmentCode ?? null,
   },
   Query: {
     inventoryValuation: wrapItems(
       "rows",
-      ({ factory }: { factory?: string | null }) =>
-        CostingController.valuation(factory),
+      ({ factory }: { factory?: string | null }, ctx) =>
+        CostingController.valuation(ctx, factory),
     ),
     inventoryStock: wrapList("inventoryItems", (doc: TGetStock, ctx) =>
       InventoryController.getStock(doc, ctx),

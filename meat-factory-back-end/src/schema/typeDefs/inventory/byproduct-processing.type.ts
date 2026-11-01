@@ -63,11 +63,6 @@ export default `#graphql
         actualKg: Float!
     }
 
-    input ByproductTransferLineInput {
-        inventoryItemId: ID!
-        count: Int!
-    }
-
     extend type Query {
         byproductProcessings(
             factory: String
@@ -92,13 +87,5 @@ export default `#graphql
             lines: [ByproductProcessingLineInput!]!
             notes: String
         ): ByproductProcessingResponse @auth(permissions: [BYPRODUCT_PROCESS])
-
-        # Send counted byproducts from FACTORY_1/2 stock to FACTORY_3.
-        transferByproducts(
-            fromFactory: String
-            toFactory: String
-            lines: [ByproductTransferLineInput!]!
-            notes: String
-        ): Response @auth(permissions: [BYPRODUCT_TRANSFER])
     }
 `;

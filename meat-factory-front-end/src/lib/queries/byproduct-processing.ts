@@ -94,16 +94,3 @@ export const CreateByproductProcessingDoc = graphql(/* GraphQL */ `
     }
   }
 `);
-
-export const TransferByproductsDoc = graphql(/* GraphQL */ `
-  mutation TransferByproducts(
-    $fromFactory: String
-    $lines: [ByproductTransferLineInput!]!
-    $notes: String
-  ) {
-    transferByproducts(fromFactory: $fromFactory, lines: $lines, notes: $notes) {
-      success
-      message
-    }
-  }
-`);

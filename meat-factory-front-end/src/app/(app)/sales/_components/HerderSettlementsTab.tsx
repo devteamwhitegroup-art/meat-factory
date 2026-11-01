@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import {
   Table,
@@ -16,11 +15,13 @@ import { formatMNT, formatNumber } from "@/lib/format/money";
 import { fmtDate } from "@/lib/format/date";
 import { pageAndRange } from "@/lib/date/range";
 import { chipCls } from "@/components/ui/segmented";
+import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
+import { PaymentBadge } from "@/components/common/PaymentBadge";
 
 const TABS = [
   { value: "", label: "Бүгд" },
-  { value: "yes", label: "Төлбөр хийсэн" },
-  { value: "no", label: "Хүлээгдэж буй" },
+  { value: "yes", label: PAYMENT_STATUS_MN.PAID },
+  { value: "no", label: PAYMENT_STATUS_MN.PENDING },
 ];
 
 export async function HerderSettlementsTab({
@@ -113,15 +114,16 @@ export async function HerderSettlementsTab({
                   <TableCell>{formatMNT(r.paidAmount)}</TableCell>
                   <TableCell>{fmtDate(r.createdAt)}</TableCell>
                   <TableCell>
-                    <Badge
-                      className={
+                    {/* Held / partial payout: paid something, not settled. */}
+                    <PaymentBadge
+                      status={
                         r.isPaid
-                          ? "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                          : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
+                          ? "PAID"
+                          : Number(r.paidAmount ?? 0) > 0
+                            ? "PARTIALLY_PAID"
+                            : "PENDING"
                       }
-                    >
-                      {r.isPaid ? "Төлбөр хийсэн" : "Хүлээгдэж буй"}
-                    </Badge>
+                    />
                   </TableCell>
                   <TableCell>
                     {r.registrationId ? (

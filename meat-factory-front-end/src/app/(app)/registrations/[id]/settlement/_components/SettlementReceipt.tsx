@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ResultOf } from "@graphql-typed-document-node/core";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RegistrationDetailDoc } from "@/lib/queries/registration";
+import type { RegistrationDetail } from "@/lib/queries/registration";
+import { SettlementBreakdown } from "@/components/registration/SettlementBreakdown";
 import { PAYMENT_STATUS_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
 import { fmtDateTime } from "@/lib/format/date";
@@ -26,11 +25,7 @@ import { SignatureField } from "@/components/common/SignatureField";
 
 // Derive the (deeply-nested) registration + settlement shapes straight from
 // the query document, so the receipt always matches what the page fetches.
-type Reg = NonNullable<
-  NonNullable<
-    ResultOf<typeof RegistrationDetailDoc>["registration"]
-  >["registration"]
->;
+type Reg = RegistrationDetail;
 type Settlement = NonNullable<Reg["settlement"]>;
 
 // Read-only settlement receipt (printable). All actions (pay / partial-pay /
@@ -63,6 +58,40 @@ export function SettlementReceipt({
     (b) => Number(b.count ?? 0) > 0 && Number(b.unitPrice ?? 0) > 0,
   );
 
+  // Herder-facing: гэдэс bundles only, never the items inside.
+  const bundleList = bundles.length > 0 ? (
+    <div className="space-y-0.5 rounded-md border bg-muted/20 p-3">
+      <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+        Дайвар
+      </div>
+      {bundles.map((b) => {
+        const kept = Number(b.count ?? 0) - Number(b.herderCount ?? 0);
+        const price = Number(b.unitPrice ?? 0);
+        return (
+          <div key={b.wrapperId ?? b.constantId} className="space-y-0.5">
+            {kept > 0 ? (
+              <div className="flex justify-between gap-3">
+                <span>
+                  {b.animalType} · {b.name} {kept} ×{" "}
+                  {formatNumber(price)}
+                </span>
+                <span className="tabular-nums">
+                  {formatNumber(kept * price)}
+                </span>
+              </div>
+            ) : null}
+            {Number(b.herderCount ?? 0) > 0 ? (
+              <div className="flex justify-between gap-3 text-muted-foreground">
+                <span>{b.name} малчинд</span>
+                <span className="tabular-nums">{b.herderCount} ш</span>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   // Print button lives in the page header (settlement-client).
   return (
     <section data-print="settlement">
@@ -85,87 +114,22 @@ export function SettlementReceipt({
                 : "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400"
             }
           >
-            {existing.isPaid
-              ? PAYMENT_STATUS_MN.PAID
-              : PAYMENT_STATUS_MN.PENDING}
+            {
+              PAYMENT_STATUS_MN[
+                existing.isPaid
+                  ? "PAID"
+                  : Number(existing.paidAmount ?? 0) > 0
+                    ? "PARTIALLY_PAID"
+                    : "PENDING"
+              ]
+            }
           </Badge>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Төрөл</TableHead>
-                <TableHead>Хүлээн авсан</TableHead>
-                <TableHead>Үнэ/кг</TableHead>
-                <TableHead>Мах</TableHead>
-                <TableHead>Дайвар</TableHead>
-                <TableHead>Бой зардал</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {compact(existing.lines).map((l) => (
-                <TableRow key={l.id!}>
-                  <TableCell>{l.animalType}</TableCell>
-                  <TableCell>{formatNumber(l.receivedWeightKg)}</TableCell>
-                  <TableCell>{formatNumber(l.pricePerKg)}</TableCell>
-                  <TableCell>{formatNumber(l.meatAmount)}</TableCell>
-                  <TableCell>{formatNumber(l.byproductAmount)}</TableCell>
-                  <TableCell>{formatNumber(l.slaughterCost)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {/* Herder-facing: гэдэс bundles only, never the items inside. */}
-          {bundles.length > 0 ? (
-            <div className="space-y-0.5 rounded-md border bg-muted/20 p-3">
-              <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-                Дайвар
-              </div>
-              {bundles.map((b) => {
-                const kept = Number(b.count ?? 0) - Number(b.herderCount ?? 0);
-                const price = Number(b.unitPrice ?? 0);
-                return (
-                  <div key={b.wrapperId ?? b.constantId} className="space-y-0.5">
-                    {kept > 0 ? (
-                      <div className="flex justify-between gap-3">
-                        <span>
-                          {b.animalType} · {b.name} {kept} ×{" "}
-                          {formatNumber(price)}
-                        </span>
-                        <span className="tabular-nums">
-                          {formatNumber(kept * price)}
-                        </span>
-                      </div>
-                    ) : null}
-                    {Number(b.herderCount ?? 0) > 0 ? (
-                      <div className="flex justify-between gap-3 text-muted-foreground">
-                        <span>{b.name} малчинд</span>
-                        <span className="tabular-nums">{b.herderCount} ш</span>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-          <Separator />
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <div className="text-muted-foreground">Нийт мах</div>
-            <div className="text-right">
-              {formatNumber(existing.totalMeatAmount)}
-            </div>
-            <div className="text-muted-foreground">Бой зардал</div>
-            <div className="text-right">
-              −{formatNumber(existing.totalSlaughterCost)}
-            </div>
-            <div className="text-muted-foreground">Дайвар</div>
-            <div className="text-right">
-              +{formatNumber(existing.totalByproductAmount)}
-            </div>
-            <div className="text-base font-semibold">Малчинд өгөх дүн</div>
-            <div className="text-right text-base font-semibold">
-              {formatNumber(existing.netPayable)}
-            </div>
+          <SettlementBreakdown
+            s={existing}
+            itemized={bundleList}
+          >
             {Number(existing.heldAmount ?? 0) > 0 ? (
               <>
                 <div className="text-muted-foreground">Олгосон дүн</div>
@@ -192,7 +156,7 @@ export function SettlementReceipt({
                 </div>
               </>
             ) : null}
-          </div>
+          </SettlementBreakdown>
 
           {/* Payout destination block — prints on the receipt so the
               herder sees exactly which account got the money. Falls

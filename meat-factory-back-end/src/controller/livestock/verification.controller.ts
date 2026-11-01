@@ -1,7 +1,6 @@
 import sequelize from "../../config/db-connection";
 import { AdminController } from "../user/admin.controller";
 import { PERMISSION } from "../../types/user/permission.type";
-import { FactoryController } from "../factory/factory.controller";
 import { VerificationModel } from "../../models/livestock/verification.model";
 import { RegistrationModel } from "../../models/livestock/registration.model";
 import { FileController } from "../global/file.controller";
@@ -52,31 +51,17 @@ export class VerificationController {
     doc: TVerifyInput,
     context: TContext,
   ): Promise<VerificationModel> {
-    AdminController.assertPermission(context, PERMISSION.REGISTRATION_VERIFY);
-
-    const reg = await RegistrationController.findIdCheck(
-      doc.registrationId,
-      context,
-    );
-    if (FactoryController.isPreButchered(reg.factory))
-      throw new Error("Задалсан мах хүлээн авах үйлдвэрт баталгаажуулалт хийгдэхгүй");
-    RegistrationController.assertStatus(reg, [REGISTRATION_STATUS.WEIGHED]);
-
     // Herder consent is signed by hand on the printed weigh slip — no
     // on-screen signature required.
-
     if (doc.photoFileId) await FileController.findIdCheck(doc.photoFileId);
 
-    // Meat becomes factory inventory right here — slaughtered + weighed +
-    // verified is "officially factory meat" regardless of when the herder
-    // is actually paid (see InventoryController.
-    // ingestFromRegistration). No Settlement needs to exist yet.
-    const meatLines = await WeighingController.meatStockLines(
-      doc.registrationId,
-      reg.factory,
-    );
-
     return await sequelize.transaction(async (t) => {
+      const reg = await RegistrationController.lock(
+        doc.registrationId,
+        context,
+        t,
+      );
+      RegistrationController.assertCan(reg, context, "verify");
       const [verification] = await VerificationModel.findOrCreate({
         where: { registrationId: doc.registrationId },
         defaults: {
@@ -100,10 +85,12 @@ export class VerificationController {
         { transaction: t },
       );
 
+      // Meat becomes factory stock right here — slaughtered + weighed +
+      // verified is "officially factory meat" whenever the herder is paid.
       await InventoryController.ingestFromRegistration(
         doc.registrationId,
         MOVEMENT_SOURCE.VERIFICATION,
-        meatLines,
+        await WeighingController.meatStockLines(reg.id, reg.factory, t),
         t,
       );
 

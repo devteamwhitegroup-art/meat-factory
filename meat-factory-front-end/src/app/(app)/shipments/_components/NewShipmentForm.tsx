@@ -16,7 +16,7 @@ import {
   CreateShipmentDoc,
   NextShipmentSerialDoc,
 } from "@/lib/queries/shipment";
-import { unwrap } from "@/lib/unwrap";
+import { runMutation } from "@/lib/runMutation";
 import { PhotoUpload } from "@/components/common/PhotoUpload";
 import { SHIPMENT_CATEGORY_MN, DOMESTIC_MARKET_MN } from "@/lib/format/enum";
 import { CustomerCombobox, type CustomerLite } from "./CustomerCombobox";
@@ -104,31 +104,37 @@ export function NewShipmentForm({
       return;
     }
     setBusy(true);
-    try {
-      const r = await createShipment({
-        variables: {
-          factory: crossFactory ? (factory as never) : null,
-          category,
-          domesticMarket: isDomestic ? domesticMarket : null,
-          customerId,
-          vehiclePlate: vehiclePlate.trim() || null,
-          driverName: driverName.trim() || null,
-          driverPhone: driverPhone.trim() || null,
-          sealNumber: sealNumber.trim() || null,
-          notes: notes.trim() || null,
-          photoFileId: photoFileId ?? null,
+    let id: string | null | undefined;
+    await runMutation(
+      async () => {
+        const env = (
+          await createShipment({
+            variables: {
+              factory: crossFactory ? (factory as never) : null,
+              category,
+              domesticMarket: isDomestic ? domesticMarket : null,
+              customerId,
+              vehiclePlate: vehiclePlate.trim() || null,
+              driverName: driverName.trim() || null,
+              driverPhone: driverPhone.trim() || null,
+              sealNumber: sealNumber.trim() || null,
+              notes: notes.trim() || null,
+              photoFileId: photoFileId ?? null,
+            },
+          })
+        ).data?.createShipment;
+        id = env?.shipment?.id;
+        return env;
+      },
+      {
+        success: (d) => `Ачилт ${d.shipment?.shipmentCode ?? ""} үүсгэгдлээ`,
+        onSuccess: () => {
+          clearDraft();
+          router.push(id ? `/shipments/${id}` : "/shipments");
         },
-      });
-      const sh = unwrap(r.data?.createShipment).shipment;
-      if (!sh?.id) throw new Error("Хариу буцаасангүй");
-      clearDraft();
-      toast.success(`Ачилт ${sh.shipmentCode} үүсгэгдлээ`);
-      router.push(`/shipments/${sh.id}`);
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+      },
+    );
+    setBusy(false);
   }
 
   return (

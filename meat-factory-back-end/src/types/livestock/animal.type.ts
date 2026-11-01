@@ -1,12 +1,14 @@
 // Per-animal-type catalogue config. The ANIMAL_TYPE enum was removed — the
 // unique `name` (Үхэр, Хонь, Адуу, …) is now the identity, admin-managed.
 //   isExport — meat allowed on export shipments (only horse, for now).
+//   requiresStamp — live intake of this animal needs the brand mark (тамга).
 //   pricePerAnimal — slaughter (бой) cost per head; pre-fills settlement.
 // Hierarchy: Animal → ByproductWrapper → ByproductConstant.
 export type TAnimal = {
   id: string;
   name: string;
   isExport: boolean;
+  requiresStamp: boolean;
   pricePerAnimal: number;
   // Carcass-to-saleable yield (%) applied when meat hits inventory.
   yieldPercent: number;
@@ -20,6 +22,7 @@ export type TUpsertAnimal = {
   id?: string;
   name: string;
   isExport?: boolean;
+  requiresStamp?: boolean;
   pricePerAnimal?: number;
   yieldPercent?: number;
   isActive?: boolean;

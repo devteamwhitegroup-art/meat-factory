@@ -1,4 +1,5 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
+import { AnimalModel } from "../livestock/animal.model";
 import {
   PRODUCT_TYPE,
   TSalesLineItem,
@@ -9,11 +10,12 @@ export class SalesLineItemModel extends Model implements TSalesLineItem {
   public id!: string;
   public salesTransactionId!: string;
   public productType!: PRODUCT_TYPE;
-  public animalType!: string | null;
+  public animalId!: string | null;
   public byproductName!: string | null;
   public quantityKg!: number;
   public unitPrice!: number | null;
   public lineAmount!: number | null;
+  public animal?: AnimalModel;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -23,6 +25,10 @@ export class SalesLineItemModel extends Model implements TSalesLineItem {
     this.belongsTo(SalesTransactionModel, {
       as: "salesTransaction",
       foreignKey: { name: "salesTransactionId", allowNull: false },
+    });
+    this.belongsTo(AnimalModel, {
+      as: "animal",
+      foreignKey: { name: "animalId", allowNull: true },
     });
   }
 }
@@ -40,8 +46,8 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
         type: DataTypes.ENUM(...Object.values(PRODUCT_TYPE)),
         allowNull: false,
       },
-      animalType: {
-        type: DataTypes.STRING,
+      animalId: {
+        type: DataTypes.UUID,
         allowNull: true,
         defaultValue: null,
       },
@@ -73,7 +79,7 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
       sequelize,
       indexes: [
         { fields: ["sales_transaction_id"] },
-        { fields: ["product_type", "animal_type"] },
+        { fields: ["product_type", "animal_id"] },
         { fields: ["product_type", "byproduct_name"] },
       ],
     },

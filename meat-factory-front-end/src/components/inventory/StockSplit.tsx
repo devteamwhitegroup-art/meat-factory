@@ -9,11 +9,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/common/ListState";
 import { PRODUCT_TYPE_MN } from "@/lib/format/enum";
 import { formatNumber } from "@/lib/format/money";
+import { productLabel } from "@/lib/format/product";
+import { CHART_COLORS } from "@/components/dashboard/BreakdownPie";
 
 // Tab-split inventory view. Server passes the already-fetched items; we
 // partition client-side by productType so there's no extra round-trip.
@@ -29,26 +30,8 @@ type Item = {
   quantityCount?: number;
 };
 
-// Fixed palette so each animal type keeps the same colour across renders
-// (matches the dashboard pie's visual language).
-const ANIMAL_COLORS: Record<string, string> = {
-  COW: "bg-rose-500",
-  SHEEP: "bg-amber-500",
-  HORSE: "bg-violet-500",
-  GOAT: "bg-teal-500",
-  CAMEL: "bg-sky-500",
-};
-
-// animalType → display name comes from the Animals catalogue (admin-editable),
-// passed in by the server page. Falls back to the raw type code.
-function meatLabel(i: Item): string {
-  const t = i.animalType ?? "";
-  return t ? `${t} мах` : "—";
-}
-
-function byproductLabel(i: Item): string {
-  return i.byproductName ?? "—";
-}
+const label = (i: Item) =>
+  productLabel(i.productType, i.animalType, i.byproductName) || "—";
 
 export function StockSplit({
   items,
@@ -122,15 +105,11 @@ export function StockSplit({
 
 function MeatPanel({ items, total }: { items: Item[]; total: number }) {
   // Sort animals descending by kg so the largest segment is on the left
-  // of the proportional bar.
+  // of the proportional bar; colour by rank, like the dashboard pie.
   const sorted = [...items]
-    .map((i) => ({
-      ...i,
-      kg: Number(i.quantityKg ?? 0),
-      label: meatLabel(i),
-      color: ANIMAL_COLORS[i.animalType ?? ""] ?? "bg-slate-400",
-    }))
-    .sort((a, b) => b.kg - a.kg);
+    .map((i) => ({ ...i, kg: Number(i.quantityKg ?? 0), label: label(i) }))
+    .sort((a, b) => b.kg - a.kg)
+    .map((i, n) => ({ ...i, color: CHART_COLORS[n % CHART_COLORS.length] }));
   const nonZero = sorted.filter((i) => i.kg > 0);
 
   return (
@@ -142,8 +121,11 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
             {nonZero.map((i) => (
               <div
                 key={i.id}
-                className={cn(i.color, "h-full")}
-                style={{ width: `${(i.kg / total) * 100}%` }}
+                className="h-full"
+                style={{
+                  width: `${(i.kg / total) * 100}%`,
+                  backgroundColor: i.color,
+                }}
                 title={`${i.label}: ${formatNumber(i.kg)} кг`}
               />
             ))}
@@ -154,7 +136,8 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
               return (
                 <li key={i.id} className="flex items-center gap-2 text-sm">
                   <span
-                    className={cn("inline-block h-3 w-3 rounded-sm", i.color)}
+                    className="inline-block h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: i.color }}
                   />
                   <span className="flex-1">{i.label}</span>
                   <span className="tabular-nums text-muted-foreground">
@@ -198,8 +181,11 @@ function MeatPanel({ items, total }: { items: Item[]; total: number }) {
                       <div className="flex items-center gap-2">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                           <div
-                            className={cn(i.color, "h-full")}
-                            style={{ width: `${pct}%` }}
+                            className="h-full"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: i.color,
+                            }}
                           />
                         </div>
                         <span className="w-10 text-right tabular-nums text-xs text-muted-foreground">
@@ -236,7 +222,7 @@ function ByproductPanel({
     .map((i) => ({
       ...i,
       kg: Number(i.quantityKg ?? 0),
-      label: byproductLabel(i),
+      label: label(i),
     }))
     .filter((i) => !countOnly || (i.quantityCount ?? 0) > 0)
     .sort((a, b) =>

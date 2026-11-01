@@ -1,4 +1,7 @@
-import { ShipmentController } from "../../../controller/shipment/shipment.controller";
+import {
+  ShipmentController,
+  saleTotals,
+} from "../../../controller/shipment/shipment.controller";
 import {
   SHIPMENT_STATUS,
   TCreateShipment,
@@ -6,41 +9,32 @@ import {
 } from "../../../types/shipment/shipment.type";
 import { PRODUCT_TYPE } from "../../../types/sales/sales-transaction.type";
 import { CostingController } from "../../../controller/inventory/costing.controller";
+import { AnimalController } from "../../../controller/livestock/animal.controller";
 import { ShipmentSaleLineModel } from "../../../models/shipment/shipment-sale-line.model";
+import { ShipmentCargoEntryModel } from "../../../models/shipment/shipment-cargo-entry.model";
 import { TShipmentSaleEntry } from "../../../types/shipment/shipment-sale-line.type";
-import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { round2, wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
 
 export default {
+  ShipmentCargoEntry: {
+    animalType: (row: ShipmentCargoEntryModel) => AnimalController.nameOf(row),
+  },
   // Report-derived totals — computed on read from the included entries.
   ShipmentSaleLine: {
-    soldKg: (line: ShipmentSaleLineModel): number =>
-      Number(
-        (line.entries ?? [])
-          .reduce((s, e) => s + Number(e.weightKg), 0)
-          .toFixed(2),
-      ),
-    amount: (line: ShipmentSaleLineModel): number | null =>
-      line.entries?.length
-        ? Number(
-            line.entries
-              .reduce(
-                (s, e) => s + Number(e.weightKg) * Number(e.pricePerKg),
-                0,
-              )
-              .toFixed(2),
-          )
-        : null,
+    animalType: (row: ShipmentSaleLineModel) => AnimalController.nameOf(row),
+    soldKg: (line: ShipmentSaleLineModel) => saleTotals(line.entries ?? []).soldKg,
+    amount: (line: ShipmentSaleLineModel) => saleTotals(line.entries ?? []).amount,
   },
   ShipmentSaleEntry: {
     amount: (e: TShipmentSaleEntry): number =>
-      Number((Number(e.weightKg) * Number(e.pricePerKg)).toFixed(2)),
+      round2(Number(e.weightKg) * Number(e.pricePerKg)),
   },
   Query: {
     shipments: wrapList("shipments", (doc: TGetShipments, ctx) =>
       ShipmentController.list(doc, ctx),
     ),
-    shipment: wrapOne("shipment", ({ id }: { id: string }) =>
-      ShipmentController.getById(id),
+    shipment: wrapOne("shipment", ({ id }: { id: string }, ctx) =>
+      ShipmentController.getById(id, ctx),
     ),
     shipmentStock: wrapItems(
       "items",
@@ -50,8 +44,8 @@ export default {
     nextShipmentSerial: wrapOne("serialNumber", () =>
       ShipmentController.previewNextSerial(),
     ),
-    shipmentAnalytics: wrapOne("analytics", ({ id }: { id: string }) =>
-      CostingController.shipmentAnalytics(id),
+    shipmentAnalytics: wrapOne("analytics", ({ id }: { id: string }, ctx) =>
+      CostingController.shipmentAnalytics(id, ctx),
     ),
   },
   Mutation: {
@@ -62,8 +56,8 @@ export default {
     ),
     updateShipmentStatus: wrapOne(
       "shipment",
-      ({ id, status }: { id: string; status: SHIPMENT_STATUS }) =>
-        ShipmentController.updateStatus(id, status),
+      ({ id, status }: { id: string; status: SHIPMENT_STATUS }, ctx) =>
+        ShipmentController.updateStatus(id, status, ctx),
       "Shipment status updated",
     ),
     addShipmentSaleEntry: wrapOne(
@@ -81,7 +75,8 @@ export default {
     ),
     deleteShipmentSaleEntry: wrapVoid(
       "Борлуулалтын мөр устгагдлаа",
-      ({ id }: { id: string }) => ShipmentController.deleteSaleEntry(id),
+      ({ id }: { id: string }, ctx) =>
+        ShipmentController.deleteSaleEntry(id, ctx),
     ),
     addCargoEntry: wrapOne(
       "cargoEntry",
@@ -90,7 +85,6 @@ export default {
           shipmentId: string;
           productType: PRODUCT_TYPE;
           animalType?: string | null;
-          byproductName?: string | null;
           sourceConstantId?: string | null;
           productLabel?: string | null;
           pieceCount?: number | null;
@@ -105,7 +99,6 @@ export default {
           {
             productType: doc.productType,
             animalType: doc.animalType ?? null,
-            byproductName: doc.byproductName ?? null,
             sourceConstantId: doc.sourceConstantId ?? null,
             productLabel: doc.productLabel ?? null,
             pieceCount: doc.pieceCount ?? null,
@@ -136,24 +129,23 @@ export default {
         driverName?: string | null;
         driverPhone?: string | null;
         sealNumber?: string | null;
-      }) =>
-        ShipmentController.updateLoadingInfo(id, {
-          vehiclePlate,
-          driverName,
-          driverPhone,
-          sealNumber,
-        }),
+      }, ctx) =>
+        ShipmentController.updateLoadingInfo(
+          id,
+          { vehiclePlate, driverName, driverPhone, sealNumber },
+          ctx,
+        ),
       "Ачилтын мэдээлэл хадгалагдлаа",
     ),
     addShipmentPhoto: wrapOne(
       "photo",
-      ({ shipmentId, fileId }: { shipmentId: string; fileId: string }) =>
-        ShipmentController.addPhoto(shipmentId, fileId),
+      ({ shipmentId, fileId }: { shipmentId: string; fileId: string }, ctx) =>
+        ShipmentController.addPhoto(shipmentId, fileId, ctx),
       "Зураг нэмэгдлээ",
     ),
     removeShipmentPhoto: wrapVoid(
       "Зураг устгагдлаа",
-      ({ id }: { id: string }) => ShipmentController.removePhoto(id),
+      ({ id }: { id: string }, ctx) => ShipmentController.removePhoto(id, ctx),
     ),
   },
 };

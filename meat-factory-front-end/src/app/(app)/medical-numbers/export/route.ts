@@ -7,7 +7,7 @@ import { unwrapList } from "@/lib/unwrap";
 import { fmtDate, fmtDateTime } from "@/lib/format/date";
 import { MEDICAL_NUMBER_STATUS_MN } from "@/lib/format/enum";
 import { getFactories } from "@/lib/factory/server";
-import { pageAndRange } from "@/lib/date/range";
+import { pageAndRange, ymd } from "@/lib/date/range";
 import { factoryName } from "@/lib/factory/factories";
 import type { Medical_Number_Status } from "@/lib/gql/graphql";
 
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
   sheet["!cols"] = [12, 12, 18, 14, 24, 12, 14, 16, 16].map((wch) => ({ wch }));
   const book = utils.book_new(sheet, "Эмнэлгийн дугаар");
 
-  const date = new Date().toISOString().slice(0, 10);
+  const date = ymd(new Date());
   return new Response(write(book, { type: "array", bookType: "xlsx" }), {
     headers: {
       "Content-Type":

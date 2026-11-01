@@ -282,11 +282,9 @@ export default `#graphql
             shipmentId: ID!
             # MEAT or BYPRODUCT. EXPORT shipments accept MEAT/HORSE only.
             productType: PRODUCT_TYPE!
-            # Required for MEAT lines (EXPORT ⇒ HORSE).
+            # MEAT lines: the animal catalogue name (EXPORT ⇒ isExport animals).
             animalType: String
-            # BYPRODUCT lines: pass sourceConstantId (name derived) or a
-            # free-form byproductName.
-            byproductName: String
+            # BYPRODUCT lines: the catalogue constant (name + animal derived).
             sourceConstantId: ID
             # Optional sub-cut label; defaults to the picked type's name.
             productLabel: String

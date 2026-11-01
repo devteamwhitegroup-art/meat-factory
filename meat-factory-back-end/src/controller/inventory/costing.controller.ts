@@ -4,7 +4,11 @@ import { WeighingEntryModel } from "../../models/livestock/weighing-entry.model"
 import { AnimalModel } from "../../models/livestock/animal.model";
 import { ShipmentSaleLineModel } from "../../models/shipment/shipment-sale-line.model";
 import { ShipmentSaleEntryModel } from "../../models/shipment/shipment-sale-entry.model";
-import { ShipmentController } from "../shipment/shipment.controller";
+import { ShipmentController, saleTotals } from "../shipment/shipment.controller";
+import { AdminController } from "../user/admin.controller";
+import { TContext } from "../../types/global/global.type";
+import { round2 } from "../../utils";
+import { fn, literal } from "sequelize";
 import {
   MOVEMENT_SOURCE,
   MOVEMENT_TYPE,
@@ -56,31 +60,36 @@ export function runFifo(moves: FifoMove[]): {
   return { outCost, lots };
 }
 
-const round2 = (n: number) => Number(n.toFixed(2));
 const perKg = (amount: number, kg: number) =>
   kg > 0 ? round2(amount / kg) : null;
+
+type Replay = { outCost: Map<string, number>; lots: Lot[] };
 
 // Meat cost, first-in-first-out. Every stock IN of a meat SKU is a lot
 // costed at what the herder was paid for that animal on that registration
 // (Σ weighed kg × price) ÷ the kg that entered stock — so the yield
-// haircut (horse 70%) is priced in. Manual IN has no purchase price: it is
-// costed at the average of what's on hand. OUT (shipments, manual) takes the
-// oldest lots first, so the cost of what remains shifts as lots run out.
-// ponytail: recomputed by replaying the SKU's ledger on each read (no lot
+// haircut (horse 70%) is priced in. Manual / transfer IN has no purchase
+// price: it is costed at the average of what's on hand. OUT (shipments,
+// manual) takes the oldest lots first.
+// ponytail: recomputed by replaying the SKU ledgers on each read (no lot
 // table, works on existing data); materialise lots if ledgers get long.
+// Known gap: a factory transfer doesn't carry its cost to the receiver.
 export class CostingController {
+  // Replay several meat SKUs' ledgers: 2 queries total, not 2 per item.
   private static async _replay(
-    item: InventoryItemModel,
-  ): Promise<{ outCost: Map<string, number>; lots: Lot[] }> {
+    items: InventoryItemModel[],
+  ): Promise<Map<string, Replay>> {
+    const out = new Map<string, Replay>();
+    if (!items.length) return out;
     const moves = await InventoryMovementModel.findAll({
-      where: { inventoryItemId: item.id },
+      where: { inventoryItemId: items.map((i) => i.id) },
       order: [
         ["createdAt", "ASC"],
         ["id", "ASC"],
       ],
     });
 
-    // Herder payment for this animal per source registration.
+    // Herder payment per (registration, animal) for the IN lots.
     const regIds = [
       ...new Set(
         moves
@@ -90,41 +99,53 @@ export class CostingController {
       ),
     ];
     const paid = new Map<string, number>();
-    if (regIds.length > 0 && item.animalId) {
-      const weighings = await WeighingEntryModel.findAll({
-        where: { registrationId: regIds, animalId: item.animalId },
-      });
-      for (const w of weighings)
-        paid.set(
-          w.registrationId,
-          (paid.get(w.registrationId) ?? 0) +
-            Number(w.weightKg) * Number(w.pricePerKg ?? 0),
-        );
+    if (regIds.length) {
+      const rows = (await WeighingEntryModel.findAll({
+        attributes: [
+          "registrationId",
+          "animalId",
+          [
+            fn("SUM", literal("weight_kg * COALESCE(price_per_kg, 0)")),
+            "amount",
+          ],
+        ],
+        where: { registrationId: regIds },
+        group: ["registration_id", "animal_id"],
+        raw: true,
+      })) as unknown as {
+        registrationId: string;
+        animalId: string;
+        amount: string;
+      }[];
+      for (const r of rows)
+        paid.set(`${r.registrationId}|${r.animalId}`, Number(r.amount));
     }
 
-    return runFifo(
-      moves.map((m) => {
-        const kg = Number(m.quantityKg);
-        const p = m.sourceRegistrationId
-          ? paid.get(m.sourceRegistrationId)
-          : undefined;
-        return {
-          id: m.id,
-          out: m.movementType === MOVEMENT_TYPE.OUT,
-          kg,
-          unitCost: p != null && kg > 0 ? p / kg : null,
-        };
-      }),
-    );
+    const byItem = new Map(items.map((i) => [i.id, [] as FifoMove[]]));
+    const animalOf = new Map(items.map((i) => [i.id, i.animalId]));
+    for (const m of moves) {
+      const kg = Number(m.quantityKg);
+      const p = m.sourceRegistrationId
+        ? paid.get(`${m.sourceRegistrationId}|${animalOf.get(m.inventoryItemId)}`)
+        : undefined;
+      byItem.get(m.inventoryItemId)!.push({
+        id: m.id,
+        out: m.movementType === MOVEMENT_TYPE.OUT,
+        kg,
+        unitCost: p != null && kg > 0 ? p / kg : null,
+      });
+    }
+    for (const [id, ms] of byItem) out.set(id, runFifo(ms));
+    return out;
   }
 
   // Admin: per meat type — kg loaded vs FIFO cost, kg sold vs reported
   // income. Cost is known once DELIVERED (that's when stock goes OUT).
-  static async shipmentAnalytics(shipmentId: string) {
-    const shipment = await ShipmentController.findIdCheck(shipmentId);
+  static async shipmentAnalytics(shipmentId: string, context: TContext) {
+    const shipment = await ShipmentController.load(shipmentId, context);
     const costKnown = shipment.status === SHIPMENT_STATUS.DELIVERED;
 
-    const costByAnimal = new Map<string, number>();
+    const costByAnimal = new Map<string | null, number>();
     if (costKnown) {
       const outs = await InventoryMovementModel.findAll({
         where: {
@@ -137,40 +158,38 @@ export class CostingController {
             model: InventoryItemModel,
             as: "item",
             where: { productType: PRODUCT_TYPE.MEAT },
-            include: [{ model: AnimalModel, as: "animal" }],
           },
         ],
       });
+      const replays = await this._replay([
+        ...new Map(outs.map((m) => [m.item!.id, m.item!])).values(),
+      ]);
       for (const m of outs) {
-        const { outCost } = await this._replay(m.item!);
-        const name = m.item?.animal?.name ?? "";
-        costByAnimal.set(
-          name,
-          (costByAnimal.get(name) ?? 0) + (outCost.get(m.id) ?? 0),
-        );
+        const cost = replays.get(m.item!.id)?.outCost.get(m.id) ?? 0;
+        const a = m.item!.animalId;
+        costByAnimal.set(a, (costByAnimal.get(a) ?? 0) + cost);
       }
     }
 
     const saleLines = await ShipmentSaleLineModel.findAll({
       where: { shipmentId, productType: PRODUCT_TYPE.MEAT },
-      include: [{ model: ShipmentSaleEntryModel, as: "entries" }],
+      include: [
+        { model: ShipmentSaleEntryModel, as: "entries" },
+        { model: AnimalModel, as: "animal", attributes: ["name"] },
+      ],
     });
     const lines = saleLines.map((l) => {
-      const entries = l.entries ?? [];
       const shippedKg = Number(l.totalWeightKg);
-      const soldKg = entries.reduce((s, e) => s + Number(e.weightKg), 0);
-      const income = entries.reduce(
-        (s, e) => s + Number(e.weightKg) * Number(e.pricePerKg),
-        0,
-      );
-      const cost = costKnown ? (costByAnimal.get(l.animalType ?? "") ?? 0) : 0;
+      const { soldKg, amount } = saleTotals(l.entries ?? []);
+      const income = amount ?? 0;
+      const cost = costByAnimal.get(l.animalId) ?? 0;
       return {
-        animalType: l.animalType,
+        animalType: l.animal?.name ?? null,
         shippedKg: round2(shippedKg),
         cost: costKnown ? round2(cost) : null,
         avgCostPerKg: costKnown ? perKg(cost, shippedKg) : null,
-        soldKg: round2(soldKg),
-        income: round2(income),
+        soldKg,
+        income,
         avgIncomePerKg: perKg(income, soldKg),
       };
     });
@@ -192,8 +211,9 @@ export class CostingController {
   }
 
   // Admin: what the meat on hand cost (remaining FIFO lots), per factory and
-  // animal type.
-  static async valuation(factory?: string | null) {
+  // animal type. Factory-scoped staff see only their own site.
+  static async valuation(context: TContext, requested?: string | null) {
+    const factory = AdminController.readFactory(context, requested);
     const items = await InventoryItemModel.findAll({
       where: {
         productType: PRODUCT_TYPE.MEAT,
@@ -202,9 +222,10 @@ export class CostingController {
       include: [{ model: AnimalModel, as: "animal" }],
       order: [["sku", "ASC"]],
     });
+    const replays = await this._replay(items);
     const rows = [];
     for (const item of items) {
-      const { lots } = await this._replay(item);
+      const { lots } = replays.get(item.id)!;
       const kg = lots.reduce((s, l) => s + l.kg, 0);
       if (kg <= 1e-9) continue;
       const value = lots.reduce((s, l) => s + l.kg * l.unitCost, 0);

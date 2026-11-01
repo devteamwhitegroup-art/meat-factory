@@ -84,12 +84,12 @@ export default async function ByproductAnalyticsPage({
                     <TableCell className="text-right">
                       <Diff
                         // 0 expected with no % = norm had no weight.
-                        expected={
+                        diffKg={
                           s.diffPercent == null && !s.expectedKg
                             ? null
-                            : (s.expectedKg ?? 0)
+                            : s.diffKg
                         }
-                        actual={s.actualKg ?? 0}
+                        diffPercent={s.diffPercent}
                       />
                     </TableCell>
                   </TableRow>

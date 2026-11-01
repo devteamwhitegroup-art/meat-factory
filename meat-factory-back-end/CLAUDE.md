@@ -41,6 +41,30 @@ order, include, distinct})` from `src/utils`. `findIdCheck` is a PUBLIC
   cross-controller FK guard (e.g. ShipmentController calls
   CustomerController.findIdCheck) — keep it, just delegate to `findOrThrow`.
   Wrap pg DECIMAL reads in `Number()`. Every catch → `errorMessage(error)`.
+- **Single sources — use these, never re-derive inline** (2026-11 refactor):
+  - Money: `round2(n)` + `EPS` (`src/utils`), not `Number(x.toFixed(2))`.
+  - Generated codes (REG-/SHIP-/sales): `createWithUniqueCode((attempt, t) =>
+    insert, parentT?)` — retries a UNIQUE clash in a SAVEPOINT.
+  - Factory-kind rules: `FactoryController.rules(code)` → `KIND_RULES`
+    (`takesIntake`, `liveAnimals`, `processesByproducts`) in
+    `types/factory/factory.type.ts`. No kind/code comparisons in controllers.
+  - Registration status × permission rules: `RegistrationController.blocker /
+    assertCan(reg, ctx, action)`; mutations load with `lock(id, ctx, t)`
+    (row lock + factory check). GraphQL `Registration.can` exposes the same
+    table — the FE never re-derives it.
+  - Settlement money: `SettlementController.compute(reg, t?)` is THE formula
+    (create, weigh-fix `recompute`, `Registration.settlementPreview`, weigh
+    slip). Weight fixes before payout rebuild the settlement in the same tx.
+  - Stock identity: `stockKey()` / `stockLabel()` (inventory controller) —
+    `MEAT:<animalId>` | `BYPN:<animalId>:<name>`; `InventoryController.
+    available(factory, t?)` = on hand − open cargo. Stored rows keep
+    `animalId` (never the animal name); GraphQL `animalType` resolves via
+    `AnimalController.nameOf`. Name inputs → `AnimalController.byNames`.
+  - Shipments: every operation goes through `ShipmentController.load(id,
+    ctx, t?)` (factory scope; row-locked in a tx); `saleTotals(entries)` is the
+    sales-report formula.
+  - Self-checks (no DB): `npx ts-node src/controller/livestock/rules.check.ts`
+    and `src/controller/inventory/costing.check.ts`.
 - **Models**: `class XModel extends Model implements TX` + `createXModel(sequelize)`.
   `underscored: true` (snake_case columns; camelCase JS attrs + GraphQL unchanged).
   UUID PK. `index`/raw `col()`/`group` use snake_case; attribute `where`/`order` map
@@ -95,9 +119,10 @@ via `factories`/`createFactory`/`updateFactory`), cached in-process by
 stores the code. Rules branch on `FACTORY_KIND`, never on a code:
 LIVE_SLAUGHTER = live animals (stamp, бой зардал, verify). PRE_BUTCHERED = meat
 intake — no stamp/бой/verify; meat + гэдэс stock at `finishWeighing`,
-settlement from WEIGHED (`FactoryController.isPreButchered(code)`). BYPRODUCT =
-receives counted гэдэс, disassembles it, never takes livestock
-(`isByproduct`, `defaultByproductFactory`). Seeded defaults on an empty table:
+settlement from WEIGHED (`FactoryController.rules(code).liveAnimals` false).
+BYPRODUCT = receives counted гэдэс (FactoryTransfer, default receiver
+`defaultByproductFactory`), disassembles it, never takes livestock
+(`rules(code).processesByproducts`). Seeded defaults on an empty table:
 FACTORY_1/2/3. Adding a site = a row, not a code change.
 Incoming byproduct is COUNT only: `ByproductBundle` per wrapper (гэдэс) —
 count, herderCount, unitPrice; kept × price credits the settlement. Kept гэдэс

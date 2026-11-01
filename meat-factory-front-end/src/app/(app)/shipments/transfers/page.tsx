@@ -20,32 +20,30 @@ import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { FactoryTransfersDoc } from "@/lib/queries/factory-transfer";
 import { unwrapList } from "@/lib/unwrap";
 import { fmtDateTime } from "@/lib/format/date";
+import {
+  SHIPMENT_CATEGORY_MN,
+  TRANSFER_STATUS_COLOR,
+  TRANSFER_STATUS_MN,
+} from "@/lib/format/enum";
 import { transferLineText } from "./_components/transfer-line";
 import { TransferActions } from "./_components/TransferActions";
 import { PageHeader } from "@/components/common/PageHeader";
 
+// In-transit first (the default); "Бүгд" last.
 const STATUS_TABS = [
-  { value: "IN_TRANSIT", label: "Замд" },
-  { value: "RECEIVED", label: "Хүлээн авсан" },
-  { value: "CANCELLED", label: "Цуцалсан" },
+  ...Object.entries(TRANSFER_STATUS_MN).map(([value, label]) => ({
+    value,
+    label,
+  })),
   { value: "ALL", label: "Бүгд" },
 ];
-
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  IN_TRANSIT: { label: "Замд", cls: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400" },
-  RECEIVED: {
-    label: "Хүлээн авсан",
-    cls: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
-  },
-  CANCELLED: { label: "Цуцалсан", cls: "border-0 bg-slate-200 text-slate-700" },
-};
 
 type Props = { searchParams: Promise<{ status?: string; factory?: string }> };
 
 // Factory → factory shipments (no customer / invoice). The receiving factory
 // confirms on arrival; the sender may cancel while it's in transit.
 export default async function FactoryTransfersPage({ searchParams }: Props) {
-  const session = await requireCap("SHIPMENT_VIEW");
+  const session = await requireCap("SHIPMENT_VIEW", "BYPRODUCT_TRANSFER", "BYPRODUCT_PROCESS");
   const factories = await getFactories();
   const sp = await searchParams;
   const status = STATUS_TABS.some((t) => t.value === sp.status)
@@ -99,11 +97,11 @@ export default async function FactoryTransfersPage({ searchParams }: Props) {
       />
       <div className={SEGMENTED}>
         <Link href="/shipments?tab=domestic" className={segmentCls(false)}>
-          Дотоод
+          {SHIPMENT_CATEGORY_MN.DOMESTIC}
         </Link>
         {noExport ? null : (
           <Link href="/shipments?tab=export" className={segmentCls(false)}>
-            Экспорт
+            {SHIPMENT_CATEGORY_MN.EXPORT}
           </Link>
         )}
         <Link href="/shipments/transfers" className={segmentCls(true)}>
@@ -145,7 +143,6 @@ export default async function FactoryTransfersPage({ searchParams }: Props) {
             </TableHeader>
             <TableBody>
               {rows.map((t) => {
-                const badge = STATUS_BADGE[t.status ?? ""];
                 const open = t.status === "IN_TRANSIT" && canAct;
                 return (
                   <TableRow key={t.id!} className="align-top">
@@ -175,8 +172,13 @@ export default async function FactoryTransfersPage({ searchParams }: Props) {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      <Badge className={badge?.cls ?? "border-0 bg-muted"}>
-                        {badge?.label ?? t.status}
+                      <Badge
+                        className={
+                          TRANSFER_STATUS_COLOR[t.status ?? ""] ??
+                          "border-0 bg-muted"
+                        }
+                      >
+                        {TRANSFER_STATUS_MN[t.status ?? ""] ?? t.status}
                       </Badge>
                       {t.closedAt ? (
                         <div className="mt-1 text-xs text-muted-foreground">

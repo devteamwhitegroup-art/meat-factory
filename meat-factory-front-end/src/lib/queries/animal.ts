@@ -13,6 +13,7 @@ export const AnimalListDoc = graphql(/* GraphQL */ `
         id
         name
         isExport
+        requiresStamp
         pricePerAnimal
         yieldPercent
         isActive
@@ -27,6 +28,7 @@ export const UpsertAnimalDoc = graphql(/* GraphQL */ `
     $id: ID
     $name: String!
     $isExport: Boolean
+    $requiresStamp: Boolean
     $pricePerAnimal: Float
     $yieldPercent: Float
     $isActive: Boolean
@@ -35,6 +37,7 @@ export const UpsertAnimalDoc = graphql(/* GraphQL */ `
       id: $id
       name: $name
       isExport: $isExport
+      requiresStamp: $requiresStamp
       pricePerAnimal: $pricePerAnimal
       yieldPercent: $yieldPercent
       isActive: $isActive
@@ -45,6 +48,7 @@ export const UpsertAnimalDoc = graphql(/* GraphQL */ `
         id
         name
         isExport
+        requiresStamp
         pricePerAnimal
         yieldPercent
         isActive
