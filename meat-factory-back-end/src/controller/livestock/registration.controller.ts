@@ -313,6 +313,7 @@ export class RegistrationController {
       signatureFileId,
       stampFileId,
       intakeDate,
+      ebarimtImageFileId,
     } = doc;
     const factory = AdminController.writeFactory(context, doc.factory);
     const { takesIntake, liveAnimals } = FactoryController.rules(factory);
@@ -348,6 +349,7 @@ export class RegistrationController {
     await HerderController.findIdCheck(herderId);
     if (photoFileId) await FileController.findIdCheck(photoFileId);
     if (signatureFileId) await FileController.findIdCheck(signatureFileId);
+    if (ebarimtImageFileId) await FileController.findIdCheck(ebarimtImageFileId);
     if (stampFileId && liveAnimals) await FileController.findIdCheck(stampFileId);
 
     // Name → id once; бой зардал = pricePerAnimal × heads (live only).
@@ -383,6 +385,9 @@ export class RegistrationController {
           photoFileId: photoFileId ?? null,
           signatureFileId: signatureFileId ?? null,
           stampFileId: liveAnimals ? (stampFileId ?? null) : null,
+          ebarimtTaken: !!doc.ebarimtTaken,
+          ebarimtImageFileId: ebarimtImageFileId ?? null,
+          ebarimtNote: doc.ebarimtNote?.trim() || null,
           intakeDate: intakeDate ?? new Date(),
           guardId: context.id,
           status: finished

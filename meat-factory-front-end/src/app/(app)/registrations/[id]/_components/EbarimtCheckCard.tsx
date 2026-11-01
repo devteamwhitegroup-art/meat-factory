@@ -14,6 +14,41 @@ import { cn } from "@/lib/utils";
 
 type Check = { taken: boolean; image: string | null; note: string };
 
+// The «И-баримт шивсэн» tick — also on the Хойд intake form, which has no
+// verify step. The whole row toggles, not just the box.
+export function EbarimtToggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer select-none items-center gap-3 rounded-xl border p-4 text-base font-semibold transition-colors",
+        checked ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-6 cursor-pointer accent-primary"
+      />
+      <span className="flex-1">
+        И-баримт
+        <span className="block text-sm font-normal text-muted-foreground">
+          И-баримт шивсэн бол чагтална.
+        </span>
+      </span>
+    </label>
+  );
+}
+
 // Manual eBarimt record on the verify page while the PosAPI flow is parked
 // (EBARIMT_POSAPI): the нярав enters the receipt on the herder's phone —
 // optional, not every herder agrees — then ticks it here with a photo and a
@@ -116,32 +151,14 @@ export function EbarimtCheckCard({
       <div className="space-y-4 p-4">
         {canEdit ? (
           <>
-            {/* Whole row toggles, not just the box. */}
-            <label
-              className={cn(
-                "flex cursor-pointer select-none items-center gap-3 rounded-xl border p-4 text-base font-semibold transition-colors",
-                draftTaken
-                  ? "border-primary bg-primary/5"
-                  : "hover:bg-muted/40",
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={draftTaken}
-                disabled={busy}
-                onChange={(e) => {
-                  setDraftTaken(e.target.checked);
-                  persist({ ...current, taken: e.target.checked });
-                }}
-                className="size-6 cursor-pointer accent-primary"
-              />
-              <span className="flex-1">
-                И-баримт
-                <span className="block text-sm font-normal text-muted-foreground">
-                  И-баримт шивсэн бол чагтална.
-                </span>
-              </span>
-            </label>
+            <EbarimtToggle
+              checked={draftTaken}
+              disabled={busy}
+              onChange={(v) => {
+                setDraftTaken(v);
+                persist({ ...current, taken: v });
+              }}
+            />
 
             {draftImage && draftImage === imageFileId && savedImage ? (
               <div className="space-y-2">

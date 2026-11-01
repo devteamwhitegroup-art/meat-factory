@@ -65,6 +65,10 @@ export type TCreateRegistration = {
   weighings?: TIntakeWeighing[] | null;
   // FACTORY_2 only: byproducts counted on the intake form (site price list).
   byproducts?: TByproductBundleInput[] | null;
+  // Manual eBarimt check (Хойд үйлдвэр has no verify step to record it at).
+  ebarimtTaken?: boolean | null;
+  ebarimtImageFileId?: string | null;
+  ebarimtNote?: string | null;
 };
 
 export type TIntakeWeighing = {

@@ -37,6 +37,8 @@ import { SignatureField } from "@/components/common/SignatureField";
 import { MedicalNumberAdder } from "@/components/registration/MedicalNumberAdder";
 import { PhotoCaptureButton } from "@/components/common/PhotoCaptureButton";
 import { useDraft } from "@/lib/hooks/useDraft";
+import { Textarea } from "@/components/ui/textarea";
+import { EbarimtToggle } from "../[id]/_components/EbarimtCheckCard";
 import { CreateRegistrationDoc } from "@/lib/queries/registration";
 import { FactoryByproductsDoc } from "@/lib/queries/factory";
 import { unwrap } from "@/lib/unwrap";
@@ -81,6 +83,11 @@ const schema = z.object({
     z.string(),
     z.object({ count: z.string().optional(), price: z.string().optional() }),
   ),
+  // Хойд үйлдвэр: manual eBarimt check (live sites record it at verify).
+  // Optional: drafts saved before these fields existed restore without them.
+  ebarimtTaken: z.boolean().optional(),
+  ebarimtImageFileId: z.string().nullable().optional(),
+  ebarimtNote: z.string().optional(),
 });
 type Values = z.infer<typeof schema>;
 
@@ -167,6 +174,9 @@ export function IntakeForm({
       counts: {},
       weighings: [EMPTY_WEIGH_ROW],
       byproducts: {},
+      ebarimtTaken: false,
+      ebarimtImageFileId: null,
+      ebarimtNote: "",
     },
   });
 
@@ -282,6 +292,11 @@ export function IntakeForm({
             : null,
           byproducts:
             pre && bundles.some((b) => b.count > 0) ? bundles : null,
+          ...(pre && {
+            ebarimtTaken: !!values.ebarimtTaken,
+            ebarimtImageFileId: values.ebarimtImageFileId || null,
+            ebarimtNote: values.ebarimtNote?.trim() || null,
+          }),
         },
       });
       const reg = unwrap(r.data?.createRegistration).registration;
@@ -573,6 +588,47 @@ export function IntakeForm({
             )}
           />
         </FormSection>
+
+        {/* Хойд үйлдвэр has no verify step — the eBarimt check is here. */}
+        {pre ? (
+          <FormSection
+            n={++step}
+            title="И-баримт (заавал биш)"
+            hint="Малчин зөвшөөрвөл түүний утаснаас И-баримт шивээд, зургийг нь хавсаргана."
+          >
+            <Controller
+              control={form.control}
+              name="ebarimtTaken"
+              render={({ field }) => (
+                <EbarimtToggle checked={!!field.value} onChange={field.onChange} />
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="ebarimtImageFileId"
+              render={({ field }) => (
+                <PhotoCaptureButton
+                  value={field.value ?? null}
+                  onChange={(id) => field.onChange(id)}
+                  label="И-баримтын зураг (заавал биш)"
+                  type="verify"
+                />
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="ebarimtNote"
+              render={({ field }) => (
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  placeholder="Тэмдэглэл (заавал биш)"
+                  rows={2}
+                />
+              )}
+            />
+          </FormSection>
+        ) : null}
 
         <Button
           type="submit"

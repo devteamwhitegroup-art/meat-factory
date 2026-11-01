@@ -451,6 +451,11 @@ export default `#graphql
             weighings: [IntakeWeighingInput!]
             # Хойд үйлдвэр only — byproducts from the site price list.
             byproducts: [ByproductBundleInput!]
+            # Manual eBarimt check. Хойд үйлдвэр has no verify step, so it is
+            # recorded here; live sites record it at verify.
+            ebarimtTaken: Boolean
+            ebarimtImageFileId: ID
+            ebarimtNote: String
         ): RegistrationResponse @auth(permissions: [REGISTRATION_CREATE])
 
         # Direct intake fix — admin, or the registering person on the same day.

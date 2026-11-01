@@ -283,6 +283,9 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
     $animalLines: [RegistrationAnimalLineInput!]!
     $weighings: [IntakeWeighingInput!]
     $byproducts: [ByproductBundleInput!]
+    $ebarimtTaken: Boolean
+    $ebarimtImageFileId: ID
+    $ebarimtNote: String
   ) {
     createRegistration(
       herderId: $herderId
@@ -297,6 +300,9 @@ export const CreateRegistrationDoc = graphql(/* GraphQL */ `
       animalLines: $animalLines
       weighings: $weighings
       byproducts: $byproducts
+      ebarimtTaken: $ebarimtTaken
+      ebarimtImageFileId: $ebarimtImageFileId
+      ebarimtNote: $ebarimtNote
     ) {
       success
       message
