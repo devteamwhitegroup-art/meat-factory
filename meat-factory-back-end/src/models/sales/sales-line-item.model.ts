@@ -46,10 +46,11 @@ export const createSalesLineItemModel = (sequelize: Sequelize) => {
         type: DataTypes.ENUM(...Object.values(PRODUCT_TYPE)),
         allowNull: false,
       },
+      // No defaultValue on an FK column: sync({alter}) would emit
+      // "SET DEFAULT NULL REFERENCES …" (invalid SQL, Sequelize 6 bug).
       animalId: {
         type: DataTypes.UUID,
         allowNull: true,
-        defaultValue: null,
       },
       byproductName: {
         type: DataTypes.STRING,
