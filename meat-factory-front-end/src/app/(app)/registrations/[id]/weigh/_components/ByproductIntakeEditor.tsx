@@ -3,7 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMNT } from "@/lib/format/money";
+import {
+  formatDecimalInput,
+  formatMNT,
+  sanitizeDecimalInput,
+} from "@/lib/format/money";
 
 type Bundle = {
   wrapperId?: string | null;
@@ -102,9 +106,9 @@ export function ByproductIntakeEditor({
               <Input
                 aria-label={`${b.name} үнэ`}
                 inputMode="decimal"
-                value={e.price ?? String(b.unitPrice ?? 0)}
+                value={formatDecimalInput(e.price ?? String(b.unitPrice ?? 0))}
                 onChange={(ev) =>
-                  set(id, { price: ev.target.value.replace(/[^\d.]/g, "") })
+                  set(id, { price: sanitizeDecimalInput(ev.target.value) })
                 }
                 className="h-11 text-right tabular-nums"
                 disabled={!editable || busy}

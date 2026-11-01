@@ -4,7 +4,12 @@ import { PlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnimalCatalog } from "@/lib/hooks/useAnimalCatalog";
-import { formatMNT, formatNumber } from "@/lib/format/money";
+import {
+  formatDecimalInput,
+  formatMNT,
+  formatNumber,
+  sanitizeDecimalInput,
+} from "@/lib/format/money";
 
 export type IntakeWeighRow = {
   animalType: string;
@@ -76,11 +81,11 @@ export function IntakeWeighRows({
             className="h-12 text-base tabular-nums"
           />
           <Input
-            type="number"
             inputMode="decimal"
-            min="0"
-            value={r.pricePerKg}
-            onChange={(e) => set(i, { pricePerKg: e.target.value })}
+            value={formatDecimalInput(r.pricePerKg)}
+            onChange={(e) =>
+              set(i, { pricePerKg: sanitizeDecimalInput(e.target.value) })
+            }
             placeholder="₮/кг"
             aria-label="Үнэ (₮/кг)"
             className="h-12 text-base tabular-nums"
