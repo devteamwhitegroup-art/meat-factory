@@ -29,6 +29,9 @@ export enum PERMISSION {
   INVENTORY_ADJUST = "INVENTORY_ADJUST",
   BYPRODUCT_TRANSFER = "BYPRODUCT_TRANSFER",
   BYPRODUCT_PROCESS = "BYPRODUCT_PROCESS",
+  // Norm-expected vs actual kg of disassembly — a check ON the processing
+  // staff, so they never see it (blind weighing). System role by default.
+  BYPRODUCT_ANALYTICS = "BYPRODUCT_ANALYTICS",
   // Тайлан, тохиргоо
   DASHBOARD_VIEW = "DASHBOARD_VIEW",
   CATALOG_MANAGE = "CATALOG_MANAGE",
@@ -86,7 +89,8 @@ export const PERMISSION_GROUPS: TPermissionGroup[] = [
       { key: PERMISSION.INVENTORY_VIEW, label: "Нөөц, хөдөлгөөн харах" },
       { key: PERMISSION.INVENTORY_ADJUST, label: "Нөөцийн гар тохируулга" },
       { key: PERMISSION.BYPRODUCT_TRANSFER, label: "Дайвар дайврын үйлдвэрт илгээх" },
-      { key: PERMISSION.BYPRODUCT_PROCESS, label: "Дайвар задлах, шинжилгээ" },
+      { key: PERMISSION.BYPRODUCT_PROCESS, label: "Дайвар задлах" },
+      { key: PERMISSION.BYPRODUCT_ANALYTICS, label: "Задлалтын хүлээгдсэн vs бодит жин (шинжилгээ)" },
     ],
   },
   {

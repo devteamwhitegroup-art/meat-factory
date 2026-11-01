@@ -29,8 +29,9 @@ import { Diff, localDiff } from "./Diff";
 
 // One disassembly batch: N гэдэс of one wrapper → weigh every organ. Expected
 // kg is the norm guess (N × per-animal qty × avg kg/piece); the actual is what
-// the scale says. Always booked to the byproduct factory's stock.
-export function ProcessingForm() {
+// the scale says. Always booked to the byproduct factory's stock. The
+// expectation shows only with BYPRODUCT_ANALYTICS — processing staff weigh blind.
+export function ProcessingForm({ showNorm }: { showNorm: boolean }) {
   const router = useRouter();
   // ponytail: books to the first active byproduct site; add a picker if a
   // second one ever exists. Staff are BE-stamped with their own anyway.
@@ -193,12 +194,14 @@ export function ProcessingForm() {
                     >
                       <div className="min-w-32 flex-1">
                         <div className="font-medium">{i.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {expectedCount} ш · хүлээгдсэн{" "}
-                          {expectedKg != null
-                            ? `${formatNumber(expectedKg)} кг`
-                            : "—"}
-                        </div>
+                        {showNorm ? (
+                          <div className="text-xs text-muted-foreground">
+                            {expectedCount} ш · хүлээгдсэн{" "}
+                            {expectedKg != null
+                              ? `${formatNumber(expectedKg)} кг`
+                              : "—"}
+                          </div>
+                        ) : null}
                       </div>
                       <Input
                         inputMode="decimal"
@@ -213,11 +216,13 @@ export function ProcessingForm() {
                         }
                         className="h-11 w-32 text-right text-lg tabular-nums"
                       />
-                      <div className="w-40 text-right text-sm">
-                        {raw ? (
-                          <Diff {...localDiff(expectedKg, Number(raw))} />
-                        ) : null}
-                      </div>
+                      {showNorm ? (
+                        <div className="w-40 text-right text-sm">
+                          {raw ? (
+                            <Diff {...localDiff(expectedKg, Number(raw))} />
+                          ) : null}
+                        </div>
+                      ) : null}
                     </li>
                   );
                 })}

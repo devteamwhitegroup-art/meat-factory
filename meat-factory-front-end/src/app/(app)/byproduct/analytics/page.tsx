@@ -26,7 +26,7 @@ export default async function ByproductAnalyticsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  await requireCap("BYPRODUCT_PROCESS");
+  await requireCap("BYPRODUCT_ANALYTICS");
   const { dateRange } = pageAndRange(await searchParams);
   const { data } = await getClient().query({
     query: ByproductProcessingSummaryDoc,

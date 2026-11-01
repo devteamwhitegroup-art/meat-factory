@@ -56,6 +56,11 @@ export class RoleController {
   }
 
   static async seedDefaults(): Promise<void> {
+    // The system role always holds every key, including ones added later.
+    await RoleModel.update(
+      { permissions: [...ALL_PERMISSIONS] },
+      { where: { isSystem: true } },
+    );
     if ((await RoleModel.count()) > 0) return;
     await RoleModel.bulkCreate(DEFAULT_ROLES);
   }

@@ -84,6 +84,7 @@ export type Payment_Status =
   | 'PENDING';
 
 export type Permission =
+  | 'BYPRODUCT_ANALYTICS'
   | 'BYPRODUCT_PROCESS'
   | 'BYPRODUCT_TRANSFER'
   | 'CATALOG_MANAGE'

@@ -3,9 +3,9 @@ import type { NavItem } from "@/lib/auth/roles";
 import { ByproductTabs } from "./_components/ByproductTabs";
 import { PageHeader } from "@/components/common/PageHeader";
 
-// One section for byproducts: disassembly batches and their
-// expected-vs-actual analytics. The norm catalogue (categories / prices) is
-// admin setup → Систем тохиргоо › Дайвар. Each page gates itself.
+// One section for byproducts: disassembly batches, plus (BYPRODUCT_ANALYTICS
+// only — processing staff weigh blind) expected-vs-actual analytics. The norm
+// catalogue is admin setup → Систем тохиргоо › Дайвар. Each page gates itself.
 export default async function ByproductLayout({
   children,
 }: {
@@ -14,10 +14,10 @@ export default async function ByproductLayout({
   const session = await getSession();
   const tabs: NavItem[] = [
     ...(session.can("BYPRODUCT_PROCESS")
-      ? [
-          { href: "/byproduct", label: "Задлалт" },
-          { href: "/byproduct/analytics", label: "Шинжилгээ" },
-        ]
+      ? [{ href: "/byproduct", label: "Задлалт" }]
+      : []),
+    ...(session.can("BYPRODUCT_ANALYTICS")
+      ? [{ href: "/byproduct/analytics", label: "Шинжилгээ" }]
       : []),
   ];
   return (
@@ -25,7 +25,7 @@ export default async function ByproductLayout({
       <div className="space-y-3">
         <PageHeader
           title="Дайвар"
-          description="Гэдэс, дайврын задлалт ба хүлээгдэж буй, бодит гарцын харьцуулалт."
+          description="Гэдэс, дайврын задлалт."
         />
         <ByproductTabs tabs={tabs} />
       </div>

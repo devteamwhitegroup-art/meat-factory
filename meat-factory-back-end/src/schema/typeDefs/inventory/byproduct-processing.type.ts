@@ -6,8 +6,9 @@ export default `#graphql
         id: ID
         constantId: ID
         name: String
+        # expected*: null without BYPRODUCT_ANALYTICS (processing staff weigh
+        # blind), or (expectedKg) when the norm has no unitWeightKg.
         expectedCount: Int
-        # Null when the norm has no unitWeightKg.
         expectedKg: Float
         actualKg: Float
     }
@@ -75,7 +76,7 @@ export default `#graphql
         byproductProcessingSummary(
             factory: String
             dateRange: DateRangeInput
-        ): ByproductProcessingSummaryResponse @auth(permissions: [BYPRODUCT_PROCESS])
+        ): ByproductProcessingSummaryResponse @auth(permissions: [BYPRODUCT_ANALYTICS])
     }
 
     extend type Mutation {

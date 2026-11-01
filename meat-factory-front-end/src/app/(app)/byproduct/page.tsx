@@ -29,13 +29,15 @@ const PAGE_SIZE = 20;
 type SP = { page?: string; from?: string; to?: string };
 
 // Byproduct factory (Үйлдвэр 3): disassembly batches of counted гэдэс, each
-// organ weighed — norm-expected vs actual kg. Totals: /byproduct/analytics.
+// organ weighed. Norm-expected vs actual only with BYPRODUCT_ANALYTICS (the
+// BE nulls it for everyone else). Totals: /byproduct/analytics.
 export default async function ByproductPage({
   searchParams,
 }: {
   searchParams: Promise<SP>;
 }) {
-  await requireCap("BYPRODUCT_PROCESS");
+  const session = await requireCap("BYPRODUCT_PROCESS");
+  const norm = session.can("BYPRODUCT_ANALYTICS");
   const sp = await searchParams;
   const { page, dateRange } = pageAndRange(sp);
   const listRes = await getClient().query({
@@ -98,31 +100,43 @@ export default async function ByproductPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Эрхтэн</TableHead>
-                      <TableHead className="text-right">Тоо</TableHead>
-                      <TableHead className="text-right">Хүлээгдсэн</TableHead>
+                      {norm ? (
+                        <>
+                          <TableHead className="text-right">Тоо</TableHead>
+                          <TableHead className="text-right">Хүлээгдсэн</TableHead>
+                        </>
+                      ) : null}
                       <TableHead className="text-right">Бодит</TableHead>
-                      <TableHead className="text-right">Зөрүү</TableHead>
+                      {norm ? (
+                        <TableHead className="text-right">Зөрүү</TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {compact(p.lines).map((l) => (
                       <TableRow key={l.id!}>
                         <TableCell>{l.name}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {l.expectedCount}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {l.expectedKg != null
-                            ? `${formatNumber(l.expectedKg)} кг`
-                            : "—"}
-                        </TableCell>
+                        {norm ? (
+                          <>
+                            <TableCell className="text-right tabular-nums">
+                              {l.expectedCount}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {l.expectedKg != null
+                                ? `${formatNumber(l.expectedKg)} кг`
+                                : "—"}
+                            </TableCell>
+                          </>
+                        ) : null}
                         <TableCell className="text-right tabular-nums">
                           {formatNumber(l.actualKg)} кг
                         </TableCell>
-                        <TableCell className="text-right">
-                          {/* ByproductProcessingsDoc lines carry no diff. */}
-                          <Diff {...localDiff(l.expectedKg, l.actualKg ?? 0)} />
-                        </TableCell>
+                        {norm ? (
+                          <TableCell className="text-right">
+                            {/* ByproductProcessingsDoc lines carry no diff. */}
+                            <Diff {...localDiff(l.expectedKg, l.actualKg ?? 0)} />
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     ))}
                   </TableBody>
