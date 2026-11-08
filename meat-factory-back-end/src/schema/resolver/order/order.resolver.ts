@@ -10,8 +10,15 @@ import {
   TUpdateOrderPackage,
 } from "../../../types/order/order.type";
 import { wrapItems, wrapList, wrapOne, wrapVoid } from "../../../utils";
+import { OrderPackageModel } from "../../../models/order/order-package.model";
+import { FileModel } from "../../../models/global/file.model";
 
 export default {
+  OrderPackage: {
+    thumbnail: (p: OrderPackageModel) =>
+      p.thumbnailFileId ? FileModel.findByPk(p.thumbnailFileId) : null,
+    images: (p: OrderPackageModel) => OrderPackageController.images(p),
+  },
   Query: {
     publicOrderPackages: wrapItems("orderPackages", () => OrderPackageController.listActive()),
     orderPackages: wrapItems("orderPackages", () => OrderPackageController.list()),

@@ -10,10 +10,16 @@ CREATE TABLE IF NOT EXISTS "OrderPackages" (
   description TEXT,
   price INTEGER NOT NULL,
   items JSONB NOT NULL DEFAULT '[]',
+  thumbnail_file_id UUID REFERENCES "Files"(id) ON DELETE SET NULL,
+  image_file_ids UUID[] NOT NULL DEFAULT '{}',
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+-- Package photos, for a DB that already ran the CREATE above without them.
+ALTER TABLE "OrderPackages" ADD COLUMN IF NOT EXISTS thumbnail_file_id UUID REFERENCES "Files"(id) ON DELETE SET NULL;
+ALTER TABLE "OrderPackages" ADD COLUMN IF NOT EXISTS image_file_ids UUID[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS "Orders" (
   id UUID PRIMARY KEY,

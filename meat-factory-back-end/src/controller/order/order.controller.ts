@@ -1,6 +1,7 @@
 import { Op, WhereOptions } from "sequelize";
 import { OrderModel } from "../../models/order/order.model";
 import { OrderPackageModel } from "../../models/order/order-package.model";
+import { FileModel } from "../../models/global/file.model";
 import {
   ORDER_STATUS,
   TCreateOrder,
@@ -35,6 +36,22 @@ export class OrderPackageController {
       });
   }
 
+  // Every id must be an uploaded File; returns them deduped, order kept.
+  private static async _files(ids: (string | null | undefined)[]): Promise<string[]> {
+    const uniq = [...new Set(ids.filter((i): i is string => !!i))];
+    if (uniq.length > 12) throw new Error("Хамгийн ихдээ 12 зураг");
+    if (uniq.length && (await FileModel.count({ where: { id: uniq } })) !== uniq.length)
+      throw new Error("Зураг олдсонгүй. Дахин оруулна уу");
+    return uniq;
+  }
+
+  // Files in stored order; deleted ones skipped.
+  static async images(p: OrderPackageModel): Promise<FileModel[]> {
+    if (!p.imageFileIds?.length) return [];
+    const files = await FileModel.findAll({ where: { id: p.imageFileIds } });
+    return p.imageFileIds.flatMap((id) => files.find((f) => f.id === id) ?? []);
+  }
+
   private static _price(price: number): number {
     if (!Number.isInteger(price) || price <= 0) throw new Error("Үнэ эерэг бүхэл тоо байх ёстой");
     return price;
@@ -48,13 +65,16 @@ export class OrderPackageController {
     return OrderPackageModel.findAll({ order: [["createdAt", "DESC"]] });
   }
 
-  static create(doc: TCreateOrderPackage): Promise<OrderPackageModel> {
+  static async create(doc: TCreateOrderPackage): Promise<OrderPackageModel> {
     if (!doc.name?.trim()) throw new Error("Багцын нэр шаардлагатай");
+    const [thumb] = await this._files([doc.thumbnailFileId]);
     return OrderPackageModel.create({
       name: doc.name.trim(),
       description: doc.description?.trim() || null,
       price: this._price(doc.price),
       items: this._items(doc.items),
+      thumbnailFileId: thumb ?? null,
+      imageFileIds: await this._files(doc.imageFileIds ?? []),
     });
   }
 
@@ -67,6 +87,9 @@ export class OrderPackageController {
     if (doc.description !== undefined) p.description = doc.description?.trim() || null;
     if (doc.price !== undefined) p.price = this._price(doc.price);
     if (doc.items !== undefined) p.items = this._items(doc.items);
+    if (doc.thumbnailFileId !== undefined)
+      p.thumbnailFileId = (await this._files([doc.thumbnailFileId]))[0] ?? null;
+    if (doc.imageFileIds !== undefined) p.imageFileIds = await this._files(doc.imageFileIds ?? []);
     if (typeof doc.isActive === "boolean") p.isActive = doc.isActive;
     return p.save();
   }

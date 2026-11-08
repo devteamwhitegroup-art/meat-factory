@@ -19,6 +19,10 @@ export type TOrderPackage = {
   description: string | null;
   price: number;
   items: TPackageItem[];
+  // Card image on the landing page; `imageFileIds` = extra photos (ordered)
+  // shown in the package's detail view.
+  thumbnailFileId: string | null;
+  imageFileIds: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +33,8 @@ export type TCreateOrderPackage = {
   description?: string | null;
   price: number;
   items?: TPackageItem[] | null;
+  thumbnailFileId?: string | null;
+  imageFileIds?: string[] | null;
 };
 
 export type TUpdateOrderPackage = Partial<TCreateOrderPackage> & {

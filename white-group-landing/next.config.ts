@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Package photos uploaded in the ERP live on DigitalOcean Spaces.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**.digitaloceanspaces.com" }],
+  },
 };
 
 export default nextConfig;

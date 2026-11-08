@@ -11,6 +11,7 @@ export type UploadFolder =
   | "settlement"
   | "shipment"
   | "staff"
+  | "package"
   | "other";
 
 type UploadResult = { success: boolean; message?: string; id?: string };

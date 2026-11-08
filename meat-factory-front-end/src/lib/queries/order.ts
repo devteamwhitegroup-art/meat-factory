@@ -67,6 +67,14 @@ export const OrderPackageListDoc = graphql(/* GraphQL */ `
           name
           kg
         }
+        thumbnail {
+          id
+          url
+        }
+        images {
+          id
+          url
+        }
       }
     }
   }
@@ -78,8 +86,17 @@ export const CreateOrderPackageDoc = graphql(/* GraphQL */ `
     $description: String
     $price: Int!
     $items: [OrderPackageItemInput!]
+    $thumbnailFileId: ID
+    $imageFileIds: [ID!]
   ) {
-    createOrderPackage(name: $name, description: $description, price: $price, items: $items) {
+    createOrderPackage(
+      name: $name
+      description: $description
+      price: $price
+      items: $items
+      thumbnailFileId: $thumbnailFileId
+      imageFileIds: $imageFileIds
+    ) {
       success
       message
     }
@@ -93,6 +110,8 @@ export const UpdateOrderPackageDoc = graphql(/* GraphQL */ `
     $description: String
     $price: Int
     $items: [OrderPackageItemInput!]
+    $thumbnailFileId: ID
+    $imageFileIds: [ID!]
     $isActive: Boolean
   ) {
     updateOrderPackage(
@@ -101,6 +120,8 @@ export const UpdateOrderPackageDoc = graphql(/* GraphQL */ `
       description: $description
       price: $price
       items: $items
+      thumbnailFileId: $thumbnailFileId
+      imageFileIds: $imageFileIds
       isActive: $isActive
     ) {
       success

@@ -109,6 +109,11 @@
 }
 
 /* Ported from the design system's styles.css. Utilities still override these. */
+/* Freeze the page behind an open modal <dialog> (order package details). */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
 @layer components {
   .plate {
     border: 6px solid var(--surface);

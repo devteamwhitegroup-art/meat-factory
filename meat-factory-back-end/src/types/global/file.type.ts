@@ -23,6 +23,7 @@ export enum FILE_FOLDER {
   SETTLEMENT = 'settlement', // тооцоо / receipts
   SHIPMENT = 'shipment', // ачилт / loading photos
   STAFF = 'staff', // staff avatars
+  PACKAGE = 'package', // landing-shop package photos
   OTHER = 'other'
 }
 

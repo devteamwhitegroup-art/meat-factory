@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import type { ResultOf } from "@graphql-typed-document-node/core";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,19 +23,110 @@ import {
 import { formatMNT } from "@/lib/format/money";
 import { runMutation } from "@/lib/runMutation";
 import { compact } from "@/lib/compact";
+import { useFileUpload } from "@/lib/hooks/useFileUpload";
+import { cn } from "@/lib/utils";
 
 type Pkg = NonNullable<
   NonNullable<NonNullable<ResultOf<typeof OrderPackageListDoc>["orderPackages"]>["orderPackages"]>[number]
 >;
+type Img = { id: string; url: string | null };
 type Draft = {
   id?: string;
   name: string;
   description: string;
   price: string;
   items: { name: string; kg: string }[];
+  thumbnail: Img[]; // 0 or 1
+  images: Img[];
 };
 
-const EMPTY: Draft = { name: "", description: "", price: "", items: [{ name: "", kg: "" }] };
+const EMPTY: Draft = {
+  name: "",
+  description: "",
+  price: "",
+  items: [{ name: "", kg: "" }],
+  thumbnail: [],
+  images: [],
+};
+
+// Upload-on-pick image list (thumbnail = max 1). Order = upload order;
+// ponytail: no drag-reorder — remove and re-add to change it.
+function ImagesField({
+  label,
+  hint,
+  value,
+  onChange,
+  max,
+}: {
+  label: string;
+  hint?: string;
+  value: Img[];
+  onChange: (v: Img[]) => void;
+  max: number;
+}) {
+  const { upload, uploading } = useFileUpload("package");
+  const inputId = useId();
+
+  async function add(files: File[]) {
+    let next = value;
+    for (const f of files.slice(0, max - value.length)) {
+      try {
+        next = [...next, { id: await upload(f), url: URL.createObjectURL(f) }];
+        onChange(next);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Зураг ачаалж чадсангүй");
+      }
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={inputId}>{label}</Label>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      <div className="flex flex-wrap gap-3">
+        {value.map((img, i) => (
+          <div key={img.id} className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element -- Spaces URL / local blob preview */}
+            <img src={img.url ?? ""} alt="" className="size-20 rounded-md border object-cover" />
+            <button
+              type="button"
+              aria-label="Зураг хасах"
+              onClick={() => onChange(value.filter((_, j) => j !== i))}
+              className="absolute -top-2 -right-2 grid size-7 place-items-center rounded-full border bg-background shadow"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ))}
+        {value.length < max && (
+          <label
+            htmlFor={inputId}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "size-20 cursor-pointer flex-col gap-1 text-xs",
+              uploading && "pointer-events-none opacity-50",
+            )}
+          >
+            <Plus className="size-5" />
+            {uploading ? "Ачаалж байна" : "Нэмэх"}
+          </label>
+        )}
+      </div>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/jpeg,image/png"
+        multiple={max > 1}
+        disabled={uploading}
+        className="sr-only"
+        onChange={(e) => {
+          if (e.target.files) add(Array.from(e.target.files));
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 export function PackagesTab() {
   const { data, loading, refetch } = useQuery(OrderPackageListDoc, {
@@ -55,6 +146,8 @@ export function PackagesTab() {
       description: p.description ?? "",
       price: String(p.price ?? ""),
       items: compact(p.items).map((i) => ({ name: i.name ?? "", kg: i.kg == null ? "" : String(i.kg) })),
+      thumbnail: p.thumbnail?.id ? [{ id: p.thumbnail.id, url: p.thumbnail.url ?? null }] : [],
+      images: compact(p.images).map((f) => ({ id: f.id!, url: f.url ?? null })),
     });
 
   const setItem = (i: number, k: "name" | "kg", v: string) =>
@@ -74,6 +167,8 @@ export function PackagesTab() {
       items: draft.items
         .filter((i) => i.name.trim())
         .map((i) => ({ name: i.name.trim(), kg: i.kg ? Number(i.kg) : null })),
+      thumbnailFileId: draft.thumbnail[0]?.id ?? null,
+      imageFileIds: draft.images.map((i) => i.id),
     };
     await runMutation(
       async () =>
@@ -117,6 +212,14 @@ export function PackagesTab() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {pkgs.map((p) => (
             <div key={p.id!} className="space-y-3 rounded-lg border p-4">
+              {p.thumbnail?.url && (
+                // eslint-disable-next-line @next/next/no-img-element -- Spaces URL
+                <img
+                  src={p.thumbnail.url}
+                  alt=""
+                  className="aspect-[4/3] w-full rounded-md border object-cover"
+                />
+              )}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="text-lg font-semibold">{p.name}</div>
@@ -181,6 +284,20 @@ export function PackagesTab() {
                   onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/\D/g, "") })}
                 />
               </div>
+              <ImagesField
+                label="Нүүр зураг"
+                hint="Сайтын багцын карт дээр харагдана."
+                max={1}
+                value={draft.thumbnail}
+                onChange={(thumbnail) => setDraft((d) => d && { ...d, thumbnail })}
+              />
+              <ImagesField
+                label="Нэмэлт зургууд"
+                hint="«Дэлгэрэнгүй» цонхонд харагдана (12 хүртэл)."
+                max={12}
+                value={draft.images}
+                onChange={(images) => setDraft((d) => d && { ...d, images })}
+              />
               <div className="space-y-1.5">
                 <Label htmlFor="pkg-desc">Тайлбар</Label>
                 <Textarea

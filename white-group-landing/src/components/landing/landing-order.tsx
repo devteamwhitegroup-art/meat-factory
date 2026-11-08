@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { AlertCircle, Check, ChevronDown, Minus, Plus } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, Minus, Plus, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { Copy } from "./data";
@@ -32,6 +32,8 @@ type Pkg = {
   description: string | null;
   price: number;
   items: { name: string; kg: number | null }[];
+  thumbnail: { url: string | null } | null;
+  images: { url: string | null }[];
 };
 type Payment = {
   orderId: string;
@@ -49,6 +51,15 @@ const PAYMENT_FIELDS = "success message payment { orderId code total status qrIm
 const money = (n: number) => `${new Intl.NumberFormat("mn-MN").format(n)}₮`;
 const kgFmt = (n: number) => new Intl.NumberFormat("mn-MN", { maximumFractionDigits: 1 }).format(n);
 const SHOWN = 6;
+
+// Card image first (falls back to the first extra photo), then the extras.
+const photos = (p: Pkg) =>
+  [p.thumbnail?.url, ...p.images.map((i) => i.url)].filter((u): u is string => !!u);
+// Package weight, only when every cut has one.
+const kgTotal = (p: Pkg) =>
+  p.items.length > 0 && p.items.every((i) => i.kg != null)
+    ? p.items.reduce((s, i) => s + (i.kg ?? 0), 0)
+    : null;
 const FIELD = "input min-h-12 border-ink/50 px-3 text-base hover:border-ink/70";
 
 function Err({ id, children }: { id: string; children: React.ReactNode }) {
@@ -70,11 +81,23 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
   const [apiErr, setApiErr] = useState("");
   const [pay, setPay] = useState<Payment | null>(null);
   const [notYet, setNotYet] = useState(false);
+  const [detail, setDetail] = useState<Pkg | null>(null);
+  const [shot, setShot] = useState(0);
+  const dlg = useRef<HTMLDialogElement>(null);
+
+  // Native modal: focus trap, Esc and backdrop for free.
+  useEffect(() => {
+    if (detail) dlg.current?.showModal();
+  }, [detail]);
+  const openDetail = (p: Pkg) => {
+    setShot(0);
+    setDetail(p);
+  };
 
   useEffect(() => {
     gql<{ orderPackages: Pkg[] }>(
       "publicOrderPackages",
-      "{ publicOrderPackages { success message orderPackages { id name description price items { name kg } } } }",
+      "{ publicOrderPackages { success message orderPackages { id name description price items { name kg } thumbnail { url } images { url } } } }",
     )
       .then((r) => {
         setPkgs(r.orderPackages);
@@ -162,6 +185,58 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
   );
   const nPicked = picked.reduce((s, p) => s + qty[p.id], 0);
 
+  const row = (i: Pkg["items"][number], k: number) => (
+    <li key={k} className="flex justify-between gap-3 border-b border-line py-1.5">
+      <span>{i.name}</span>
+      {i.kg != null && (
+        <span className="shrink-0 text-ink/70 tabular-nums">
+          {i.kg} {o.kg}
+        </span>
+      )}
+    </li>
+  );
+
+  const controls = (p: Pkg) => {
+    const n = qty[p.id] ?? 0;
+    return (
+      <div className="mt-auto flex items-center gap-3 pt-2">
+        {n > 0 && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-icon"
+            aria-label={`${o.less}: ${p.name}`}
+            disabled={!!pay}
+            onClick={() => bump(p.id, -1)}
+          >
+            <Minus className="size-4" aria-hidden />
+          </button>
+        )}
+        {n > 0 && (
+          <span className="min-w-8 text-center font-heading text-xl tabular-nums" aria-live="polite">
+            {n}
+          </span>
+        )}
+        <button
+          type="button"
+          className={cn(
+            "btn btn-primary disabled:cursor-not-allowed disabled:opacity-50",
+            n > 0 ? "btn-icon" : "min-h-12 flex-1 text-base",
+          )}
+          aria-label={`${n > 0 ? o.more : o.select}: ${p.name}`}
+          disabled={!!pay}
+          onClick={() => bump(p.id, 1)}
+        >
+          {n > 0 ? <Plus className="size-4" aria-hidden /> : o.select}
+        </button>
+        {n > 0 && (
+          <span className="tag tag-accent">
+            <Check className="size-3.5" aria-hidden /> {o.selected}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // ponytail: loading, load error and an empty list all hide the section (and, via onSelling, its nav link + strip)
   if (!pkgs?.length) return null;
 
@@ -196,18 +271,8 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {pkgs.map((p) => {
                 const n = qty[p.id] ?? 0;
-                const allKg = p.items.length > 0 && p.items.every((i) => i.kg != null);
-                const kgSum = allKg ? p.items.reduce((s, i) => s + (i.kg ?? 0), 0) : 0;
-                const row = (i: Pkg["items"][number], k: number) => (
-                  <li key={k} className="flex justify-between gap-3 border-b border-line py-1.5">
-                    <span>{i.name}</span>
-                    {i.kg != null && (
-                      <span className="shrink-0 text-ink/70 tabular-nums">
-                        {i.kg} {o.kg}
-                      </span>
-                    )}
-                  </li>
-                );
+                const kg = kgTotal(p);
+                const cover = photos(p)[0];
                 return (
                   <article
                     key={p.id}
@@ -216,14 +281,38 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
                       n > 0 && "border-gold-600 shadow-[inset_0_0_0_1px_var(--gold-600)]",
                     )}
                   >
+                    {cover && (
+                      <button
+                        type="button"
+                        aria-label={`${o.details}: ${p.name}`}
+                        onClick={() => openDetail(p)}
+                        className="relative -mx-6 -mt-6 aspect-[4/3] overflow-hidden rounded-t-[3px]"
+                      >
+                        <Image
+                          src={cover}
+                          alt=""
+                          fill
+                          sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover transition-transform duration-300 hover:scale-[1.03]"
+                        />
+                      </button>
+                    )}
                     <div>
                       <h3 className="font-heading text-[24px] leading-tight font-semibold">{p.name}</h3>
                       <p className="mt-1 font-heading text-[30px] leading-tight text-ink tabular-nums">{money(p.price)}</p>
-                      {allKg && (
-                        <p className="mt-1 text-[15px] text-ink/70">{o.totalKg.replace("{kg}", kgFmt(kgSum))}</p>
+                      {kg != null && (
+                        <p className="mt-1 text-[15px] text-ink/70">{o.totalKg.replace("{kg}", kgFmt(kg))}</p>
                       )}
                     </div>
-                    {p.description && <p className="text-[15px] text-ink/80">{p.description}</p>}
+                    {/* Clamped so a long description can't stretch the row; full text in the dialog. */}
+                    {p.description && <p className="line-clamp-3 text-[15px] text-ink/80">{p.description}</p>}
+                    <button
+                      type="button"
+                      className="btn btn-ghost -my-2 min-h-11 self-start"
+                      onClick={() => openDetail(p)}
+                    >
+                      {o.details} →
+                    </button>
                     {p.items.length > 0 && (
                       <div className="text-[15px]">
                         <ul>{p.items.slice(0, SHOWN).map(row)}</ul>
@@ -238,41 +327,7 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
                         )}
                       </div>
                     )}
-                    <div className="mt-auto flex items-center gap-3 pt-2">
-                      {n > 0 && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-icon"
-                          aria-label={`${o.less}: ${p.name}`}
-                          disabled={!!pay}
-                          onClick={() => bump(p.id, -1)}
-                        >
-                          <Minus className="size-4" aria-hidden />
-                        </button>
-                      )}
-                      {n > 0 && (
-                        <span className="min-w-8 text-center font-heading text-xl tabular-nums" aria-live="polite">
-                          {n}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className={cn(
-                          "btn btn-primary disabled:cursor-not-allowed disabled:opacity-50",
-                          n > 0 ? "btn-icon" : "min-h-12 flex-1 text-base",
-                        )}
-                        aria-label={`${n > 0 ? o.more : o.select}: ${p.name}`}
-                        disabled={!!pay}
-                        onClick={() => bump(p.id, 1)}
-                      >
-                        {n > 0 ? <Plus className="size-4" aria-hidden /> : o.select}
-                      </button>
-                      {n > 0 && (
-                        <span className="tag tag-accent">
-                          <Check className="size-3.5" aria-hidden /> {o.selected}
-                        </span>
-                      )}
-                    </div>
+                    {controls(p)}
                   </article>
                 );
               })}
@@ -472,6 +527,77 @@ export function LandingOrder({ t, onSelling }: { t: Copy; onSelling: (on: boolea
             </div>
           )}
         </>
+
+      <dialog
+        ref={dlg}
+        aria-labelledby="pkg-detail-title"
+        onClose={() => setDetail(null)}
+        onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
+        className="m-auto max-h-[calc(100dvh-32px)] w-[min(960px,calc(100vw-32px))] overflow-y-auto overscroll-contain rounded-[4px] border border-line bg-paper p-0 text-ink backdrop:bg-ink/60"
+      >
+        {detail && (
+          <div className="relative grid gap-6 p-5 sm:p-8 md:grid-cols-2">
+            <button
+              type="button"
+              aria-label={o.close}
+              onClick={() => dlg.current?.close()}
+              className="btn btn-secondary btn-icon absolute top-3 right-3 z-10 bg-paper"
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+            {photos(detail).length > 0 && (
+              <div>
+                <div className="plate relative aspect-[4/3] overflow-hidden">
+                  <Image
+                    src={photos(detail)[shot] ?? photos(detail)[0]}
+                    alt={detail.name}
+                    fill
+                    sizes="(min-width: 768px) 460px, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+                {photos(detail).length > 1 && (
+                  <div className="mt-3 grid grid-cols-5 gap-2">
+                    {photos(detail).map((url, i) => (
+                      <button
+                        key={url}
+                        type="button"
+                        aria-label={o.photo.replace("{n}", String(i + 1))}
+                        aria-pressed={i === shot}
+                        onClick={() => setShot(i)}
+                        className={cn(
+                          "relative aspect-square overflow-hidden rounded-[3px] border",
+                          i === shot ? "border-gold-600 shadow-[inset_0_0_0_1px_var(--gold-600)]" : "border-line opacity-80 hover:opacity-100",
+                        )}
+                      >
+                        <Image src={url} alt="" fill sizes="96px" className="object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex flex-col gap-4">
+              <div className="pr-12">
+                <h3 id="pkg-detail-title" className="font-heading text-[28px] leading-tight font-semibold">
+                  {detail.name}
+                </h3>
+                <p className="mt-1 font-heading text-[30px] leading-tight tabular-nums">{money(detail.price)}</p>
+                {kgTotal(detail) != null && (
+                  <p className="mt-1 text-[15px] text-ink/70">
+                    {o.totalKg.replace("{kg}", kgFmt(kgTotal(detail)!))}
+                  </p>
+                )}
+              </div>
+              {detail.description && (
+                <p className="text-[15.5px] whitespace-pre-line text-ink/80">{detail.description}</p>
+              )}
+              {detail.items.length > 0 && <ul className="text-[15px]">{detail.items.map(row)}</ul>}
+              {controls(detail)}
+            </div>
+          </div>
+        )}
+      </dialog>
     </section>
   );
 }

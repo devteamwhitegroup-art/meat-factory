@@ -24,6 +24,9 @@ export default `#graphql
         # Whole ₮
         price: Int
         items: [OrderPackageItem]
+        # Card image; images = extra photos for the detail view (ordered).
+        thumbnail: File
+        images: [File]
         isActive: Boolean
         createdAt: Date
         updatedAt: Date
@@ -141,6 +144,8 @@ export default `#graphql
             description: String
             price: Int!
             items: [OrderPackageItemInput!]
+            thumbnailFileId: ID
+            imageFileIds: [ID!]
         ): OrderPackageResponse @auth(permissions: [ORDER_MANAGE])
         updateOrderPackage(
             id: ID!
@@ -148,6 +153,9 @@ export default `#graphql
             description: String
             price: Int
             items: [OrderPackageItemInput!]
+            # null clears the thumbnail; imageFileIds replaces the whole list.
+            thumbnailFileId: ID
+            imageFileIds: [ID!]
             isActive: Boolean
         ): OrderPackageResponse @auth(permissions: [ORDER_MANAGE])
         deleteOrderPackage(id: ID!): Response @auth(permissions: [ORDER_MANAGE])
