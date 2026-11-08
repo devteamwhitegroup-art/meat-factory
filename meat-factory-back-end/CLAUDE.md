@@ -9,7 +9,13 @@ this is the meat-factory backend. The web UI lives in the **separate**
 
 - Node + TypeScript (**strict**: `noImplicitAny`, `useUnknownInCatchVariables`).
 - Sequelize 6 (PostgreSQL) · Apollo Server v5 · Express 5.
-- **GraphQL is the only API surface.** REST is gone except `/file` and `/seed`.
+- **GraphQL is the only API surface.** REST is gone except `/file`, `/seed` and
+  `/qpay/callback/:orderId` (QPay webhook → `OrderController.checkPayment`).
+- **Public (no directive) ops for the landing-page shop**: `publicOrderPackages`,
+  `createOrder` (server re-prices from DB, creates the QPay invoice),
+  `checkOrderPayment` (asks QPay; landing polls it). Staff side: `orders`,
+  `setOrderStatus`, package CRUD — `@auth(ORDER_MANAGE)`. QPay client =
+  `controller/order/qpay.ts`, env `QPAY_*` (empty URL = disabled).
 
 ## Run / build
 

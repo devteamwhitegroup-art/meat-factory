@@ -65,6 +65,21 @@ export const SHIPMENT_STATUS_COLOR: Record<string, string> = {
   DELIVERED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
 };
 
+// Landing-page online order (QPay).
+export const ORDER_STATUS_MN: Record<string, string> = {
+  PENDING: "Төлбөр хүлээгдэж буй",
+  PAID: "Төлсөн",
+  DELIVERED: "Хүргэсэн",
+  CANCELLED: "Цуцалсан",
+};
+
+export const ORDER_STATUS_COLOR: Record<string, string> = {
+  PENDING: "border-0 bg-slate-500/12 text-slate-700 dark:text-slate-300",
+  PAID: "border-0 bg-amber-500/12 text-amber-700 dark:text-amber-400",
+  DELIVERED: "border-0 bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  CANCELLED: "border-0 bg-red-500/12 text-red-700 dark:text-red-400",
+};
+
 // Factory → factory transfer (no customer / invoice).
 export const TRANSFER_STATUS_MN: Record<string, string> = {
   IN_TRANSIT: "Замд",

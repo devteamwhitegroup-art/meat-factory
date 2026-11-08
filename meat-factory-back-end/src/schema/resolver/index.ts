@@ -38,6 +38,9 @@ import settingsResolver from "./settings/settings.resolver";
 //Print
 import printResolver from "./print/print.resolver";
 
+//Order
+import orderResolver from "./order/order.resolver";
+
 export const resolvers = [
   //User
   adminResolver,
@@ -78,6 +81,9 @@ export const resolvers = [
 
   //Print
   printResolver,
+
+  //Order
+  orderResolver,
 
   //Global
   {

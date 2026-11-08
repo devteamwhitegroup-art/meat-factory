@@ -13,16 +13,17 @@ export function SectionHeading({
   title,
   className,
 }: {
-  kicker: string;
+  kicker?: string;
   title: string;
   className?: string;
 }) {
   return (
     <div>
-      <Kicker>{kicker}</Kicker>
+      {kicker && <Kicker>{kicker}</Kicker>}
       <h2
         className={cn(
-          "mt-[18px] font-heading text-[clamp(34px,3.8vw,52px)] leading-[1.08] font-normal tracking-[-0.01em]",
+          "font-heading text-[clamp(34px,3.8vw,52px)] leading-[1.08] font-normal tracking-[-0.01em]",
+          kicker && "mt-[18px]",
           className,
         )}
       >
@@ -30,4 +31,10 @@ export function SectionHeading({
       </h2>
     </div>
   );
+}
+
+// Scroll a horizontally-scrolling rail so `el` is centred, without moving the page.
+export function centerInRail(rail: HTMLElement | null, el: HTMLElement | null | undefined) {
+  if (!rail || !el) return;
+  rail.scrollTo({ left: el.offsetLeft - (rail.clientWidth - el.offsetWidth) / 2 });
 }

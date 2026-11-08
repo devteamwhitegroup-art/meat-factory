@@ -1,14 +1,14 @@
 # white-group-landing — CLAUDE.md
 
-Public **marketing site** for "Вайт грүпп" ХХК (White Group LLC). Completely
-separate from the ERP (`../meat-factory-front-end`) and the API
-(`../meat-factory-back-end`) — **no backend, no auth, no GraphQL**. Just a static,
-prerendered page. Copy is in Mongolian.
+Public **marketing site** for "Вайт грүпп" ХХК (White Group LLC). A static,
+prerendered page; copy is in Mongolian. The one exception is the **order
+section** (`landing-order.tsx`), which calls the API's public GraphQL ops
+client-side (see Contract).
 
 ## Stack
 Next.js 16 (App Router) · Tailwind v4 · **Base UI (`@base-ui/react`) — NOT Radix**
 · shadcn-style `ui/` (only `sheet` + `button` left) · lucide.
-Design = client's "Classical" system: Cormorant Garamond / Lora, tokens +
+Design = client's "Classical" system: Source Serif 4 (headings + body), tokens +
 `.btn/.card/.tag/.input/.plate` classes in `globals.css` (`text-ink`, `bg-paper`,
 `text-gold-700`, `border-line`, `bg-night-deep`…).
 
@@ -35,5 +35,8 @@ Design = client's "Classical" system: Cormorant Garamond / Lora, tokens +
 - **Base UI ≠ Radix**: no `asChild`; style triggers via `className`/`render`.
 
 ## Contract
-None — this app is self-contained. It does NOT talk to the backend or share code
-with the other two apps. No cross-session coordination needed.
+Only `landing-order.tsx` talks to the backend: plain `fetch` to
+`NEXT_PUBLIC_API_URL` (the API's `/graphql`, set at **build** time) for
+`publicOrderPackages`, `createOrder`, `checkOrderPayment` (QPay). Packages and
+prices are managed in the ERP (Онлайн захиалга › Багц), never in `data.ts`.
+No shared code with the other two apps.

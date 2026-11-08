@@ -24,6 +24,7 @@ export enum PERMISSION {
   SHIPMENT_VIEW = "SHIPMENT_VIEW",
   SHIPMENT_MANAGE = "SHIPMENT_MANAGE",
   SHIPMENT_SALES = "SHIPMENT_SALES",
+  ORDER_MANAGE = "ORDER_MANAGE",
   // Нөөц, дайвар
   INVENTORY_VIEW = "INVENTORY_VIEW",
   INVENTORY_ADJUST = "INVENTORY_ADJUST",
@@ -81,6 +82,7 @@ export const PERMISSION_GROUPS: TPermissionGroup[] = [
       { key: PERMISSION.SHIPMENT_VIEW, label: "Ачилт харах" },
       { key: PERMISSION.SHIPMENT_MANAGE, label: "Ачилт үүсгэх, ачих, зураг" },
       { key: PERMISSION.SHIPMENT_SALES, label: "Ачилтын борлуулалт, тайлан" },
+      { key: PERMISSION.ORDER_MANAGE, label: "Онлайн захиалга, багц удирдах" },
     ],
   },
   {

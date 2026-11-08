@@ -44,6 +44,9 @@ import settingsType from "./settings/settings.type";
 //Print
 import printType from "./print/print.type";
 
+//Order
+import orderType from "./order/order.type";
+
 export const mergedGQLSchema = mergeTypeDefs([
   globalType,
   fileType,
@@ -87,4 +90,7 @@ export const mergedGQLSchema = mergeTypeDefs([
 
   //Print
   printType,
+
+  //Order
+  orderType,
 ]);

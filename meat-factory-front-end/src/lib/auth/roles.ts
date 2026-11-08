@@ -89,6 +89,12 @@ const NAV: NavEntry[] = [
     perms: ["HERDER_MANAGE"],
   },
   {
+    href: "/orders",
+    label: "Онлайн захиалга",
+    group: G.sales,
+    perms: ["ORDER_MANAGE"],
+  },
+  {
     href: "/customers",
     label: "Харилцагч",
     group: G.sales,

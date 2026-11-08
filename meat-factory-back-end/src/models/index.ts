@@ -156,6 +156,13 @@ import {
 //Print
 import { createPrintJobModel, PrintJobModel } from "./print/print-job.model";
 
+//Order (landing-page shop)
+import {
+  createOrderPackageModel,
+  OrderPackageModel,
+} from "./order/order-package.model";
+import { createOrderModel, OrderModel } from "./order/order.model";
+
 export const setupModel = (sequelize: Sequelize) => {
   // ── Phase 1: init() every model. Call order is NOT significant here — FK
   // columns and associations are wired in Phase 2 (associate). The load-bearing
@@ -222,6 +229,10 @@ export const setupModel = (sequelize: Sequelize) => {
   //Print
   createPrintJobModel(sequelize);
 
+  //Order
+  createOrderPackageModel(sequelize);
+  createOrderModel(sequelize);
+
   // ── Phase 2: associate() — AFTER all init() (circular-import safety) ──
   //User
   RoleModel.associate();
@@ -284,4 +295,8 @@ export const setupModel = (sequelize: Sequelize) => {
 
   //Print
   PrintJobModel.associate();
+
+  //Order
+  OrderPackageModel.associate();
+  OrderModel.associate();
 };

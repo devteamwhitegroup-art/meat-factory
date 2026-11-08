@@ -1,19 +1,16 @@
-import type { Metadata } from "next";
-import { Cormorant_Garamond, Lora } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { CONTACT } from "@/components/landing/data";
 
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  weight: ["400", "600"],
-  subsets: ["latin", "cyrillic"],
+// One variable family for headings + body; the opsz axis gives display cuts at large sizes.
+const serif = Source_Serif_4({
+  variable: "--font-serif",
+  subsets: ["latin", "latin-ext", "cyrillic", "cyrillic-ext"],
+  axes: ["opsz"],
 });
 
-const lora = Lora({
-  variable: "--font-lora",
-  weight: ["400", "600"],
-  subsets: ["latin", "cyrillic"],
-});
+export const viewport: Viewport = { themeColor: "#e6e0d4" };
 
 const SITE_URL = "https://whitegroup.mn";
 
@@ -81,10 +78,12 @@ export default function RootLayout({
   return (
     <html
       lang="mn"
-      className={`${cormorant.variable} ${lora.variable} antialiased`}
+      className={`${serif.variable} antialiased`}
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
+        {/* motion gate: hidden initial states in globals.css only apply once this runs */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('mo')" }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

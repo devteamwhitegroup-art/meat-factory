@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
-/* "Classical" design system (client redesign): Cormorant Garamond over Lora,
+/* "Classical" design system (client redesign): Source Serif 4 (headings + body),
    hairline rules, gold as stroke not fill, photos matted as .plate.
    Fixed light design (no dark mode). */
 :root {
-  --paper: #f3f2f2;
-  --surface: #eae9e9;
+  color-scheme: light;
+  --paper: #e6e0d4; /* warm, dimmed: pure light grey was glaring */
+  --surface: #dcd5c7;
   --ink: #201f1d;
   --line: color-mix(in srgb, #201f1d 16%, transparent);
   --gold: #b68235;
@@ -38,7 +39,7 @@
   --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
-  --ring: var(--gold);
+  --ring: var(--gold-600);
 }
 
 @theme inline {
@@ -76,8 +77,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-heading: var(--font-cormorant), Georgia, serif;
-  --font-sans: var(--font-lora), Georgia, serif;
+  --font-heading: var(--font-serif), Georgia, serif;
+  --font-sans: var(--font-serif), Georgia, serif;
   --radius-sm: 2px;
   --radius-md: 4px;
   --radius-lg: 7px;
@@ -99,7 +100,7 @@
     text-wrap: pretty;
   }
   :focus-visible {
-    outline: 2px solid var(--gold);
+    outline: 2px solid var(--gold-600); /* gold is <3:1 on the warmer paper */
     outline-offset: 2px;
   }
   ::selection {
@@ -110,7 +111,6 @@
 /* Ported from the design system's styles.css. Utilities still override these. */
 @layer components {
   .plate {
-    filter: sepia(0.22) saturate(0.82) contrast(1.05);
     border: 6px solid var(--surface);
     outline: 1px solid var(--line);
   }
@@ -133,7 +133,7 @@
     border-radius: 4px;
   }
   .btn-primary {
-    color: var(--gold);
+    color: var(--gold-700);
     border-color: var(--gold);
   }
   .btn-primary:hover {
@@ -152,15 +152,15 @@
     background: color-mix(in srgb, var(--ink) 14%, transparent);
   }
   .btn-ghost {
-    color: var(--gold);
+    color: var(--gold-700);
     padding-inline: 4.6px;
   }
   .btn-ghost:hover {
     background: color-mix(in srgb, var(--gold) 10%, transparent);
   }
   .btn-icon {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     padding: 0;
   }
 
@@ -185,7 +185,7 @@
   }
   .tag-outline {
     border: 1px solid var(--gold);
-    color: var(--gold);
+    color: var(--gold-700);
   }
 
   .field > label {
@@ -206,6 +206,15 @@
     border: 1px solid var(--line);
     border-radius: 4px;
   }
+  .input:-webkit-autofill,
+  .input:autofill {
+    -webkit-text-fill-color: var(--ink);
+    box-shadow: inset 0 0 0 100px var(--paper);
+  }
+  .input option {
+    background: var(--paper);
+    color: var(--ink);
+  }
   .input:hover {
     border-color: color-mix(in srgb, var(--ink) 45%, transparent);
   }
@@ -213,4 +222,49 @@
     border-color: var(--gold);
     outline-offset: 0;
   }
+}
+
+/* ---- Motion (step 3). Hidden initial states exist only under html.mo (set by an
+   inline script), so no-JS users see everything. Animates transform/opacity only. ---- */
+@keyframes mo-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes mo-up { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@keyframes mo-in-next { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes mo-in-prev { from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none } }
+@keyframes mo-zoom { from { transform: scale(1.06) } to { transform: none } }
+@keyframes mo-pulse { 50% { transform: scale(1.6) } }
+@keyframes mo-flash { from { opacity: 0.9 } to { opacity: 0 } }
+
+@media (prefers-reduced-motion: no-preference) {
+  html.mo [data-motion=hero-photo] { animation: mo-zoom 1.2s ease-out both; }
+  html.mo [data-motion=hero-sequence] > [data-step] { animation: mo-up 0.5s ease-out both; }
+  html.mo [data-step=kicker] { animation-delay: 0.1s !important; }
+  html.mo [data-step=headline] { animation-delay: 0.25s !important; }
+  html.mo [data-step=sub] { animation-delay: 0.4s !important; }
+  html.mo [data-step=ctas] { animation-delay: 0.55s !important; }
+  html.mo [data-step=certs] { animation-delay: 0.7s !important; }
+
+  [data-motion=model-panel] { animation: mo-fade 0.35s ease-out; }
+  [data-motion=model-panel][data-dir=next] { animation-name: mo-in-next; }
+  [data-motion=model-panel][data-dir=prev] { animation-name: mo-in-prev; }
+  [data-motion=model-route] { transition: transform 0.4s ease-in-out; }
+  [data-motion=model-stock] { animation: mo-fade 0.3s ease-out; }
+  [data-motion=model-map-pulse] > span:first-child { animation: mo-pulse 0.7s ease-in-out 1; }
+  [data-motion=roadmap-panel] { animation: mo-fade 0.3s ease-out; }
+  [data-motion=form-error] { animation: mo-fade 0.15s ease-out; }
+  [data-motion=form-state] { animation: mo-fade 0.2s ease-out; }
+  [data-motion=order-bar] { animation: mo-up 0.2s ease-out; }
+
+  [data-motion=partner-chip-confirm] { position: relative; }
+  [data-motion=partner-chip-confirm][data-selected]::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: var(--gold); animation: mo-flash 0.7s ease-out both;
+  }
+
+  /* FAQ height reveal: progressive enhancement (Chromium); elsewhere it opens instantly. */
+  [data-motion=faq-item] { interpolate-size: allow-keywords; }
+  [data-motion=faq-item]::details-content {
+    height: 0; overflow: clip;
+    transition: height 0.2s ease-in-out, content-visibility 0.2s allow-discrete;
+  }
+  [data-motion=faq-item][open]::details-content { height: auto; }
 }

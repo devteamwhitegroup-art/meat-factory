@@ -53,4 +53,16 @@ export default {
   EBARIMT_DISTRICT_CODE: process.env.EBARIMT_DISTRICT_CODE || "",
   // VAT_FREE taxProductCode for meat bought from herders.
   EBARIMT_TAX_PRODUCT_CODE: process.env.EBARIMT_TAX_PRODUCT_CODE || "487",
+
+  // QPay v2 merchant API (src/controller/order/qpay.ts) — landing-page orders.
+  // Sandbox: https://merchant-sandbox.qpay.mn/v2 with TEST_MERCHANT / 123456 /
+  // TEST_INVOICE. Empty URL = online payment disabled (createOrder errors).
+  QPAY_URL: process.env.QPAY_URL || "",
+  QPAY_USERNAME: process.env.QPAY_USERNAME || "",
+  QPAY_PASSWORD: process.env.QPAY_PASSWORD || "",
+  QPAY_INVOICE_CODE: process.env.QPAY_INVOICE_CODE || "",
+  // Public base URL of THIS server as QPay sees it, e.g. https://api.whitegroup.mn.
+  // QPay calls <base>/qpay/callback/<orderId> on payment. Unreachable (local
+  // dev) is fine: the landing page's poll also asks QPay directly.
+  QPAY_CALLBACK_BASE: process.env.QPAY_CALLBACK_BASE || "",
 };
