@@ -69,10 +69,11 @@ const schema = z.object({
   photoFileId: z.string().nullable().optional(),
   factory: z.string().optional(),
   counts: z.record(z.string(), z.number()),
-  // Хойд үйлдвэр: meat weighed on this form (type, kg, ₮/kg).
+  // Хойд үйлдвэр: meat weighed on this form (type, pieces, kg, ₮/kg).
   weighings: z.array(
     z.object({
       animalType: z.string(),
+      count: z.string().optional(),
       weightKg: z.string(),
       pricePerKg: z.string(),
     }),
@@ -220,10 +221,12 @@ export function IntakeForm({
       toast.error("Үйлдвэр сонгоно уу");
       return;
     }
-    // Хойд үйлдвэр: the weighed rows decide the meat types (no head count).
+    // Хойд үйлдвэр: the weighed rows decide the meat types; their pieces sum
+    // into each type's count.
     const weighRows = pre
       ? values.weighings.filter(
-          (w: IntakeWeighRow) => w.animalType || w.weightKg || w.pricePerKg,
+          (w: IntakeWeighRow) =>
+            w.animalType || w.count || w.weightKg || w.pricePerKg,
         )
       : [];
     if (pre) {
@@ -233,6 +236,8 @@ export function IntakeForm({
       }
       for (const w of weighRows) {
         if (!w.animalType) return void toast.error("Мах сонгоно уу");
+        if (!(Number(w.count) > 0))
+          return void toast.error(`${w.animalType}: тоо оруулна уу`);
         if (!(Number(w.weightKg) > 0))
           return void toast.error(`${w.animalType}: жин оруулна уу`);
         if (!(Number(w.pricePerKg) > 0))
@@ -240,10 +245,12 @@ export function IntakeForm({
       }
     }
     const animalLines = pre
-      ? [...new Set(weighRows.map((w) => w.animalType))].map((animalType) => ({
-          animalType,
-          count: 0,
-        }))
+      ? Object.entries(
+          weighRows.reduce<Record<string, number>>((acc, w) => {
+            acc[w.animalType] = (acc[w.animalType] ?? 0) + Number(w.count);
+            return acc;
+          }, {}),
+        ).map(([animalType, count]) => ({ animalType, count }))
       : Object.entries(values.counts)
           .filter(([, c]) => Number(c) > 0)
           .map(([animalType, count]) => ({

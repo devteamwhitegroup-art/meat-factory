@@ -259,8 +259,8 @@ export class RegistrationController {
     return `${plate[1]} ${plate[2]}`;
   }
 
-  // Live intake counts heads; pre-butchered lists only which meats arrived
-  // (head count stored 0; weight + price come at weighing).
+  // Live intake counts heads (≥ 1); pre-butchered counts carcasses / pieces
+  // (0 allowed: older intakes and types added later carry none).
   static assertAnimalLines(
     lines: TRegistrationAnimalLineInput[],
     liveAnimals: boolean,
@@ -272,6 +272,8 @@ export class RegistrationController {
       if (!line.animalType?.trim()) throw new Error("Animal type is required");
       if (liveAnimals && (!line.count || line.count <= 0))
         throw new Error("Animal count must be a positive number");
+      if (!liveAnimals && !(line.count >= 0))
+        throw new Error("Тоо сөрөг байж болохгүй");
       if (seen.has(line.animalType))
         throw new Error(`Duplicate animal line: ${line.animalType}`);
       seen.add(line.animalType);
@@ -357,7 +359,7 @@ export class RegistrationController {
     if (liveAnimals) this.assertStamp(doc.animalLines, animals, stamp, stampFileId);
     const lineRows = doc.animalLines.map((l) => {
       const animal = animals.get(l.animalType.trim())!;
-      const count = liveAnimals ? l.count : 0;
+      const count = l.count;
       return {
         animalId: animal.id,
         count,

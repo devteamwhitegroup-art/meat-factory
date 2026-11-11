@@ -101,9 +101,11 @@ export class ByproductBundleController {
           name,
           animalId: wrapper.animalId,
           animalType: wrapper.animal?.name ?? "",
-          count:
-            (heads.get(wrapper.animalId) ?? 0) *
-            (p.constant?.quantityPerAnimal ?? 1),
+          // Pre-butchered heads are carcasses, not гэдэс: nothing assumed.
+          count: liveAnimals
+            ? (heads.get(wrapper.animalId) ?? 0) *
+              (p.constant?.quantityPerAnimal ?? 1)
+            : 0,
           herderCount: 0,
           unitPrice: Number(p.price),
         },

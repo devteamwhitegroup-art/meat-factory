@@ -13,18 +13,22 @@ import {
 
 export type IntakeWeighRow = {
   animalType: string;
+  // Carcasses / pieces in this weighing (summed per type into the head count).
+  // Optional: drafts saved before it existed lack it.
+  count?: string;
   weightKg: string;
   pricePerKg: string;
 };
 
 export const EMPTY_WEIGH_ROW: IntakeWeighRow = {
   animalType: "",
+  count: "",
   weightKg: "",
   pricePerKg: "",
 };
 
 // Хойд үйлдвэр intake: pre-butchered meat is weighed on the spot — one row per
-// weighing (meat type, kg, ₮/kg). Several rows per type are fine.
+// weighing (meat type, pieces, kg, ₮/kg). Several rows per type are fine.
 export function IntakeWeighRows({
   value,
   onChange,
@@ -37,6 +41,7 @@ export function IntakeWeighRows({
   const set = (i: number, patch: Partial<IntakeWeighRow>) =>
     onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const totalKg = rows.reduce((s, r) => s + (Number(r.weightKg) || 0), 0);
+  const totalCount = rows.reduce((s, r) => s + (Number(r.count) || 0), 0);
   const totalAmount = rows.reduce(
     (s, r) => s + (Number(r.weightKg) || 0) * (Number(r.pricePerKg) || 0),
     0,
@@ -44,8 +49,9 @@ export function IntakeWeighRows({
 
   return (
     <div className="space-y-3">
-      <div className="hidden grid-cols-[1fr_8rem_8rem_7rem_2rem] gap-2 px-1 text-xs text-muted-foreground sm:grid">
+      <div className="hidden grid-cols-[1fr_6rem_8rem_8rem_7rem_2rem] gap-2 px-1 text-xs text-muted-foreground sm:grid">
         <span>Мах</span>
+        <span>Тоо (ш)</span>
         <span>Жин (кг)</span>
         <span>Үнэ (₮/кг)</span>
         <span className="text-right">Дүн</span>
@@ -54,7 +60,7 @@ export function IntakeWeighRows({
       {rows.map((r, i) => (
         <div
           key={i}
-          className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1fr_8rem_8rem_7rem_2rem]"
+          className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1fr_6rem_8rem_8rem_7rem_2rem]"
         >
           <select
             value={r.animalType}
@@ -69,6 +75,16 @@ export function IntakeWeighRows({
               </option>
             ))}
           </select>
+          <Input
+            inputMode="numeric"
+            value={r.count ?? ""}
+            onChange={(e) =>
+              set(i, { count: e.target.value.replace(/\D/g, "") })
+            }
+            placeholder="ш"
+            aria-label="Тоо (ш)"
+            className="h-12 text-base tabular-nums"
+          />
           <Input
             type="number"
             inputMode="decimal"
@@ -115,7 +131,7 @@ export function IntakeWeighRows({
           Мөр нэмэх
         </Button>
         <div className="text-sm tabular-nums">
-          Нийт {formatNumber(totalKg)} кг ·{" "}
+          Нийт {formatNumber(totalCount)} ш · {formatNumber(totalKg)} кг ·{" "}
           <span className="font-semibold">{formatMNT(totalAmount)}</span>
         </div>
       </div>

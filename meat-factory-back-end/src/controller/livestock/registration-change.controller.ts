@@ -82,6 +82,18 @@ export class RegistrationChangeController {
     let intake: TIntakeChanges | null = null;
     const { liveAnimals } = FactoryController.rules(reg.factory);
     if (doc.intake) {
+      // Хойд: the edit form only picks meat types — each type keeps the
+      // quantity counted at intake (a newly added type: 0).
+      const kept = liveAnimals
+        ? null
+        : new Map(
+            (
+              await RegistrationAnimalLineModel.findAll({
+                where: { registrationId: reg.id },
+                include: [{ model: AnimalModel, as: "animal" }],
+              })
+            ).map((l) => [l.animal?.name, l.count]),
+          );
       RegistrationController.assertAnimalLines(
         doc.intake.animalLines,
         liveAnimals,
@@ -105,7 +117,7 @@ export class RegistrationChangeController {
         stamp: liveAnimals ? doc.intake.stamp?.trim() || null : null,
         animalLines: doc.intake.animalLines.map((l) => ({
           animalType: l.animalType,
-          count: liveAnimals ? l.count : 0,
+          count: kept ? (kept.get(l.animalType) ?? 0) : l.count,
         })),
       };
     }
