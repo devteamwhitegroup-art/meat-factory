@@ -1,5 +1,6 @@
 "use client";
 
+import { PlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,31 +19,56 @@ type Bundle = {
   unitPrice?: number | null;
 };
 
-// Unsaved edits per row (item or whole wrapper id); untouched fields keep
-// the BE value.
-export type IntakeEdits = Record<string, { count?: string; price?: string }>;
+// One count × price line. An item may have several (2 Арьс × 35,000 +
+// 1 × 25,000); a line is a single item (constantId) or a whole гэдэс
+// (wrapperId).
+export type IntakeLine = Omit<Bundle, "count" | "unitPrice"> & {
+  count: string;
+  price: string;
+};
 
-// A row is a single item (constantId) or a whole гэдэс (wrapperId).
-const rowKey = (b: Bundle) => (b.constantId ?? b.wrapperId)!;
+// Unsaved edits: the whole line list once anything changed; null = the BE
+// rows as they are. (Anything else — e.g. an old per-item draft — counts as
+// untouched.)
+export type IntakeEdits = IntakeLine[] | null;
 
-// setRegistrationByproducts input: every row, edits over the saved/default
-// values.
+export const intakeDirty = (edits: IntakeEdits) => Array.isArray(edits);
+
+const itemKey = (l: Omit<Bundle, "count" | "unitPrice">) =>
+  (l.constantId ?? l.wrapperId)!;
+
+function linesOf(bundles: Bundle[], edits: IntakeEdits): IntakeLine[] {
+  if (Array.isArray(edits)) return edits;
+  return bundles.map(({ count, unitPrice, ...b }) => ({
+    ...b,
+    count: String(count ?? 0),
+    price: String(unitPrice ?? 0),
+  }));
+}
+
+// setRegistrationByproducts input: every item's first line (so the full list
+// survives a save) plus any extra price line with a count.
 export function intakeInputs(bundles: Bundle[], edits: IntakeEdits) {
-  return bundles.map((b) => {
-    const e = edits[rowKey(b)] ?? {};
-    return {
-      wrapperId: b.constantId ? null : b.wrapperId,
-      constantId: b.constantId ?? null,
-      count: Number(e.count ?? b.count ?? 0) || 0,
-      unitPrice: Number(e.price ?? b.unitPrice ?? 0) || 0,
-    };
-  });
+  const seen = new Set<string>();
+  return linesOf(bundles, edits)
+    .filter((l) => {
+      const first = !seen.has(itemKey(l));
+      seen.add(itemKey(l));
+      return first || Number(l.count) > 0;
+    })
+    .map((l) => ({
+      wrapperId: l.constantId ? null : l.wrapperId,
+      constantId: l.constantId ?? null,
+      count: Number(l.count) || 0,
+      unitPrice: Number(l.price) || 0,
+    }));
 }
 
 // Хойд үйлдвэр receiving: count the byproducts (whole гэдэс or single
-// items) delivered with the pre-butchered meat. Items + default prices come from the site's price list
-// (Систем тохиргоо › Үйлдвэр); the receiver may change a price to today's
-// market. "Finish weighing" saves pending edits first.
+// items) delivered with the pre-butchered meat. Items + default prices come
+// from the site's price list (Систем тохиргоо › Үйлдвэр); the receiver may
+// change a price to today's market, and «Өөр үнэ» splits an item whose pieces
+// were priced differently. "Finish weighing" saves pending edits first.
 export function ByproductIntakeEditor({
   bundles,
   edits,
@@ -60,11 +86,24 @@ export function ByproductIntakeEditor({
   onSave?: () => void;
 }) {
   if (bundles.length === 0) return null;
-  const dirty = Object.keys(edits).length > 0;
-  const set = (id: string, patch: { count?: string; price?: string }) =>
-    onChange({ ...edits, [id]: { ...edits[id], ...patch } });
-  const total = intakeInputs(bundles, edits).reduce(
-    (s, b) => s + b.count * b.unitPrice,
+  const lines = linesOf(bundles, edits);
+  const set = (i: number, patch: Partial<IntakeLine>) =>
+    onChange(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  // New line right after the item's last one, at the list price.
+  const split = (i: number) => {
+    const key = itemKey(lines[i]);
+    let at = i;
+    while (at + 1 < lines.length && itemKey(lines[at + 1]) === key) at++;
+    const listPrice = bundles.find((b) => itemKey(b) === key)?.unitPrice ?? 0;
+    onChange([
+      ...lines.slice(0, at + 1),
+      { ...lines[i], count: "", price: String(listPrice) },
+      ...lines.slice(at + 1),
+    ]);
+  };
+  const disabled = !editable || busy;
+  const total = lines.reduce(
+    (s, l) => s + (Number(l.count) || 0) * (Number(l.price) || 0),
     0,
   );
 
@@ -74,45 +113,78 @@ export function ByproductIntakeEditor({
         <CardTitle>Дайвар</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="hidden grid-cols-[1fr_6rem_8rem] gap-3 px-1 text-xs text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[1fr_6rem_8rem_7rem] gap-3 px-1 text-xs text-muted-foreground sm:grid">
           <span>Нэр</span>
           <span className="text-right">Тоо</span>
           <span className="text-right">Нэгж үнэ (₮)</span>
+          <span />
         </div>
-        {bundles.map((b) => {
-          const id = rowKey(b);
-          const e = edits[id] ?? {};
+        {lines.map((l, i) => {
+          // Extra price lines of the same item sit under it, without a name.
+          const extra = i > 0 && itemKey(lines[i - 1]) === itemKey(l);
           return (
             <div
-              key={id}
-              className="grid grid-cols-2 items-center gap-3 sm:grid-cols-[1fr_6rem_8rem]"
+              key={i}
+              className="grid grid-cols-[1fr_1fr_7rem] items-center gap-3 sm:grid-cols-[1fr_6rem_8rem_7rem]"
             >
-              <div className="col-span-2 sm:col-span-1">
-                <div className="font-medium">{b.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {b.animalType}
-                </div>
+              <div className="col-span-3 sm:col-span-1">
+                {extra ? (
+                  <div className="pl-4 text-sm text-muted-foreground">
+                    ↳ {l.name} — өөр үнээр
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-medium">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {l.animalType}
+                    </div>
+                  </>
+                )}
               </div>
               <Input
-                aria-label={`${b.name} тоо`}
+                aria-label={`${l.name} тоо`}
                 inputMode="numeric"
-                value={e.count ?? String(b.count ?? 0)}
+                value={l.count}
                 onChange={(ev) =>
-                  set(id, { count: ev.target.value.replace(/\D/g, "") })
+                  set(i, { count: ev.target.value.replace(/\D/g, "") })
                 }
+                placeholder="0"
                 className="h-11 text-right tabular-nums"
-                disabled={!editable || busy}
+                disabled={disabled}
               />
               <Input
-                aria-label={`${b.name} үнэ`}
+                aria-label={`${l.name} үнэ`}
                 inputMode="decimal"
-                value={formatDecimalInput(e.price ?? String(b.unitPrice ?? 0))}
+                value={formatDecimalInput(l.price)}
                 onChange={(ev) =>
-                  set(id, { price: sanitizeDecimalInput(ev.target.value) })
+                  set(i, { price: sanitizeDecimalInput(ev.target.value) })
                 }
                 className="h-11 text-right tabular-nums"
-                disabled={!editable || busy}
+                disabled={disabled}
               />
+              {disabled ? (
+                <span />
+              ) : extra ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 gap-1 text-muted-foreground"
+                  onClick={() => onChange(lines.filter((_, j) => j !== i))}
+                >
+                  <XIcon className="size-4" />
+                  Хасах
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 gap-1"
+                  onClick={() => split(i)}
+                >
+                  <PlusIcon className="size-4" />
+                  Өөр үнэ
+                </Button>
+              )}
             </div>
           );
         })}
@@ -129,7 +201,7 @@ export function ByproductIntakeEditor({
             <Button
               type="button"
               onClick={onSave}
-              disabled={busy || !dirty}
+              disabled={busy || !intakeDirty(edits)}
             >
               Дайвар хадгалах
             </Button>

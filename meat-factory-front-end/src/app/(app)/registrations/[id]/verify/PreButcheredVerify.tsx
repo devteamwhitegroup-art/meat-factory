@@ -18,6 +18,7 @@ import { WeighSlip } from "../_components/WeighSlip";
 import { EbarimtCheckCard } from "../_components/EbarimtCheckCard";
 import {
   ByproductIntakeEditor,
+  intakeDirty,
   intakeInputs,
   type IntakeEdits,
 } from "../weigh/_components/ByproductIntakeEditor";
@@ -36,7 +37,7 @@ export function PreButcheredVerify({
 }) {
   const router = useRouter();
   const id = reg.id!;
-  const [intake, setIntake] = useState<IntakeEdits>({});
+  const [intake, setIntake] = useState<IntakeEdits>(null);
   const [busy, setBusy] = useState(false);
   const [saveBundles] = useMutation(SetRegistrationByproductsDoc);
   const [finish] = useMutation(FinishWeighingDoc);
@@ -64,7 +65,7 @@ export function PreButcheredVerify({
         // fall back to the stale values).
         onSuccess: async () => {
           await onDone();
-          setIntake({});
+          setIntake(null);
         },
       },
     );
@@ -72,7 +73,7 @@ export function PreButcheredVerify({
 
   async function confirm() {
     setBusy(true);
-    if (Object.keys(intake).length > 0 && !(await saveIntake())) {
+    if (intakeDirty(intake) && !(await saveIntake())) {
       setBusy(false);
       return;
     }

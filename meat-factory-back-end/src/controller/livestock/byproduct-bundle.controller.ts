@@ -247,7 +247,11 @@ export class ByproductBundleController {
         throw new Error(
           "Дайвар энэ үйлдвэрийн жагсаалт эсвэл бүртгэлийн малд хамаарахгүй байна",
         );
-      if (seen.has(key)) throw new Error(`Давхардсан дайвар: ${name}`);
+      // Live: one row per гэдэс (the herder's take is per wrapper).
+      // Pre-butchered: an item may repeat at different prices (2 Арьс ×
+      // 35,000 + 1 × 25,000).
+      if (liveAnimals && seen.has(key))
+        throw new Error(`Давхардсан дайвар: ${name}`);
       seen.add(key);
       const count = Math.floor(Number(b.count));
       // Only a live animal's гэдэс can go back to the herder.

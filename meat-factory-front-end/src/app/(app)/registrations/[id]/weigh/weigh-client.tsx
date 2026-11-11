@@ -36,6 +36,7 @@ import { SlaughterCostSummary } from "./_components/SlaughterCostSummary";
 import { WeighingAuditLog } from "./_components/WeighingAuditLog";
 import {
   ByproductIntakeEditor,
+  intakeDirty,
   intakeInputs,
   type IntakeEdits,
 } from "./_components/ByproductIntakeEditor";
@@ -57,7 +58,7 @@ export function WeighClient({ id }: { id: string }) {
   const [saveByproducts] = useMutation(SetRegistrationByproductsDoc);
   // Хойд: byproduct count/price edits, keyed by constantId (unedited rows
   // keep the BE value).
-  const [intake, setIntake] = useState<IntakeEdits>({});
+  const [intake, setIntake] = useState<IntakeEdits>(null);
 
   const { isPreButchered } = useFactories();
 
@@ -87,7 +88,7 @@ export function WeighClient({ id }: { id: string }) {
     `weigh:${id}`,
     { intake, tab, keypad, price, photoFileId },
     (d) => {
-      setIntake(d.intake ?? {});
+      setIntake(d.intake ?? null);
       setTab(d.tab);
       setKeypad(d.keypad);
       setPrice(d.price);
@@ -156,7 +157,7 @@ export function WeighClient({ id }: { id: string }) {
       {
         success: "Дайвар хадгалагдлаа",
         onSuccess: async () => {
-          setIntake({});
+          setIntake(null);
           await refetch();
         },
       },
@@ -167,7 +168,7 @@ export function WeighClient({ id }: { id: string }) {
     setBusy(true);
     // Хойд stocks meat + byproducts at finish — save pending edits first
     // (untouched rows fall back to the BE defaults).
-    if (pre && Object.keys(intake).length > 0 && !(await saveIntake())) {
+    if (pre && intakeDirty(intake) && !(await saveIntake())) {
       setBusy(false);
       return;
     }

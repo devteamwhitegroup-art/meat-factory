@@ -48,6 +48,7 @@ import { FACTORY_KIND_HINT } from "@/lib/factory/factories";
 import {
   ByproductIntakeEditor,
   intakeInputs,
+  type IntakeEdits,
 } from "../[id]/weigh/_components/ByproductIntakeEditor";
 
 // 4 digits + 2–3 Cyrillic letters ("8901 ДОУ"); BE normalises the spacing.
@@ -78,12 +79,9 @@ const schema = z.object({
       pricePerKg: z.string(),
     }),
   ),
-  // Хойд үйлдвэр: byproduct count / price edits keyed by price-list item
-  // (IntakeEdits).
-  byproducts: z.record(
-    z.string(),
-    z.object({ count: z.string().optional(), price: z.string().optional() }),
-  ),
+  // Хойд үйлдвэр: byproduct count × price lines (IntakeEdits; null =
+  // untouched). Unvalidated: an older draft's shape just reads as untouched.
+  byproducts: z.custom<IntakeEdits>(),
   // Хойд үйлдвэр: manual eBarimt check (live sites record it at verify).
   // Optional: drafts saved before these fields existed restore without them.
   ebarimtTaken: z.boolean().optional(),
@@ -174,7 +172,7 @@ export function IntakeForm({
       factory: factory ?? "",
       counts: {},
       weighings: [EMPTY_WEIGH_ROW],
-      byproducts: {},
+      byproducts: null,
       ebarimtTaken: false,
       ebarimtImageFileId: null,
       ebarimtNote: "",
@@ -275,7 +273,7 @@ export function IntakeForm({
       return;
     }
     // Every row is sent so the record keeps the full list; all-zero = none.
-    const bundles = intakeInputs(byproductRows, values.byproducts ?? {});
+    const bundles = intakeInputs(byproductRows, values.byproducts ?? null);
     setSubmitting(true);
     try {
       const r = await createRegistration({
@@ -463,7 +461,7 @@ export function IntakeForm({
             render={({ field }) => (
               <ByproductIntakeEditor
                 bundles={byproductRows}
-                edits={field.value ?? {}}
+                edits={field.value ?? null}
                 editable
                 busy={submitting}
                 onChange={(v) => field.onChange(v)}

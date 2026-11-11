@@ -73,10 +73,9 @@ export const createByproductBundleModel = (sequelize: Sequelize) => {
       timestamps: true,
       underscored: true,
       sequelize,
-      indexes: [
-        { fields: ["registration_id", "wrapper_id"], unique: true },
-        { fields: ["registration_id", "constant_id"], unique: true },
-      ],
+      // Not unique: a pre-butchered item may repeat at different prices
+      // (one-per-wrapper for live intake is enforced in _validateBundles).
+      indexes: [{ fields: ["registration_id"] }],
     },
   );
 };
