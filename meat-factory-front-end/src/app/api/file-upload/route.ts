@@ -7,17 +7,7 @@ const ALLOWED_MIME = new Set([
   "image/gif",
   "video/mp4",
 ]);
-const ALLOWED_TYPE = new Set([
-  "register",
-  "herd",
-  "scale",
-  "byproduct",
-  "verify",
-  "settlement",
-  "shipment",
-  "staff",
-  "other",
-]);
+// Folder (`type`) is validated by the back-end against FILE_FOLDER — single source.
 
 // Multipart proxy to the back-end POST /file/upload. The back-end returns
 // { success, message, id } — we forward that verbatim. The browser caller
@@ -47,12 +37,6 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return Response.json(
       { success: false, message: "Файл оруулаагүй байна" },
-      { status: 400 },
-    );
-  }
-  if (!ALLOWED_TYPE.has(type)) {
-    return Response.json(
-      { success: false, message: "Файлын төрөл буруу байна" },
       { status: 400 },
     );
   }
