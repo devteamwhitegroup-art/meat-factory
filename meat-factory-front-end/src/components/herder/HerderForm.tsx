@@ -32,7 +32,14 @@ import { EBARIMT_POSAPI } from "@/lib/ebarimt";
 // override the catalogue label for an unusual herder.
 const herderFields = z.object({
   name: z.string().min(1, "Нэр шаардлагатай"),
-  registrationNo: z.string().min(1, "Регистрийн дугаар шаардлагатай"),
+  // 2 Mongolian letters + 8 digits; spaces/case ignored (BE normalizes the same).
+  registrationNo: z
+    .string()
+    .min(1, "Регистрийн дугаар шаардлагатай")
+    .refine(
+      (v) => /^[А-ЯЁӨҮ]{2}\d{8}$/.test(v.replace(/\s+/g, "").toUpperCase()),
+      "2 үсэг, 8 тоо (жишээ: УБ12345678)",
+    ),
   // ТТД — seller on the eBarimt the factory issues on the herder's behalf.
   // Empty is fine: the BE looks it up from the register number on first use.
   tin: z
@@ -132,7 +139,12 @@ export function HerderFormFields({
           <FormItem>
             <FormLabel>Регистрийн дугаар</FormLabel>
             <FormControl>
-              <Input {...field} />
+              <Input
+                {...field}
+                placeholder="УБ12345678"
+                maxLength={12}
+                onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>

@@ -33,8 +33,12 @@ export class HerderController {
 
   // Register / phone compare without spaces, register case-insensitive —
   // "уб 12345678" and "УБ12345678" are the same person.
+  // Format: 2 Mongolian Cyrillic letters + 8 digits.
   private static _normRegNo(v: string): string {
-    return v.replace(/\s+/g, "").toUpperCase();
+    const regNo = v.replace(/\s+/g, "").toUpperCase();
+    if (!/^[А-ЯЁӨҮ]{2}\d{8}$/.test(regNo))
+      throw new Error("Регистрийн дугаар 2 үсэг, 8 тоо байна (жишээ: УБ12345678)");
+    return regNo;
   }
   private static _normPhone(v: string | null | undefined): string | null {
     return v?.replace(/\s+/g, "") || null;
