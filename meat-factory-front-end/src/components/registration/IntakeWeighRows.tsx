@@ -29,6 +29,7 @@ export const EMPTY_WEIGH_ROW: IntakeWeighRow = {
 
 // Хойд үйлдвэр intake: pre-butchered meat is weighed on the spot — one row per
 // weighing (meat type, pieces, kg, ₮/kg). Several rows per type are fine.
+// Average = amount ÷ pieces (₮ per carcass/piece), "—" until pieces are entered.
 export function IntakeWeighRows({
   value,
   onChange,
@@ -38,29 +39,31 @@ export function IntakeWeighRows({
 }) {
   const { animalTypes } = useAnimalCatalog();
   const rows = value.length > 0 ? value : [EMPTY_WEIGH_ROW];
+  const amount = (r: IntakeWeighRow) =>
+    (Number(r.weightKg) || 0) * (Number(r.pricePerKg) || 0);
+  const avg = (sum: number, count: number) =>
+    count > 0 ? formatMNT(sum / count) : "—";
   const set = (i: number, patch: Partial<IntakeWeighRow>) =>
     onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const totalKg = rows.reduce((s, r) => s + (Number(r.weightKg) || 0), 0);
   const totalCount = rows.reduce((s, r) => s + (Number(r.count) || 0), 0);
-  const totalAmount = rows.reduce(
-    (s, r) => s + (Number(r.weightKg) || 0) * (Number(r.pricePerKg) || 0),
-    0,
-  );
+  const totalAmount = rows.reduce((s, r) => s + amount(r), 0);
 
   return (
     <div className="space-y-3">
-      <div className="hidden grid-cols-[1fr_6rem_8rem_8rem_7rem_2rem] gap-2 px-1 text-xs text-muted-foreground sm:grid">
+      <div className="hidden grid-cols-[1fr_6rem_8rem_8rem_7rem_7rem_2rem] gap-2 px-1 text-xs text-muted-foreground sm:grid">
         <span>Мах</span>
         <span>Тоо (ш)</span>
         <span>Жин (кг)</span>
         <span>Үнэ (₮/кг)</span>
         <span className="text-right">Дүн</span>
+        <span className="text-right">Дундаж (₮/ш)</span>
         <span />
       </div>
       {rows.map((r, i) => (
         <div
           key={i}
-          className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1fr_6rem_8rem_8rem_7rem_2rem]"
+          className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[1fr_6rem_8rem_8rem_7rem_7rem_2rem]"
         >
           <select
             value={r.animalType}
@@ -107,7 +110,12 @@ export function IntakeWeighRows({
             className="h-12 text-base tabular-nums"
           />
           <div className="text-right text-sm tabular-nums">
-            {formatMNT((Number(r.weightKg) || 0) * (Number(r.pricePerKg) || 0))}
+            {formatMNT(amount(r))}
+          </div>
+          <div className="text-right text-sm text-muted-foreground tabular-nums">
+            <span className="sm:hidden">Дундаж: </span>
+            {avg(amount(r), Number(r.count) || 0)}
+            <span className="sm:hidden"> / ш</span>
           </div>
           <button
             type="button"
