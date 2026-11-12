@@ -90,6 +90,12 @@ export default async function InventoryPage({ searchParams }: Props) {
   ]);
   // (animal, constant name) → wrapper name, for the byproduct SKU path.
   const wrapperByKey: Record<string, string> = {};
+  // (animal, wrapper name) → its active constants: the organ norms the
+  // byproduct site multiplies by when it disassembles гэдэс.
+  const normsByWrapper: Record<
+    string,
+    { name: string; perPiece: number; kgEach: number | null }[]
+  > = {};
   for (const w of compact(
     wrapResp.data?.byproductWrappers?.byproductWrappers,
   )) {
@@ -97,7 +103,27 @@ export default async function InventoryPage({ searchParams }: Props) {
       if (w.animalType && w.name && it.name)
         wrapperByKey[`${w.animalType}::${it.name}`] = w.name;
     }
+    normsByWrapper[`${w.animalType}::${w.name}`] = compact(w.items)
+      .filter((it) => it.isActive)
+      .map((it) => ({
+        name: it.name ?? "",
+        perPiece: it.quantityPerAnimal ?? 0,
+        kgEach: it.unitWeightKg ?? null,
+      }));
   }
+  // Counted гэдэс × constants = expected organs (same formula as
+  // ByproductProcessing's expectedCount / expectedKg). Not for count-only staff.
+  const expectedYield = (i: (typeof items)[number]) => {
+    const pieces = Number(i.quantityCount ?? 0);
+    if (countOnly || i.productType !== "BYPRODUCT" || pieces <= 0) return;
+    return normsByWrapper[`${i.animal?.name}::${i.byproductName}`]?.map(
+      (n) => ({
+        name: n.name,
+        count: pieces * n.perPiece,
+        kg: n.kgEach == null ? null : pieces * n.perPiece * n.kgEach,
+      }),
+    );
+  };
   const { rows: items, error: stockError } = unwrapList(
     stockResp.data?.inventoryStock,
     stockResp.data?.inventoryStock?.inventoryItems,
@@ -322,6 +348,7 @@ export default async function InventoryPage({ searchParams }: Props) {
             byproductName: i.byproductName ?? null,
             quantityKg: Number(i.quantityKg ?? 0),
             quantityCount: Number(i.quantityCount ?? 0),
+            expected: expectedYield(i),
           }))}
         />
       )}

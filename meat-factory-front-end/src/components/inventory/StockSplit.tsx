@@ -28,6 +28,8 @@ type Item = {
   quantityKg: number;
   // Pieces — counted гэдэс (kg unknown until the byproduct factory weighs it).
   quantityCount?: number;
+  // Counted гэдэс × catalogue constants: organs it should yield.
+  expected?: { name: string; count: number; kg: number | null }[];
 };
 
 const label = (i: Item) =>
@@ -234,6 +236,7 @@ function ByproductPanel({
   if (sorted.length === 0) {
     return <EmptyState>Дайвар нөөц алга</EmptyState>;
   }
+  const showExpected = sorted.some((i) => i.expected?.length);
 
   return (
     <div className="rounded-md border">
@@ -243,11 +246,15 @@ function ByproductPanel({
             <TableHead>SKU</TableHead>
             <TableHead>Дайвар</TableHead>
             <TableHead className="text-right">Үлдэгдэл</TableHead>
+            {showExpected ? <TableHead>Хүлээгдэх гарц</TableHead> : null}
             <TableHead className="w-32">Хувь</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sorted.map((i) => {
+            const expectedKg = i.expected?.some((e) => e.kg != null)
+              ? i.expected.reduce((s, e) => s + (e.kg ?? 0), 0)
+              : null;
             const amount = countOnly ? (i.quantityCount ?? 0) : i.kg;
             const pct = total > 0 ? (amount / total) * 100 : 0;
             return (
@@ -268,6 +275,33 @@ function ByproductPanel({
                         .filter(Boolean)
                         .join(" · ")}
                 </TableCell>
+                {showExpected ? (
+                  <TableCell className="text-sm">
+                    {i.expected?.length ? (
+                      <>
+                        {expectedKg != null ? (
+                          <div className="font-medium tabular-nums">
+                            ≈ {formatNumber(expectedKg)} кг
+                          </div>
+                        ) : null}
+                        <div className="text-xs whitespace-normal text-muted-foreground tabular-nums">
+                          {i.expected
+                            .map(
+                              (e) =>
+                                `${e.name} ${formatNumber(e.count)} ш${
+                                  e.kg != null
+                                    ? ` · ${formatNumber(e.kg)} кг`
+                                    : ""
+                                }`,
+                            )
+                            .join(", ")}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                ) : null}
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
