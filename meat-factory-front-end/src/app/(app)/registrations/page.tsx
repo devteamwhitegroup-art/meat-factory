@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ClipboardPlus } from "lucide-react";
+import { ClipboardPlus, LayoutGrid, List } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { chipCls } from "@/components/ui/segmented";
+import { chipCls, SEGMENTED, segmentCls } from "@/components/ui/segmented";
 import { EmptyState, ErrorNotice } from "@/components/common/ListState";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LinkPaginationFooter } from "@/components/common/PaginationFooter";
 import { RegistrationCard } from "@/components/registration/RegistrationCard";
+import { RegistrationTable } from "@/components/registration/RegistrationTable";
 import { STATUS_STYLE } from "@/components/registration/StatusBadge";
 import { getClient } from "@/lib/apollo/server";
 import { RegistrationListDoc } from "@/lib/queries/registration";
@@ -20,6 +21,7 @@ import { factoryKind, factoryName } from "@/lib/factory/factories";
 import { FactoryFilter } from "@/components/common/FactoryFilter";
 import { canCreateRegistration } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/server";
+import { cn } from "@/lib/utils";
 
 type Props = {
   searchParams: Promise<{
@@ -28,6 +30,7 @@ type Props = {
     page?: string;
     from?: string;
     to?: string;
+    view?: string;
   }>;
 };
 
@@ -88,15 +91,18 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   const stage =
     linked ?? stages.find((s) => s.value === (sp.stage ?? "")) ?? stages[0];
   const { page, dateRange } = pageAndRange(sp);
+  // ponytail: view lives in the URL only (cards by default); remember it in a cookie if staff ask.
+  const view = sp.view === "list" ? "list" : "card";
 
   // Chip / page hrefs keep the other filters.
-  const href = (over: { stage?: string; page?: number }) => {
+  const href = (over: { stage?: string; page?: number; view?: string }) => {
     const params = new URLSearchParams();
     const st = over.stage ?? stage.value;
     if (st) params.set("stage", st);
     if (factory) params.set("factory", factory);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
+    if ((over.view ?? view) === "list") params.set("view", "list");
     if (over.page && over.page > 1) params.set("page", String(over.page));
     const qs = params.toString();
     return qs ? `/registrations?${qs}` : "/registrations";
@@ -120,6 +126,19 @@ export default async function RegistrationsPage({ searchParams }: Props) {
   } = unwrapList(data?.registrations, data?.registrations?.registrations);
 
   const chips = linked ? [linked, ...stages] : stages;
+  const items = rows.map((r) => ({
+    id: r.id!,
+    registrationCode: r.registrationCode ?? null,
+    status: r.status ?? "REGISTERED",
+    herderName: r.herder?.name ?? null,
+    vehicleNumber: r.vehicleNumber,
+    intakeDate: r.intakeDate,
+    factoryLabel: crossFactory ? factoryName(factories, r.factory) : null,
+    animalLines: compact(r.animalLines).map((l) => ({
+      animalType: l.animalType ?? "",
+      count: l.count ?? 0,
+    })),
+  }));
 
   return (
     <div className="space-y-6">
@@ -144,46 +163,55 @@ export default async function RegistrationsPage({ searchParams }: Props) {
 
       {crossFactory ? <FactoryFilter /> : null}
 
-      <div className="flex flex-wrap gap-2">
-        {chips.map((s) => {
-          const Icon =
-            s.statuses.length === 1 ? STATUS_STYLE[s.statuses[0]]?.icon : null;
-          return (
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {chips.map((s) => {
+            const Icon =
+              s.statuses.length === 1
+                ? STATUS_STYLE[s.statuses[0]]?.icon
+                : null;
+            return (
+              <Link
+                key={s.value}
+                href={href({ stage: s.value })}
+                className={chipCls(stage.value === s.value)}
+              >
+                {Icon ? <Icon className="mr-1.5 size-4" /> : null}
+                {s.label}
+              </Link>
+            );
+          })}
+        </div>
+        <nav aria-label="Харагдац" className={cn(SEGMENTED, "mr-0")}>
+          {(
+            [
+              ["card", "Карт", LayoutGrid],
+              ["list", "Жагсаалт", List],
+            ] as const
+          ).map(([v, label, Icon]) => (
             <Link
-              key={s.value}
-              href={href({ stage: s.value })}
-              className={chipCls(stage.value === s.value)}
+              key={v}
+              href={href({ view: v, page: page })}
+              aria-current={view === v ? "page" : undefined}
+              className={segmentCls(view === v)}
             >
-              {Icon ? <Icon className="mr-1.5 size-4" /> : null}
-              {s.label}
+              <Icon className="mr-1.5 size-4" />
+              {label}
             </Link>
-          );
-        })}
+          ))}
+        </nav>
       </div>
 
       <ErrorNotice message={errorMsg} />
 
-      {rows.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState>Энэ шүүлтүүрт бүртгэл олдсонгүй</EmptyState>
+      ) : view === "list" ? (
+        <RegistrationTable rows={items} />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-          {rows.map((r) => (
-            <RegistrationCard
-              key={r.id}
-              id={r.id!}
-              registrationCode={r.registrationCode ?? null}
-              status={r.status ?? "REGISTERED"}
-              herderName={r.herder?.name ?? null}
-              vehicleNumber={r.vehicleNumber}
-              intakeDate={r.intakeDate}
-              factoryLabel={
-                crossFactory ? factoryName(factories, r.factory) : null
-              }
-              animalLines={compact(r.animalLines).map((l) => ({
-                animalType: l.animalType ?? "",
-                count: l.count ?? 0,
-              }))}
-            />
+          {items.map((r) => (
+            <RegistrationCard key={r.id} {...r} />
           ))}
         </div>
       )}
